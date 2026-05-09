@@ -255,6 +255,7 @@ function LoginScreen({ selecionarUsuario }) {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
+  const [autenticado, setAutenticado] = useState(false)
 
   function entrarDemo(e) {
     e.preventDefault()
@@ -264,11 +265,36 @@ function LoginScreen({ selecionarUsuario }) {
 
     if (email.trim().toLowerCase() === emailCorreto && senha === senhaCorreta) {
       setErro('')
-      selecionarUsuario({ id: 4, nome: 'Investidor Demo', tipo: 'Investidor', iniciais: 'ID', obrasPermitidas: 'todas' })
+      setAutenticado(true)
       return
     }
 
     setErro('E-mail ou senha incorretos. Confira os dados de acesso demo.')
+  }
+
+  if (autenticado) {
+    return (
+      <main className="min-h-screen bg-slate-50 p-5 text-slate-950">
+        <div className="relative mx-auto grid min-h-screen max-w-5xl place-items-center">
+          <div className="w-full rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm">
+            <LogoNeoCanteiro />
+            <p className="mt-8 text-sm font-bold uppercase tracking-wide text-blue-600">Acesso demo liberado</p>
+            <h1 className="mt-2 text-5xl font-black tracking-tight">Escolha a visão do sistema</h1>
+            <p className="mt-3 text-slate-500">O investidor pode navegar pelas permissões de Engenheiro, Estagiário e Cliente.</p>
+
+            <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+              {usuarios.map((user) => (
+                <button key={user.id} onClick={() => selecionarUsuario(user)} className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6 text-left transition hover:scale-[1.02] hover:border-blue-200 hover:bg-blue-50">
+                  <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-slate-950 text-sm font-black text-white">{user.iniciais}</div>
+                  <h2 className="text-2xl font-black">{user.nome}</h2>
+                  <p className="mt-1 text-slate-500">{user.tipo}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -278,17 +304,10 @@ function LoginScreen({ selecionarUsuario }) {
           <section className="bg-slate-950 p-8 text-white lg:p-12">
             <LogoNeoCanteiro />
             <div className="mt-16">
-              <p className="mb-3 inline-flex rounded-full bg-blue-500/15 px-4 py-2 text-sm font-bold text-blue-200 ring-1 ring-blue-400/20">
-                Acesso demo para investidores
-              </p>
-              <h1 className="text-5xl font-black tracking-tight lg:text-6xl">
-                Neo<span className="text-blue-400">Canteiro</span>
-              </h1>
-              <p className="mt-5 max-w-md text-lg leading-relaxed text-slate-300">
-                Plataforma de gestão de obras com cronograma, diário, financeiro, compras, medições e alertas inteligentes.
-              </p>
+              <p className="mb-3 inline-flex rounded-full bg-blue-500/15 px-4 py-2 text-sm font-bold text-blue-200 ring-1 ring-blue-400/20">Acesso demo para investidores</p>
+              <h1 className="text-5xl font-black tracking-tight lg:text-6xl">Neo<span className="text-blue-400">Canteiro</span></h1>
+              <p className="mt-5 max-w-md text-lg leading-relaxed text-slate-300">Plataforma de gestão de obras com cronograma, diário, financeiro, compras, medições e alertas inteligentes.</p>
             </div>
-
             <div className="mt-12 grid gap-3 text-sm text-slate-300">
               <p>✅ Planejamento de obra</p>
               <p>✅ Alertas de atraso</p>
@@ -305,42 +324,15 @@ function LoginScreen({ selecionarUsuario }) {
             <form onSubmit={entrarDemo} className="mt-8 space-y-4">
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-600">E-mail</span>
-                <input
-                  className={inputClass}
-                  type="email"
-                  placeholder="investidor@neocanteiro.com.br"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <input className={inputClass} type="email" placeholder="investidor@neocanteiro.com.br" value={email} onChange={(e) => setEmail(e.target.value)} />
               </label>
-
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-600">Senha</span>
-                <input
-                  className={inputClass}
-                  type="password"
-                  placeholder="Digite a senha"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                />
+                <input className={inputClass} type="password" placeholder="Digite a senha" value={senha} onChange={(e) => setSenha(e.target.value)} />
               </label>
-
-              {erro && (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">
-                  {erro}
-                </div>
-              )}
-
-              <button type="submit" className="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:bg-slate-800">
-                Acessar demo
-              </button>
+              {erro && <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">{erro}</div>}
+              <button type="submit" className="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:bg-slate-800">Acessar demo</button>
             </form>
-
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-              <p className="font-black text-slate-800">Credenciais demo</p>
-              <p className="mt-2">E-mail: investidor@neocanteiro.com.br</p>
-              <p>Senha: Demo@2026</p>
-            </div>
           </section>
         </div>
       </div>
@@ -399,4 +391,3 @@ function formatarData(data) { if (!data) return '--/--/----'; const [ano, mes, d
 function diferencaDias(dataInicio, dataFim) { if (!dataInicio || !dataFim) return 0; const inicio = new Date(`${dataInicio}T00:00:00`); const fim = new Date(`${dataFim}T00:00:00`); return Math.round((fim - inicio) / (1000 * 60 * 60 * 24)) }
 function estaAtrasada(tarefa) { const hoje = new Date(); const terminoPrevisto = new Date(`${tarefa.termino}T23:59:59`); return terminoPrevisto < hoje && Number(tarefa.progresso) < 100 }
 function formatarMoeda(valor) { return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
-
