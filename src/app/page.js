@@ -172,23 +172,26 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl">
-        <aside className="hidden w-28 flex-col items-center justify-between border-r border-slate-200 bg-white p-5 lg:flex">
-          <div className="flex flex-col items-center gap-8"><LogoIcon /><nav className="space-y-3">
-            <MenuItem label="📊" active={tela === 'dashboard'} onClick={() => trocarTela('dashboard')} />
-            <MenuItem label="📅" active={tela === 'cronograma'} onClick={() => trocarTela('cronograma')} />
-            <MenuItem label="📷" active={tela === 'fotos'} onClick={() => trocarTela('fotos')} />
-            {!ehCliente && <MenuItem label="👷" active={tela === 'equipe'} onClick={() => trocarTela('equipe')} />}
-            {!ehCliente && <MenuItem label="📝" active={tela === 'diario'} onClick={() => trocarTela('diario')} />}
-            {!ehCliente && <MenuItem label="📦" active={tela === 'materiais'} onClick={() => trocarTela('materiais')} />}
-            {!ehCliente && <MenuItem label="💰" active={tela === 'financeiro'} onClick={() => trocarTela('financeiro')} />}
-            {!ehCliente && <MenuItem label="🛒" active={tela === 'compras'} onClick={() => trocarTela('compras')} />}
-            {!ehCliente && <MenuItem label="📋" active={tela === 'orcamento'} onClick={() => trocarTela('orcamento')} />}
-            {!ehCliente && <MenuItem label="🧩" active={tela === 'composicoes'} onClick={() => trocarTela('composicoes')} />}
-            {!ehCliente && <MenuItem label="🔠" active={tela === 'abc'} onClick={() => trocarTela('abc')} />}
-            <MenuItem label="📏" active={tela === 'medicoes'} onClick={() => trocarTela('medicoes')} />
-            <MenuItem label="📄" active={tela === 'templates'} onClick={() => trocarTela('templates')} />
-            {!ehCliente && <MenuItem label="⚙️" active={tela === 'usuarios'} onClick={() => trocarTela('usuarios')} />}
-          </nav></div>
+        <aside className="hidden w-44 flex-col justify-between border-r border-slate-200 bg-white p-5 lg:flex">
+          <div className="flex flex-col gap-8">
+            <div className="flex justify-center"><LogoIcon /></div>
+            <nav className="space-y-2">
+              <MenuItem label="📊" text="Dashboard" active={tela === 'dashboard'} onClick={() => trocarTela('dashboard')} />
+              <MenuItem label="📅" text="Cronograma" active={tela === 'cronograma'} onClick={() => trocarTela('cronograma')} />
+              <MenuItem label="📷" text="Fotos" active={tela === 'fotos'} onClick={() => trocarTela('fotos')} />
+              {!ehCliente && <MenuItem label="👷" text="Equipe" active={tela === 'equipe'} onClick={() => trocarTela('equipe')} />}
+              {!ehCliente && <MenuItem label="📝" text="Diário" active={tela === 'diario'} onClick={() => trocarTela('diario')} />}
+              {!ehCliente && <MenuItem label="📦" text="Materiais" active={tela === 'materiais'} onClick={() => trocarTela('materiais')} />}
+              {!ehCliente && <MenuItem label="💰" text="Financeiro" active={tela === 'financeiro'} onClick={() => trocarTela('financeiro')} />}
+              {!ehCliente && <MenuItem label="🛒" text="Compras" active={tela === 'compras'} onClick={() => trocarTela('compras')} />}
+              {!ehCliente && <MenuItem label="📋" text="Orçamento" active={tela === 'orcamento'} onClick={() => trocarTela('orcamento')} />}
+              {!ehCliente && <MenuItem label="🧩" text="Composições" active={tela === 'composicoes'} onClick={() => trocarTela('composicoes')} />}
+              {!ehCliente && <MenuItem label="🔠" text="Curva ABC" active={tela === 'abc'} onClick={() => trocarTela('abc')} />}
+              <MenuItem label="📏" text="Medições" active={tela === 'medicoes'} onClick={() => trocarTela('medicoes')} />
+              <MenuItem label="📄" text="Templates" active={tela === 'templates'} onClick={() => trocarTela('templates')} />
+              {!ehCliente && <MenuItem label="⚙️" text="Usuários" active={tela === 'usuarios'} onClick={() => trocarTela('usuarios')} />}
+            </nav>
+          </div>
           <button onClick={() => setUsuario(null)} className="grid h-12 w-12 place-items-center rounded-full bg-slate-950 text-sm font-black text-white">{usuario.iniciais}</button>
         </aside>
 
@@ -220,11 +223,21 @@ function Dashboard({ ehCliente, obraAtual, usuario, resumo, alertas, atrasosReai
   const receitas = financeiro.filter((f) => f.tipo === 'Receita').reduce((a, f) => a + f.valor, 0)
   const despesas = financeiro.filter((f) => f.tipo === 'Despesa').reduce((a, f) => a + f.valor, 0)
   const aReceber = financeiro.filter((f) => f.tipo === 'Receita' && f.status === 'A receber').reduce((a, f) => a + f.valor, 0)
-  return <div className="space-y-6">{ehCliente && <ClienteBanner obraAtual={obraAtual} />}<CentralAlertas alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} setCardDetalhe={setCardDetalhe} />
+
+  return <div className="space-y-6">
+    {ehCliente && <ClienteBanner obraAtual={obraAtual} />}
+
+    <CentralAlertas alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} setCardDetalhe={setCardDetalhe} />
+
+    {!ehCliente && <PanelClean><div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between"><div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Cronograma da obra</p><h2 className="text-3xl font-black text-slate-950">Planejado x realizado</h2></div><p className="text-sm text-slate-500">Atualizado automaticamente conforme o cronograma</p></div><GraficoCronograma tarefas={tarefas} /></PanelClean>}
+
+    <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]"><PanelClean><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">{ehCliente ? 'Painel do cliente' : 'Visão geral da obra'}</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 lg:text-5xl">{obraAtual.nome}</h1><p className="mt-2 text-sm text-slate-500">{obraAtual.cliente} · {obraAtual.endereco}</p><p className="mt-2 text-xs text-slate-400">Logado como {usuario.nome} — {usuario.tipo}</p></div><StatusBadge status={obraAtual.status} /></div><div className="mt-6 grid gap-4 md:grid-cols-[auto_1fr]"><div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5"><ProgressRing value={resumo.media} /></div><div className="grid gap-3"><InfoCard titulo="Etapa atual" valor={obraAtual.etapa} detalhe={`Responsável: ${obraAtual.responsavel}`} /><InfoCard titulo="Prazo" valor={obraAtual.prazo} detalhe={`Previsão: ${formatarData(obraAtual.previsaoEntrega)}`} /><MiniTimeline tarefas={tarefas} /></div></div></PanelClean><PanelClean><div className="mb-4"><p className="text-sm text-slate-500">Quadro de obras</p><h2 className="text-xl font-black text-slate-950">Etapas, prazos e responsáveis</h2></div><div className="space-y-3">{obrasVisiveis.map((obra) => { const tarefasObra = cronogramas[obra.id] || []; const p = tarefasObra.length ? Math.round(tarefasObra.reduce((a, t) => a + Number(t.progresso), 0) / tarefasObra.length) : 0; return <button key={obra.id} onClick={() => setObraId(obra.id)} className="w-full rounded-[1.5rem] border border-slate-200 bg-white p-4 text-left transition hover:scale-[1.01] hover:bg-blue-50"><div className="flex items-center justify-between gap-3"><div><p className="font-black text-slate-950">{obra.nome}</p><p className="text-xs text-slate-500">{obra.etapa} · {obra.prazo}</p><p className="text-xs font-bold text-blue-700">Responsável: {obra.responsavel}</p></div><p className="text-sm font-black text-blue-700">{p}%</p></div></button> })}</div></PanelClean></section>
+
     <section className="grid grid-cols-1 gap-5 md:grid-cols-3"><MetricCard title="Avanço médio da obra" value={`${resumo.media}%`} detail="progresso físico geral" icon="📈" onClick={() => setCardDetalhe('avanco')} /><MetricCard title="Fotos do dia" value={fotosDaObra.length} detail="registros liberados" icon="📷" onClick={() => setCardDetalhe('fotos')} /><MetricCard title="Materiais recebidos" value={materiaisRecebidosHoje} detail="entregas lançadas hoje" icon="📦" onClick={() => setCardDetalhe('materiais')} /></section>
-    {!ehCliente && <section className="grid grid-cols-1 gap-5 md:grid-cols-4"><MetricCard title="Resultado financeiro" value={formatarMoeda(receitas - despesas)} detail="entradas - saídas" icon="💰" /><MetricCard title="A receber" value={formatarMoeda(aReceber)} detail="pagamentos futuros" icon="🧾" /><MetricCard title="Cotações abertas" value={compras.filter(c => c.status !== 'Aprovado').length} detail="aguardando decisão" icon="🛒" /><MetricCard title="Possíveis atrasos" value={possiveisAtrasos.length} detail="pontos de atenção" icon="🟡" /></section>}
-    <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]"><PanelClean><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">{ehCliente ? 'Painel do cliente' : 'Visão geral da obra'}</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 lg:text-5xl">{obraAtual.nome}</h1><p className="mt-2 text-sm text-slate-500">{obraAtual.cliente} · {obraAtual.endereco}</p><p className="mt-2 text-xs text-slate-400">Logado como {usuario.nome} — {usuario.tipo}</p></div><StatusBadge status={obraAtual.status} /></div><div className="mt-6 grid gap-4 md:grid-cols-[auto_1fr]"><div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5"><ProgressRing value={resumo.media} /></div><div className="grid gap-3"><InfoCard titulo="Etapa atual" valor={obraAtual.etapa} detalhe={`Responsável: ${obraAtual.responsavel}`} /><InfoCard titulo="Prazo" valor={obraAtual.prazo} detalhe={`Previsão: ${formatarData(obraAtual.previsaoEntrega)}`} /><MiniTimeline tarefas={tarefas} /></div></div></PanelClean><PanelClean><div className="mb-4"><p className="text-sm text-slate-500">Quadro de obras</p><h2 className="text-xl font-black text-slate-950">Etapas, prazos e responsáveis</h2></div><div className="space-y-3">{obrasVisiveis.map((obra) => { const tarefasObra = cronogramas[obra.id] || []; const p = tarefasObra.length ? Math.round(tarefasObra.reduce((a, t) => a + Number(t.progresso), 0) / tarefasObra.length) : 0; return <button key={obra.id} onClick={() => setObraId(obra.id)} className="w-full rounded-[1.5rem] border border-slate-200 bg-white p-4 text-left transition hover:scale-[1.01] hover:bg-blue-50"><div className="flex items-center justify-between gap-3"><div><p className="font-black text-slate-950">{obra.nome}</p><p className="text-xs text-slate-500">{obra.etapa} · {obra.prazo}</p><p className="text-xs text-blue-700 font-bold">Responsável: {obra.responsavel}</p></div><p className="text-sm font-black text-blue-700">{p}%</p></div></button> })}</div></PanelClean></section>
+
     {!ehCliente && <PanelClean><h2 className="mb-4 text-2xl font-black">Editar etapa, prazo e responsável da obra selecionada</h2><div className="grid gap-3 md:grid-cols-4"><input className={inputClass} value={obraAtual.etapa} onChange={(e) => atualizarObra(obraAtual.id, 'etapa', e.target.value)} /><input className={inputClass} value={obraAtual.prazo} onChange={(e) => atualizarObra(obraAtual.id, 'prazo', e.target.value)} /><input className={inputClass} value={obraAtual.responsavel} onChange={(e) => atualizarObra(obraAtual.id, 'responsavel', e.target.value)} /><input type="date" className={inputClass} value={obraAtual.previsaoEntrega || ''} onChange={(e) => atualizarObra(obraAtual.id, 'previsaoEntrega', e.target.value)} /></div></PanelClean>}
+
+    {!ehCliente && <section className="grid grid-cols-1 gap-5 md:grid-cols-4"><MetricCard title="Resultado financeiro" value={formatarMoeda(receitas - despesas)} detail="entradas - saídas" icon="💰" /><MetricCard title="A receber" value={formatarMoeda(aReceber)} detail="pagamentos futuros" icon="🧾" /><MetricCard title="Cotações abertas" value={compras.filter(c => c.status !== 'Aprovado').length} detail="aguardando decisão" icon="🛒" /><MetricCard title="Possíveis atrasos" value={possiveisAtrasos.length} detail="pontos de atenção" icon="🟡" /></section>}
   </div>
 }
 
@@ -279,15 +292,15 @@ function LoginScreen({ selecionarUsuario }) {
           <div className="w-full rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm">
             <LogoNeoCanteiro />
             <p className="mt-8 text-sm font-bold uppercase tracking-wide text-blue-600">Acesso demo liberado</p>
-            <h1 className="mt-2 text-5xl font-black tracking-tight">Escolha a visão do sistema</h1>
-            <p className="mt-3 text-slate-500">O investidor pode navegar pelas permissões de Engenheiro, Estagiário e Cliente.</p>
+            <h1 className="mt-2 text-5xl font-black tracking-tight">Escolha como deseja visualizar</h1>
+            <p className="mt-3 text-slate-500">O investidor pode testar o NeoCanteiro nos três perfis principais da plataforma.</p>
 
             <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
               {usuarios.map((user) => (
                 <button key={user.id} onClick={() => selecionarUsuario(user)} className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6 text-left transition hover:scale-[1.02] hover:border-blue-200 hover:bg-blue-50">
                   <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-slate-950 text-sm font-black text-white">{user.iniciais}</div>
-                  <h2 className="text-2xl font-black">{user.nome}</h2>
-                  <p className="mt-1 text-slate-500">{user.tipo}</p>
+                  <h2 className="text-2xl font-black">{user.tipo}</h2>
+                  <p className="mt-1 text-slate-500">Visualizar como {user.nome}</p>
                 </button>
               ))}
             </div>
@@ -343,7 +356,7 @@ function LoginScreen({ selecionarUsuario }) {
 function LogoNeoCanteiro() { return <div className="flex items-center gap-4"><img src="/logo-neocanteiro.png" alt="NeoCanteiro" className="h-14 w-auto object-contain" /><div><h1 className="text-2xl font-black tracking-tight text-slate-950">Neo<span className="text-blue-600">Canteiro</span></h1><p className="text-[10px] uppercase tracking-[0.34em] text-slate-400">Sistema de Gestão de Obras</p></div></div> }
 function LogoIcon() { return <img src="/logo-neocanteiro.png" alt="NeoCanteiro" className="h-14 w-14 rounded-2xl object-cover" /> }
 function PanelClean({ children }) { return <section className="rounded-[2.25rem] border border-slate-200 bg-white p-5 shadow-sm">{children}</section> }
-function MenuItem({ label, active, onClick }) { return <button onClick={onClick} className={`grid h-12 w-12 place-items-center rounded-2xl text-xl transition ${active ? 'bg-slate-950 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200'}`}>{label}</button> }
+function MenuItem({ label, text, active, onClick }) { return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${active ? 'bg-slate-950 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><span className="text-xl">{label}</span><span className="text-sm font-black">{text}</span></button> }
 function StatusBadge({ status }) { const color = status === 'Atenção' ? 'bg-orange-50 text-orange-700 ring-orange-100' : 'bg-emerald-50 text-emerald-700 ring-emerald-100'; return <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${color}`}>{status}</span> }
 function ClienteBanner({ obraAtual }) { return <div className="rounded-[2rem] border border-blue-100 bg-blue-50 p-5"><p className="font-black text-blue-800">Painel do cliente</p><p className="mt-1 text-sm text-blue-700">Você está visualizando somente a obra vinculada ao seu acesso: <strong>{obraAtual.nome}</strong>.</p></div> }
 function InfoCard({ titulo, valor, detalhe }) { return <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5"><p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-400">{titulo}</p><p className="mt-2 text-xl font-black">{valor}</p><p className="mt-1 text-sm text-slate-500">{detalhe}</p></div> }
