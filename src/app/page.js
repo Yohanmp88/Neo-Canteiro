@@ -189,6 +189,7 @@ export default function Home() {
               {!ehCliente && <MenuItem label="🔠" text="Curva ABC" active={tela === 'abc'} onClick={() => trocarTela('abc')} />}
               <MenuItem label="📏" text="Medições" active={tela === 'medicoes'} onClick={() => trocarTela('medicoes')} />
               <MenuItem label="📄" text="Templates" active={tela === 'templates'} onClick={() => trocarTela('templates')} />
+              {!ehCliente && <MenuItem label="🤖" text="IA da Obra" active={tela === 'ia'} onClick={() => trocarTela('ia')} />}
               {!ehCliente && <MenuItem label="⚙️" text="Usuários" active={tela === 'usuarios'} onClick={() => trocarTela('usuarios')} />}
             </nav>
           </div>
@@ -212,6 +213,7 @@ export default function Home() {
           {tela === 'abc' && !ehCliente && <TelaCurvaABC orcamento={orcamento} />}
           {tela === 'medicoes' && <TelaMedicoes tarefas={tarefas} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} />}
           {tela === 'templates' && <TelaTemplates />}
+          {tela === 'ia' && !ehCliente && <TelaIA obraAtual={obraAtual} tarefas={tarefas} alertas={alertas} compras={compras} financeiro={financeiroDaObra} materiais={materiaisDaObra} />}
           {tela === 'usuarios' && !ehCliente && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
         </section>
       </div>
@@ -262,6 +264,97 @@ function TelaFotos({ permissaoEditar, adicionarFotos, fotosDaObra }) { return <P
 function TelaEquipe({ obraAtual, equipe, semanas, setSemanas, novoMembro, setNovoMembro, adicionarMembro, atualizarEquipe, atualizarSemanaEquipe }) { const totalDiarias = equipe.reduce((a, m) => a + Number(m.diasTrabalhados || 0), 0); const totalVales = equipe.reduce((a, m) => a + Number(m.vale || 0), 0); const totalSalarios = equipe.reduce((a, m) => a + ((Number(m.diasTrabalhados || 0) * Number(m.salarioUnitario || 0)) - Number(m.vale || 0)), 0); return <div className="space-y-5"><section className="grid grid-cols-1 gap-5 md:grid-cols-4"><MetricCard title="Membros" value={equipe.length} detail="vinculados" icon="👷" /><MetricCard title="Presentes hoje" value={equipe.filter((m) => m.diaria).length} detail="diária marcada" icon="✅" /><MetricCard title="Dias trabalhados" value={totalDiarias.toLocaleString('pt-BR')} detail="total" icon="📅" /><MetricCard title="Total a pagar" value={formatarMoeda(totalSalarios)} detail="salário - vales" icon="💰" /></section><PanelClean><p className="mb-1 text-sm font-bold uppercase tracking-wide text-blue-600">{obraAtual.nome}</p><h2 className="mb-4 text-3xl font-black">Equipe, diárias e pagamento</h2><div className="grid gap-3 md:grid-cols-3"><input className={inputClass} placeholder="Nome" value={novoMembro.nome} onChange={(e) => setNovoMembro({ ...novoMembro, nome: e.target.value })} /><input className={inputClass} placeholder="Função" value={novoMembro.funcao} onChange={(e) => setNovoMembro({ ...novoMembro, funcao: e.target.value })} /><button className={buttonGreenClass} onClick={adicionarMembro}>Adicionar membro</button></div></PanelClean><PanelClean><h3 className="mb-4 text-2xl font-black">Resumo mensal por trabalhador</h3><div className="mb-5 grid gap-3 md:grid-cols-3">{semanas.map((s, i) => <label key={i}><span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-400">Semana {i+1}</span><input className={inputClass} value={s} onChange={(e) => setSemanas(semanas.map((x, idx) => idx === i ? e.target.value : x))} /></label>)}</div><div className="overflow-x-auto"><table className="min-w-[1150px] w-full border-collapse text-sm"><thead><tr className="bg-slate-900 text-white"><th className="border p-3 text-left">Trabalhador</th><th className="border p-3 text-left">Função</th>{semanas.map((s) => <th key={s} className="border p-3 text-center">{s}</th>)}<th className="border p-3">Total dias</th><th className="border p-3">Salário Unit.</th><th className="border p-3">Vale</th><th className="border p-3">Salário Mês</th><th className="border p-3">Hoje</th></tr></thead><tbody>{equipe.map((m) => { const salario = (Number(m.diasTrabalhados || 0) * Number(m.salarioUnitario || 0)) - Number(m.vale || 0); return <tr key={m.id} className="odd:bg-slate-50 even:bg-white"><td className="border p-2"><input className="w-full bg-transparent font-bold outline-none" value={m.nome} onChange={(e) => atualizarEquipe(m.id, 'nome', e.target.value)} /></td><td className="border p-2"><input className="w-full bg-transparent outline-none" value={m.funcao} onChange={(e) => atualizarEquipe(m.id, 'funcao', e.target.value)} /></td>{semanas.map((s, i) => <td key={s} className="border p-2 text-center"><input type="number" step="0.5" min="0" className="w-20 rounded-xl border px-2 py-1 text-right" value={(m.semanas || [0,0,0,0,0,0])[i] || 0} onChange={(e) => atualizarSemanaEquipe(m.id, i, e.target.value)} /></td>)}<td className="border p-2 text-center font-black">{Number(m.diasTrabalhados || 0).toLocaleString('pt-BR')}</td><td className="border p-2"><input type="number" className="w-24 rounded-xl border px-2 py-1 text-right" value={m.salarioUnitario || 0} onChange={(e) => atualizarEquipe(m.id, 'salarioUnitario', e.target.value)} /></td><td className="border p-2"><input type="number" className="w-24 rounded-xl border px-2 py-1 text-right" value={m.vale || 0} onChange={(e) => atualizarEquipe(m.id, 'vale', e.target.value)} /></td><td className="border p-2 text-right font-black">{formatarMoeda(salario)}</td><td className="border p-2 text-center"><input type="checkbox" checked={m.diaria} onChange={(e) => atualizarEquipe(m.id, 'diaria', e.target.checked)} /></td></tr> })}</tbody><tfoot><tr className="bg-slate-900 text-white font-black"><td className="border p-3" colSpan={8}>TOTAL</td><td className="border p-3 text-center">{totalDiarias.toLocaleString('pt-BR')}</td><td className="border p-3" /><td className="border p-3 text-right">{formatarMoeda(totalVales)}</td><td className="border p-3 text-right">{formatarMoeda(totalSalarios)}</td><td className="border p-3" /></tr></tfoot></table></div></PanelClean></div> }
 function TelaDiario({ obraAtual, diario, setDiario, equipe, materiais }) { return <PanelClean><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Diário de obra online</p><h2 className="mb-6 text-3xl font-black">Registre e centralize todas as informações da obra</h2><div className="overflow-auto"><div className="min-w-[850px] border-2 border-slate-950 bg-white text-slate-950"><div className="border-b-2 border-slate-950 p-3 text-center font-black"><input className="w-full text-center font-black outline-none" value={obraAtual.nome} readOnly /></div><div className="grid grid-cols-[160px_1fr] border-b border-slate-950"><div className="border-r border-slate-950 p-2 font-bold">Data</div><input type="date" className="p-2 outline-none" value={diario.data} onChange={(e) => setDiario({ ...diario, data: e.target.value })} /></div><div className="border-b border-slate-950 p-2"><p className="font-bold">Condições de trabalho do dia:</p><textarea className="mt-2 min-h-20 w-full outline-none" value={diario.clima} onChange={(e) => setDiario({ ...diario, clima: e.target.value })} /></div><div className="border-b border-slate-950 p-2 font-black">Funcionários presentes</div><div className="grid grid-cols-2 border-b border-slate-950">{equipe.filter((m) => m.diaria).map((m) => <div key={m.id} className="grid grid-cols-2 border-r border-slate-950"><div className="border-b border-slate-950 p-2">{m.nome}</div><div className="border-b border-slate-950 p-2">{m.funcao}</div></div>)}</div><div className="border-b border-slate-950 p-2"><p className="font-black">Atividades Desenvolvidas:</p><textarea className="mt-2 min-h-40 w-full outline-none" value={diario.atividades} onChange={(e) => setDiario({ ...diario, atividades: e.target.value })} /></div><div className="border-b border-slate-950 p-2"><p className="font-black">Materiais Recebidos:</p><textarea className="mt-2 min-h-24 w-full outline-none" value={materiais.filter((m) => m.recebido).map((m) => `${m.material} - ${m.quantidade} - ${formatarData(m.data)}`).join('\n')} readOnly /></div><div className="p-2"><p className="font-black">Observações:</p><textarea className="mt-2 min-h-24 w-full outline-none" value={diario.observacoes} onChange={(e) => setDiario({ ...diario, observacoes: e.target.value })} /></div></div></div></PanelClean> }
 function TelaMateriais({ materiais, atualizarMaterial, novoMaterial, setNovoMaterial, adicionarMaterial }) { return <div className="space-y-5"><PanelClean><h2 className="mb-4 text-3xl font-black">Materiais</h2><div className="grid gap-3 md:grid-cols-3"><input className={inputClass} placeholder="Material" value={novoMaterial.material} onChange={(e) => setNovoMaterial({ ...novoMaterial, material: e.target.value })} /><input className={inputClass} placeholder="Quantidade" value={novoMaterial.quantidade} onChange={(e) => setNovoMaterial({ ...novoMaterial, quantidade: e.target.value })} /><button className={buttonGreenClass} onClick={adicionarMaterial}>Adicionar material</button></div></PanelClean><PanelClean><TabelaSimples colunas={['Material','Quantidade','Recebido','Necessidade','Recebimento','Custo']} linhas={materiais.map((item) => [item.material, item.quantidade, item.recebido ? 'Sim' : 'Não', formatarData(item.necessidade), formatarData(item.data), formatarMoeda(item.custo)])} /></PanelClean></div> }
+function TelaIA({ obraAtual, tarefas, alertas, compras, financeiro, materiais }) {
+  const [mensagem, setMensagem] = useState('')
+  const [chat, setChat] = useState([
+    {
+      tipo: 'ia',
+      texto: `Olá! Sou a IA do NeoCanteiro. Estou analisando a obra ${obraAtual.nome}. Posso ajudar com atrasos, materiais, financeiro, compras e resumo da obra.`,
+    },
+  ])
+
+  function enviarMensagem(perguntaManual) {
+    const pergunta = perguntaManual || mensagem
+    if (!pergunta.trim()) return
+
+    const historico = [...chat, { tipo: 'user', texto: pergunta }]
+    const perguntaLower = pergunta.toLowerCase()
+    let resposta = 'Ainda não consegui interpretar essa pergunta. Tente perguntar sobre atrasos, materiais, financeiro, compras ou resumo da obra.'
+
+    if (perguntaLower.includes('atras') || perguntaLower.includes('cronograma')) {
+      const atrasadas = tarefas.filter((t) => estaAtrasada(t))
+      resposta = atrasadas.length
+        ? `Existem ${atrasadas.length} atividades atrasadas: ${atrasadas.map((t) => `${t.nome} (${t.progresso}% executado, término previsto ${formatarData(t.termino)})`).join('; ')}.`
+        : 'Nenhuma atividade atrasada encontrada no cronograma atual.'
+    } else if (perguntaLower.includes('finance') || perguntaLower.includes('dinheiro') || perguntaLower.includes('receber') || perguntaLower.includes('despesa')) {
+      const receitas = financeiro.filter((f) => f.tipo === 'Receita').reduce((a, f) => a + f.valor, 0)
+      const despesas = financeiro.filter((f) => f.tipo === 'Despesa').reduce((a, f) => a + f.valor, 0)
+      const aReceber = financeiro.filter((f) => f.tipo === 'Receita' && f.status === 'A receber').reduce((a, f) => a + f.valor, 0)
+      resposta = `Resumo financeiro da obra: receitas de ${formatarMoeda(receitas)}, despesas de ${formatarMoeda(despesas)}, resultado de ${formatarMoeda(receitas - despesas)} e ${formatarMoeda(aReceber)} a receber.`
+    } else if (perguntaLower.includes('material') || perguntaLower.includes('compra') || perguntaLower.includes('pendente')) {
+      const pendentes = materiais.filter((m) => !m.recebido)
+      resposta = pendentes.length
+        ? `Existem ${pendentes.length} materiais pendentes: ${pendentes.map((m) => `${m.material} - ${m.quantidade} - necessidade ${formatarData(m.necessidade)}`).join('; ')}.`
+        : 'Todos os materiais cadastrados para esta obra foram recebidos.'
+    } else if (perguntaLower.includes('cotação') || perguntaLower.includes('cotacao') || perguntaLower.includes('fornecedor')) {
+      const abertas = compras.filter((c) => c.status !== 'Aprovado')
+      resposta = abertas.length
+        ? `Existem ${abertas.length} cotações/compras em aberto: ${abertas.map((c) => `${c.item} com ${c.fornecedor}, status ${c.status}`).join('; ')}.`
+        : 'Todas as compras e cotações estão aprovadas no momento.'
+    } else if (perguntaLower.includes('resumo') || perguntaLower.includes('obra')) {
+      const atrasadas = tarefas.filter((t) => estaAtrasada(t)).length
+      const pendentes = materiais.filter((m) => !m.recebido).length
+      resposta = `Resumo da obra ${obraAtual.nome}: etapa atual ${obraAtual.etapa}, status ${obraAtual.status}, prazo ${obraAtual.prazo}, responsável ${obraAtual.responsavel}, ${atrasadas} atividade(s) atrasada(s) e ${pendentes} material(is) pendente(s).`
+    }
+
+    setChat([...historico, { tipo: 'ia', texto: resposta }])
+    setMensagem('')
+  }
+
+  return (
+    <div className="space-y-5">
+      <PanelClean>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-wide text-blue-600">Inteligência Artificial</p>
+            <h1 className="text-4xl font-black tracking-tight text-slate-950">IA da Obra</h1>
+            <p className="mt-2 text-slate-500">Assistente inteligente conectado aos dados da obra selecionada.</p>
+          </div>
+          <div className="rounded-2xl bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">Demo IA NeoCanteiro</div>
+        </div>
+      </PanelClean>
+
+      <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+        <PanelClean>
+          <h2 className="text-2xl font-black">Perguntas rápidas</h2>
+          <div className="mt-5 grid gap-3">
+            <button onClick={() => enviarMensagem('Existem atividades atrasadas no cronograma?')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left font-bold transition hover:bg-blue-50">⚠️ Ver atrasos do cronograma</button>
+            <button onClick={() => enviarMensagem('Quais materiais estão pendentes?')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left font-bold transition hover:bg-blue-50">📦 Ver materiais pendentes</button>
+            <button onClick={() => enviarMensagem('Mostrar resumo financeiro')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left font-bold transition hover:bg-blue-50">💰 Resumo financeiro</button>
+            <button onClick={() => enviarMensagem('Quais compras estão em aberto?')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left font-bold transition hover:bg-blue-50">🛒 Compras em aberto</button>
+            <button onClick={() => enviarMensagem('Gerar resumo da obra')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left font-bold transition hover:bg-blue-50">📋 Resumo geral da obra</button>
+          </div>
+        </PanelClean>
+
+        <PanelClean>
+          <div className="min-h-[360px] space-y-4 rounded-[2rem] bg-slate-50 p-4">
+            {chat.map((m, i) => (
+              <div key={i} className={`max-w-[85%] rounded-[1.8rem] p-4 text-sm leading-relaxed ${m.tipo === 'ia' ? 'bg-white text-slate-700 ring-1 ring-slate-200' : 'ml-auto bg-slate-950 text-white'}`}>
+                {m.texto}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 md:flex-row">
+            <input value={mensagem} onChange={(e) => setMensagem(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviarMensagem()} placeholder="Pergunte algo sobre a obra..." className={inputClass} />
+            <button onClick={() => enviarMensagem()} className={buttonPrimaryClass}>Enviar</button>
+          </div>
+        </PanelClean>
+      </div>
+    </div>
+  )
+}
+
 function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) { return <div className="space-y-5">{permissaoAdmin && <PanelClean><h2 className="mb-4 text-3xl font-black">Criar nova obra</h2><div className="grid grid-cols-1 gap-3 md:grid-cols-5"><input value={novaObra.nome} onChange={(e) => setNovaObra({ ...novaObra, nome: e.target.value })} placeholder="Nome da obra" className={inputClass} /><input value={novaObra.cliente} onChange={(e) => setNovaObra({ ...novaObra, cliente: e.target.value })} placeholder="Cliente" className={inputClass} /><input value={novaObra.endereco} onChange={(e) => setNovaObra({ ...novaObra, endereco: e.target.value })} placeholder="Endereço" className={inputClass} /><input value={novaObra.responsavel} onChange={(e) => setNovaObra({ ...novaObra, responsavel: e.target.value })} placeholder="Responsável" className={inputClass} /><button onClick={criarNovaObra} className={buttonGreenClass}>Criar obra</button></div></PanelClean>}<PanelClean><h2 className="mb-5 text-3xl font-black">Tipos de usuários</h2><div className="grid grid-cols-1 gap-5 md:grid-cols-3"><UserCard tipo="Engenheiro" texto="Acesso completo." /><UserCard tipo="Estagiário" texto="Atualiza diário, fotos, progresso, equipe e materiais." /><UserCard tipo="Cliente" texto="Visualiza somente a obra vinculada." /></div></PanelClean></div> }
 function TabelaSimples({ colunas, linhas }) { return <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-sm"><thead><tr className="bg-slate-100">{colunas.map(c => <th key={c} className="p-3 text-left font-black text-slate-600">{c}</th>)}</tr></thead><tbody>{linhas.map((linha, i) => <tr key={i} className="border-b border-slate-100">{linha.map((cel, j) => <td key={j} className="p-3">{cel}</td>)}</tr>)}</tbody></table></div> }
 function LoginScreen({ selecionarUsuario }) {
