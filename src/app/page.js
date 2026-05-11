@@ -242,7 +242,7 @@ function Dashboard({ ehCliente, obraAtual, usuario, resumo, alertas, atrasosReai
         <div className="relative z-10 grid gap-8 xl:grid-cols-[1.25fr_.75fr]">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-blue-100 ring-1 ring-white/10">Dashboard executivo</span>
+              <span className="rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-blue-100 ring-1 ring-white/10">Controle executivo da obra</span>
               <StatusBadge status={obraAtual.status} />
             </div>
             <h1 className="mt-6 max-w-3xl text-5xl font-black tracking-[-0.04em] text-white lg:text-6xl">{obraAtual.nome}</h1>
@@ -265,21 +265,20 @@ function Dashboard({ ehCliente, obraAtual, usuario, resumo, alertas, atrasosReai
       </div>
     </section>
 
-    <section className="grid grid-cols-1 gap-5 md:grid-cols-3 xl:grid-cols-4">
-      <MetricCard title="Avanço da obra" value={`${resumo.media}%`} detail="progresso físico geral" icon="01" onClick={() => setCardDetalhe('avanco')} />
-      <MetricCard title="Alertas críticos" value={atrasosReais.length} detail="atividades realmente atrasadas" icon="02" onClick={() => setCardDetalhe('atrasos')} />
-      <MetricCard title="Materiais recebidos" value={materiaisRecebidosHoje} detail="entregas lançadas hoje" icon="03" onClick={() => setCardDetalhe('materiais')} />
-      {!ehCliente && <MetricCard title="Resultado financeiro" value={formatarMoeda(resultado)} detail={`${formatarMoeda(aReceber)} a receber`} icon="04" />}
-    </section>
-
     <CentralAlertas alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} setCardDetalhe={setCardDetalhe} />
 
     {!ehCliente && <PanelClean><div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between"><div><p className={eyebrowClass}>Planejamento</p><h2 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Cronograma executivo</h2></div><p className="text-sm text-slate-500">Previsto x realizado, atualizado automaticamente</p></div><GraficoCronograma tarefas={tarefas} /></PanelClean>}
 
+    <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <MetricCard title="Avanço médio da obra" value={`${resumo.media}%`} detail="progresso físico geral" icon="01" onClick={() => setCardDetalhe('avanco')} />
+      <MetricCard title="Fotos do dia" value={fotosDaObra.length} detail="registros liberados" icon="02" onClick={() => setCardDetalhe('fotos')} />
+      <MetricCard title="Materiais recebidos" value={materiaisRecebidosHoje} detail="entregas lançadas hoje" icon="03" onClick={() => setCardDetalhe('materiais')} />
+    </section>
+
     <section className="grid gap-6 xl:grid-cols-[1fr_.72fr]">
       <PanelClean>
         <div className="mb-5 flex items-center justify-between"><div><p className={eyebrowClass}>Operação</p><h2 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Etapa, prazo e responsável</h2></div><StatusBadge status={obraAtual.status} /></div>
-        <div className="grid gap-4 md:grid-cols-3"><InfoCard titulo="Etapa atual" valor={obraAtual.etapa} detalhe={`Responsável: ${obraAtual.responsavel}`} /><InfoCard titulo="Prazo" valor={obraAtual.prazo} detalhe={`Previsão: ${formatarData(obraAtual.previsaoEntrega)}`} /><InfoCard titulo="Fotos do dia" valor={fotosDaObra.length} detalhe="registros cadastrados" /></div>
+        <div className="grid gap-4 md:grid-cols-3"><InfoCard titulo="Etapa atual" valor={obraAtual.etapa} detalhe={`Responsável: ${obraAtual.responsavel}`} /><InfoCard titulo="Prazo" valor={obraAtual.prazo} detalhe={`Previsão: ${formatarData(obraAtual.previsaoEntrega)}`} /><InfoCard titulo="Pontos críticos" valor={tarefasAtrasadas} detalhe="atividades realmente atrasadas" /></div>
         <div className="mt-5"><MiniTimeline tarefas={tarefas} /></div>
       </PanelClean>
 
@@ -290,6 +289,13 @@ function Dashboard({ ehCliente, obraAtual, usuario, resumo, alertas, atrasosReai
     </section>
 
     {!ehCliente && <PanelClean><h2 className="mb-4 text-2xl font-black">Editar etapa, prazo e responsável da obra selecionada</h2><div className="grid gap-3 md:grid-cols-4"><input className={inputClass} value={obraAtual.etapa} onChange={(e) => atualizarObra(obraAtual.id, 'etapa', e.target.value)} /><input className={inputClass} value={obraAtual.prazo} onChange={(e) => atualizarObra(obraAtual.id, 'prazo', e.target.value)} /><input className={inputClass} value={obraAtual.responsavel} onChange={(e) => atualizarObra(obraAtual.id, 'responsavel', e.target.value)} /><input type="date" className={inputClass} value={obraAtual.previsaoEntrega || ''} onChange={(e) => atualizarObra(obraAtual.id, 'previsaoEntrega', e.target.value)} /></div></PanelClean>}
+
+    {!ehCliente && <section className="grid grid-cols-1 gap-5 md:grid-cols-4">
+      <MetricCard title="Resultado financeiro" value={formatarMoeda(resultado)} detail="entradas - saídas" icon="04" />
+      <MetricCard title="A receber" value={formatarMoeda(aReceber)} detail="pagamentos futuros" icon="05" />
+      <MetricCard title="Cotações abertas" value={comprasAbertas} detail="aguardando decisão" icon="06" />
+      <MetricCard title="Possíveis atrasos" value={possiveisAtrasos.length} detail="pontos de atenção" icon="07" />
+    </section>}
   </div>
 }
 
