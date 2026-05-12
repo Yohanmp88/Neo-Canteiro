@@ -19,7 +19,7 @@ export function Sidebar({ activeTab, onTabChange }) {
       {/* Mobile Toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-yellow-400 text-zinc-950 font-bold flex items-center justify-center hover:bg-yellow-300 transition shadow-lg"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-blue-500 font-black text-slate-950 shadow-2xl shadow-cyan-950/40 ring-1 ring-white/20 transition hover:from-cyan-200 hover:to-blue-400 lg:hidden"
       >
         ☰
       </button>
@@ -27,7 +27,7 @@ export function Sidebar({ activeTab, onTabChange }) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed left-0 top-16 bottom-0 w-64 bg-zinc-900 border-r border-zinc-800 p-4
+          fixed left-0 top-16 bottom-0 w-64 border-r border-white/10 bg-slate-950/90 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl
           transform transition-transform duration-300
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0 lg:static lg:top-0
@@ -43,11 +43,11 @@ export function Sidebar({ activeTab, onTabChange }) {
                 setMobileOpen(false)
               }}
               className={`
-                w-full px-4 py-3 rounded-lg flex items-center gap-3 transition
+                flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition
                 ${
                   activeTab === tab.id
-                    ? 'bg-yellow-400 text-zinc-950 font-bold'
-                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+                    ? 'bg-gradient-to-r from-cyan-300 to-blue-500 font-black text-slate-950 shadow-lg shadow-cyan-950/30'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }
               `}
             >
@@ -61,7 +61,7 @@ export function Sidebar({ activeTab, onTabChange }) {
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 z-20 bg-black/70 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}

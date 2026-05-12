@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useMemo, useState } from 'react'
 
@@ -70,12 +70,12 @@ const composicoesInicial = [
 const diarioInicial = { data: '2026-05-09', clima: 'Dia com tempo bom, serviços operantes.', atividades: 'Execução de infraestrutura elétrica, conferência de pontos hidráulicos e preparação para fechamento de forro.', observacoes: 'Sem ocorrências relevantes. Equipe orientada sobre limpeza e organização do canteiro.' }
 const templates = ['Diário de Obra Padrão', 'Relatório Semanal da Obra', 'Relatório Fotográfico', 'Medição Mensal', 'Solicitação de Compra']
 
-const inputClass = 'w-full rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
-const buttonPrimaryClass = 'rounded-2xl bg-gradient-to-r from-slate-950 to-blue-950 px-5 py-3 text-sm font-black text-white shadow-sm shadow-slate-300 transition hover:-translate-y-0.5 hover:shadow-md'
-const buttonGreenClass = 'rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-black text-white shadow-sm shadow-emerald-100 transition hover:-translate-y-0.5 hover:shadow-md'
-const surfaceClass = 'rounded-[2rem] border border-white/70 bg-white/85 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-2xl'
-const eyebrowClass = 'text-xs font-black uppercase tracking-[0.28em] text-blue-600'
-const professionalIconClass = 'grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-slate-950 to-blue-950 text-sm font-black text-white shadow-lg shadow-blue-950/20'
+const inputClass = 'w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/80 focus:ring-4 focus:ring-cyan-400/10'
+const buttonPrimaryClass = 'rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-cyan-950/40 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:shadow-cyan-900/50'
+const buttonGreenClass = 'rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/40 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:shadow-emerald-900/50'
+const surfaceClass = 'rounded-[2rem] border border-white/10 bg-slate-900/70 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl ring-1 ring-white/5'
+const eyebrowClass = 'text-xs font-black uppercase tracking-[0.28em] text-cyan-300'
+const professionalIconClass = 'grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/40 ring-1 ring-white/20'
 
 export default function Home() {
   const [usuario, setUsuario] = useState(null)
@@ -173,9 +173,9 @@ export default function Home() {
   if (!usuario) return <LoginScreen selecionarUsuario={selecionarUsuario} />
 
   return (
-    <main className="min-h-screen bg-[#f3f6fb] text-slate-950">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_34%),linear-gradient(135deg,#020617_0%,#050816_45%,#020617_100%)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-[1680px]">
-        <aside className="hidden w-64 flex-col justify-between border-r border-slate-200/70 bg-slate-950 p-5 text-white shadow-[0_20px_80px_rgba(15,23,42,0.18)] lg:flex">
+        <aside className="hidden w-64 flex-col justify-between border-r border-white/10 bg-slate-950/90 p-5 text-white shadow-[0_24px_90px_rgba(0,0,0,0.55)] backdrop-blur-2xl lg:flex">
           <div className="flex flex-col gap-8">
             <div className="rounded-[1.7rem] border border-white/10 bg-white/5 p-4"><LogoDark /></div>
             <nav className="space-y-2.5">
@@ -200,7 +200,7 @@ export default function Home() {
         </aside>
 
         <section className="flex-1 overflow-hidden px-4 py-5 lg:px-8">
-          <header className="mb-6 flex flex-col gap-5 rounded-[2rem] border border-white/70 bg-white/90 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-2xl xl:flex-row xl:items-center xl:justify-between"><div><p className={eyebrowClass}>NeoCanteiro OS</p><h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Central de gestão inteligente</h1></div><div className="flex flex-wrap items-center gap-3">{obrasVisiveis.length > 1 && <select value={obraId} onChange={(e) => setObraId(Number(e.target.value))} className={`${inputClass} min-w-60`}>{obrasVisiveis.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}</select>}{permissaoAdmin && <button onClick={() => trocarTela('usuarios')} className={buttonPrimaryClass}>Nova obra</button>}</div></header>
+          <header className="mb-6 flex flex-col gap-5 rounded-[2rem] border border-white/10 bg-slate-900/75 p-5 shadow-[0_22px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl ring-1 ring-white/5 xl:flex-row xl:items-center xl:justify-between"><div><p className={eyebrowClass}>NeoCanteiro OS</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Central de gestão inteligente</h1></div><div className="flex flex-wrap items-center gap-3">{obrasVisiveis.length > 1 && <select value={obraId} onChange={(e) => setObraId(Number(e.target.value))} className={`${inputClass} min-w-60`}>{obrasVisiveis.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}</select>}{permissaoAdmin && <button onClick={() => trocarTela('usuarios')} className={buttonPrimaryClass}>Nova obra</button>}</div></header>
 
           {tela === 'dashboard' && !cardDetalhe && <Dashboard ehCliente={ehCliente} obraAtual={obraAtual} usuario={usuario} resumo={resumo} alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} fotosDaObra={fotosDaObra} materiaisRecebidosHoje={materiaisRecebidosHoje} tarefas={tarefas} obrasVisiveis={obrasVisiveis} cronogramas={cronogramas} setObraId={setObraId} setCardDetalhe={setCardDetalhe} financeiro={financeiroDaObra} compras={compras} atualizarObra={atualizarObra} />}
           {tela === 'dashboard' && cardDetalhe && <DetalheCard tipo={cardDetalhe} voltar={() => setCardDetalhe(null)} resumo={resumo} fotosDaObra={fotosDaObra} materiais={materiaisDaObra} tarefas={tarefas} />}

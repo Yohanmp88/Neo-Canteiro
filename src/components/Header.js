@@ -17,14 +17,14 @@ export function Header() {
   }
 
   return (
-    <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/85 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
       <div className="h-16 px-6 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-yellow-400 rounded flex items-center justify-center">
-            <span className="text-zinc-950 font-bold text-lg">N</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-300 via-blue-400 to-indigo-500 shadow-lg shadow-cyan-950/40 ring-1 ring-white/20">
+            <span className="text-slate-950 font-black text-lg">N</span>
           </div>
-          <span className="text-white font-bold text-lg hidden sm:inline">NeoCanteiro</span>
+          <span className="hidden text-lg font-black tracking-tight text-white sm:inline">NeoCanteiro</span>
         </div>
 
         {/* User Info */}
@@ -32,8 +32,8 @@ export function Header() {
           {userProfile && (
             <>
               <div className="text-right hidden sm:block">
-                <p className="text-white text-sm font-medium">{userProfile.nome}</p>
-                <p className="text-zinc-400 text-xs">
+                <p className="text-sm font-bold text-white">{userProfile.nome}</p>
+                <p className="text-xs text-slate-400">
                   {userProfile.tipo_usuario === 'engenheiro'
                     ? 'Engenheiro'
                     : userProfile.tipo_usuario === 'estagiario'
@@ -43,7 +43,7 @@ export function Header() {
               </div>
 
               {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center text-zinc-950 font-bold cursor-pointer hover:from-yellow-300 hover:to-yellow-400 transition">
+              <div className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-blue-500 font-black text-slate-950 shadow-lg shadow-cyan-950/30 ring-1 ring-white/20 transition hover:from-cyan-200 hover:to-blue-400">
                 {userProfile.nome.charAt(0).toUpperCase()}
               </div>
 
@@ -51,7 +51,7 @@ export function Header() {
               <button
                 onClick={handleLogout}
                 disabled={loading}
-                className="px-4 py-2 text-zinc-300 hover:text-white transition text-sm font-medium disabled:opacity-50"
+                className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-300 transition hover:border-cyan-300/40 hover:bg-white/10 hover:text-white disabled:opacity-50"
               >
                 {loading ? 'Saindo...' : 'Sair'}
               </button>
