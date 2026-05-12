@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -84,7 +84,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-yellow-400 text-zinc-950 font-bold rounded hover:bg-yellow-300 transition disabled:opacity-50"
+              className="w-full py-2 bg-[#ff0000] text-zinc-950 font-bold rounded hover:bg-[#ff1a1a] transition disabled:opacity-50"
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
@@ -109,6 +109,10 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      <p className="fixed bottom-4 left-0 w-full text-center text-sm font-bold text-white">
+        CODEX UPDATE TEST
+      </p>
     </div>
   )
 }
