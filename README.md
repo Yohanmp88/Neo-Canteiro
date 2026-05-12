@@ -1,3 +1,11 @@
+# NeoCanteiro
+
+Aplicação Next.js para gestão inteligente de obras, com documentação de apoio para backend Supabase e fluxo de deploy via GitHub/Vercel.
+
+## Teste de integração
+
+- **2026-05-12:** validação do fluxo Codex → GitHub → Vercel registrada para acionar um deploy de preview a partir do commit `821645e` (`Teste integração Codex GitHub Vercel`).
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
