@@ -437,7 +437,7 @@ function LoginScreen({ selecionarUsuario }) {
     e.preventDefault()
 
     const emailCorreto = 'investidor@neocanteiro.com.br'
-    const senhaCorreta = 'NeoCanteiro@2026'
+    const senhaCorreta = 'nc123'
 
     if (email.trim().toLowerCase() === emailCorreto && senha === senhaCorreta) {
       setErro('')
@@ -504,7 +504,7 @@ function LoginScreen({ selecionarUsuario }) {
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-600">Senha</span>
-                <input className={inputClass} type="password" placeholder="Digite a senha" value={senha} onChange={(e) => setSenha(e.target.value)} />
+                <input className={inputClass} type="password" placeholder="nc123" value={senha} onChange={(e) => setSenha(e.target.value)} />
               </label>
               {erro && <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">{erro}</div>}
               <button type="submit" className="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white transition hover:bg-slate-800">Acessar demo</button>
