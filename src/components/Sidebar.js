@@ -19,7 +19,7 @@ export function Sidebar({ activeTab, onTabChange }) {
       {/* Mobile Toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-blue-500 font-black text-slate-950 shadow-2xl shadow-cyan-950/40 ring-1 ring-white/20 transition hover:from-cyan-200 hover:to-blue-400 lg:hidden"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 font-bold text-slate-950 shadow-2xl shadow-cyan-950/40 ring-1 ring-white/20 transition hover:from-cyan-200 hover:to-blue-400 lg:hidden"
       >
         ☰
       </button>
@@ -27,14 +27,14 @@ export function Sidebar({ activeTab, onTabChange }) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed left-0 top-16 bottom-0 w-64 border-r border-white/10 bg-slate-950/90 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl
+          fixed left-0 top-14 bottom-0 w-60 border-r border-white/10 bg-slate-950/90 p-3 shadow-[0_14px_44px_rgba(0,0,0,0.32)] backdrop-blur-2xl
           transform transition-transform duration-300
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0 lg:static lg:top-0
           z-30
         `}
       >
-        <nav className="space-y-2">
+        <nav className="space-y-1.5">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -43,16 +43,16 @@ export function Sidebar({ activeTab, onTabChange }) {
                 setMobileOpen(false)
               }}
               className={`
-                flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition
+                flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 transition
                 ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-cyan-300 to-blue-500 font-black text-slate-950 shadow-lg shadow-cyan-950/30'
+                    ? 'bg-gradient-to-r from-cyan-300 to-blue-500 font-semibold text-slate-950 shadow-md shadow-cyan-950/25'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }
               `}
             >
-              <span className="text-lg">{tab.icon}</span>
-              <span className="text-sm font-medium">{tab.label}</span>
+              <span className="text-base">{tab.icon}</span>
+              <span className="text-[13px] font-medium">{tab.label}</span>
             </button>
           ))}
         </nav>
