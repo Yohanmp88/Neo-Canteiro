@@ -498,7 +498,7 @@ function LoginScreen({ selecionarUsuario }) {
             </div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">NeoCanteiro</h1>
           </div>
-          <p className="text-slate-500 font-medium text-sm">Acesso de demonstração (Investor Mode)</p>
+          <p className="text-slate-500 font-medium text-sm">Gestão Inteligente de Obras</p>
         </div>
 
         <div className="bg-white border border-slate-200/60 rounded-2xl p-8 shadow-xl shadow-slate-200/40">
