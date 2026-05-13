@@ -1,110 +1,126 @@
 'use client'
 
 import { useState } from 'react'
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Camera, 
+  HardHat, 
+  FileText, 
+  Package, 
+  DollarSign, 
+  ShoppingCart, 
+  Ruler, 
+  ClipboardList, 
+  Layers, 
+  TrendingUp, 
+  FileCode, 
+  Bot, 
+  Settings,
+  LogOut,
+  ChevronRight
+} from 'lucide-react'
 
-export function Sidebar({ activeTab, onTabChange, userProfile }) {
-  const [mobileOpen, setMobileOpen] = useState(false)
-
+export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
   // Ocultar tabs baseado no tipo de usuário
   const isClient = userProfile?.tipo_usuario === 'cliente'
 
   const allTabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', visible: true },
-    { id: 'cronograma', label: 'Cronograma', icon: '📅', visible: true },
-    { id: 'fotos', label: 'Fotos', icon: '📷', visible: true },
-    { id: 'equipe', label: 'Equipe', icon: '👷', visible: !isClient },
-    { id: 'diario', label: 'Diário de Obra', icon: '📝', visible: !isClient },
-    { id: 'materiais', label: 'Materiais', icon: '📦', visible: !isClient },
-    { id: 'financeiro', label: 'Financeiro', icon: '💰', visible: !isClient },
-    { id: 'compras', label: 'Gestão de Compras', icon: '🛒', visible: !isClient },
-    { id: 'medicoes', label: 'Medições', icon: '📏', visible: true },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: true },
+    { id: 'cronograma', label: 'Cronograma', icon: Calendar, visible: true },
+    { id: 'fotos', label: 'Fotos', icon: Camera, visible: true },
+    { id: 'equipe', label: 'Equipe', icon: HardHat, visible: !isClient },
+    { id: 'diario', label: 'Diário de Obra', icon: FileText, visible: !isClient },
+    { id: 'materiais', label: 'Materiais', icon: Package, visible: !isClient },
+    { id: 'financeiro', label: 'Financeiro', icon: DollarSign, visible: !isClient },
+    { id: 'compras', label: 'Gestão de Compras', icon: ShoppingCart, visible: !isClient },
+    { id: 'orcamento', label: 'Orçamento', icon: ClipboardList, visible: !isClient },
+    { id: 'composicoes', label: 'Composições', icon: Layers, visible: !isClient },
+    { id: 'abc', label: 'Curva ABC', icon: TrendingUp, visible: !isClient },
+    { id: 'medicoes', label: 'Medições', icon: Ruler, visible: true },
+    { id: 'templates', label: 'Templates', icon: FileCode, visible: true },
+    { id: 'ia', label: 'IA da Obra', icon: Bot, visible: !isClient },
+    { id: 'usuarios', label: 'Usuários', icon: Settings, visible: !isClient },
   ]
 
   const visibleTabs = allTabs.filter(tab => tab.visible)
 
   return (
-    <>
-      {/* Mobile Toggle */}
-      <button
-        onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
-      >
-        <span className="text-xl">{mobileOpen ? '✕' : '☰'}</span>
-      </button>
-
-      {/* Sidebar Desktop/Mobile */}
-      <aside
-        className={`
-          fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200/60 flex flex-col
-          transform transition-transform duration-300 ease-in-out
-          ${mobileOpen ? 'translate-x-0 z-50' : '-translate-x-full z-30'}
-          lg:translate-x-0 lg:static
-        `}
-      >
-        {/* Logo Area */}
-        <div className="h-16 flex items-center px-6 mb-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-black text-[10px]">NC</span>
-            </div>
-            <span className="text-slate-900 font-bold tracking-tight text-base">NeoCanteiro</span>
+    <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200/60 flex-col z-30 transition-all duration-300">
+      {/* Logo Area */}
+      <div className="h-20 flex items-center px-6 mb-2">
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20 group-hover:scale-105 transition-transform duration-300">
+            <span className="text-white font-black text-xs">NC</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-slate-900 font-black tracking-tight text-base leading-none">NeoCanteiro</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">SaaS Platform</span>
           </div>
         </div>
+      </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-4 space-y-0.5">
-          <p className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Plataforma</p>
-          {visibleTabs.map((tab) => {
-            const isActive = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  onTabChange(tab.id)
-                  setMobileOpen(false)
-                }}
-                className={`
-                  w-full px-3 py-2 rounded-xl flex items-center gap-3 transition-premium
-                  ${isActive 
-                    ? 'bg-blue-50/50 text-blue-700' 
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
-                `}
-              >
-                <span className={`text-base transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110 opacity-70 group-hover:opacity-100'}`}>
-                  {tab.icon}
-                </span>
-                <span className={`text-sm tracking-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
-                  {tab.label}
-                </span>
-              </button>
-            )
-          })}
-        </nav>
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 space-y-0.5 custom-scrollbar pb-10">
+        <div className="px-3 py-3 flex items-center justify-between">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Plataforma</p>
+        </div>
+        
+        {visibleTabs.map((tab) => {
+          const isActive = activeTab === tab.id
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`
+                w-full px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-200 group relative
+                ${isActive 
+                  ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
+              `}
+            >
+              <div className={`p-1 rounded-lg transition-colors duration-200 ${isActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'}`}>
+                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+              </div>
+              <span className={`text-sm tracking-tight ${isActive ? 'font-bold' : 'font-medium opacity-80 group-hover:opacity-100'}`}>
+                {tab.label}
+              </span>
+              {isActive && (
+                <div className="absolute right-2 text-blue-400">
+                  <ChevronRight size={14} strokeWidth={3} />
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </nav>
 
-        {/* User Info (Optional addition for premium feel) */}
-        {userProfile && (
-          <div className="p-4 border-t border-slate-100 mt-auto">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                {userProfile.nome?.substring(0, 2).toUpperCase() || 'NC'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-slate-900 truncate">{userProfile.nome}</p>
-                <p className="text-[10px] text-slate-500 truncate capitalize">{userProfile.tipo_usuario || userProfile.tipo}</p>
-              </div>
+      {/* Footer / User Profile */}
+      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xs font-black text-slate-900 shadow-sm">
+              {userProfile?.iniciais || 'NC'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-slate-900 truncate">{userProfile?.nome}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">
+                {userProfile?.tipo_usuario || 'Membro'}
+              </p>
             </div>
           </div>
-        )}
-      </aside>
-
-      {/* Mobile Overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-    </>
+          
+          <button 
+            onClick={logout}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all duration-200 shadow-sm active:scale-95"
+          >
+            <LogOut size={14} />
+            <span>Sair da Plataforma</span>
+          </button>
+        </div>
+      </div>
+    </aside>
   )
 }
 

@@ -1,12 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Sidebar } from '@/components/dashboard/Sidebar'
-import { Header } from '@/components/dashboard/Header'
-import { BottomNav } from '@/components/dashboard/BottomNav'
-import { DashboardView } from '@/components/dashboard/views/DashboardView'
-import { GraficoCronograma, CronogramaVisual } from '@/components/dashboard/Schedule'
-import { PanelClean, MetricCard, StatusBadge, InfoCard, MiniTimeline, ProgressRing } from '@/components/ui/Cards'
 
 const usuarios = [
   { id: 1, nome: 'Yohan', tipo: 'Engenheiro', iniciais: 'YP', obrasPermitidas: 'todas' },
@@ -179,98 +173,75 @@ export default function Home() {
   if (!usuario) return <LoginScreen selecionarUsuario={selecionarUsuario} />
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 pb-20 lg:pb-0">
-      <div className="flex min-h-screen w-full">
-        {/* Desktop Sidebar */}
-        <Sidebar 
-          activeTab={tela} 
-          onTabChange={trocarTela} 
-          userProfile={usuario} 
-          logout={() => setUsuario(null)} 
-        />
-
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Global Header */}
-          <Header 
-            userProfile={usuario} 
-            obras={obrasVisiveis} 
-            obraSelecionadaId={obraId} 
-            onObraChange={setObraId} 
-          />
-
-          <section className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 custom-scrollbar">
-            {/* Context Breadcrumb / Action Bar (Optional extra polish) */}
-            <div className="mb-8 animate-fade-in">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]"></span>
-                    <p className={eyebrowClass}>NeoCanteiro / {tela}</p>
-                  </div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900 capitalize">
-                    {tela === 'dashboard' ? 'Visão Geral' : tela}
-                  </h1>
-                </div>
-                
-                {permissaoAdmin && (
-                  <button 
-                    onClick={() => trocarTela('usuarios')} 
-                    className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 transition-premium hover:bg-blue-700 hover:scale-105 active:scale-95"
-                  >
-                    <span>Nova Obra</span>
-                  </button>
-                )}
-              </div>
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto flex min-h-screen w-full">
+        <aside className="hidden w-64 flex-col justify-between border-r border-slate-200/60 bg-white px-4 py-6 lg:flex">
+          <div className="flex flex-col gap-8">
+            <div className="px-2"><LogoDark /></div>
+            <nav className="space-y-0.5">
+              <p className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Plataforma</p>
+              <MenuItem label="📊" text="Dashboard" active={tela === 'dashboard'} onClick={() => trocarTela('dashboard')} />
+              <MenuItem label="📅" text="Cronograma" active={tela === 'cronograma'} onClick={() => trocarTela('cronograma')} />
+              <MenuItem label="📷" text="Fotos" active={tela === 'fotos'} onClick={() => trocarTela('fotos')} />
+              {!ehCliente && <MenuItem label="👷" text="Equipe" active={tela === 'equipe'} onClick={() => trocarTela('equipe')} />}
+              {!ehCliente && <MenuItem label="📝" text="Diário" active={tela === 'diario'} onClick={() => trocarTela('diario')} />}
+              {!ehCliente && <MenuItem label="📦" text="Materiais" active={tela === 'materiais'} onClick={() => trocarTela('materiais')} />}
+              {!ehCliente && <MenuItem label="💰" text="Financeiro" active={tela === 'financeiro'} onClick={() => trocarTela('financeiro')} />}
+              {!ehCliente && <MenuItem label="🛒" text="Compras" active={tela === 'compras'} onClick={() => trocarTela('compras')} />}
+              {!ehCliente && <MenuItem label="📋" text="Orçamento" active={tela === 'orcamento'} onClick={() => trocarTela('orcamento')} />}
+              {!ehCliente && <MenuItem label="🧩" text="Composições" active={tela === 'composicoes'} onClick={() => trocarTela('composicoes')} />}
+              {!ehCliente && <MenuItem label="🔠" text="Curva ABC" active={tela === 'abc'} onClick={() => trocarTela('abc')} />}
+              <MenuItem label="📏" text="Medições" active={tela === 'medicoes'} onClick={() => trocarTela('medicoes')} />
+              <MenuItem label="📄" text="Templates" active={tela === 'templates'} onClick={() => trocarTela('templates')} />
+              {!ehCliente && <MenuItem label="🤖" text="IA da Obra" active={tela === 'ia'} onClick={() => trocarTela('ia')} />}
+              {!ehCliente && <MenuItem label="⚙️" text="Usuários" active={tela === 'usuarios'} onClick={() => trocarTela('usuarios')} />}
+            </nav>
+          </div>
+          <button onClick={() => setUsuario(null)} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 text-left transition-premium hover:bg-slate-100 group">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-white text-xs font-black text-slate-900 shadow-sm border border-slate-200 group-hover:border-blue-200 transition-premium">
+              {usuario.iniciais}
+            </span>
+            <div className="flex-1 min-w-0">
+              <span className="block text-xs font-black text-slate-900 truncate">{usuario.nome}</span>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight">Sair da demo</span>
             </div>
+          </button>
+        </aside>
 
-            <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              {tela === 'dashboard' && !cardDetalhe && (
-                <DashboardView 
-                  obraAtual={obraAtual} 
-                  tarefas={tarefas} 
-                  materiais={materiaisDaObra} 
-                  diarios={[]} // Adapt as needed or pass real diarios
-                  isClient={ehCliente}
-                  resumo={resumo}
-                  alertas={alertas}
-                  atrasosReais={atrasosReais}
-                  possiveisAtrasos={possiveisAtrasos}
-                  fotosDaObra={fotosDaObra}
-                  materiaisRecebidosHoje={materiaisRecebidosHoje}
-                  obrasVisiveis={obrasVisiveis}
-                  setObraId={setObraId}
-                  setCardDetalhe={setCardDetalhe}
-                  financeiro={financeiroDaObra}
-                  compras={compras}
-                  atualizarObra={atualizarObra}
-                />
+        <section className="flex-1 overflow-auto px-4 py-8 lg:px-10">
+          <header className="mb-10 flex flex-col gap-6 border-b border-slate-200/60 pb-8 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className={eyebrowClass}>NeoCanteiro OS</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Gestão Inteligente</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {obrasVisiveis.length > 1 && (
+                <select value={obraId} onChange={(e) => setObraId(Number(e.target.value))} className={`${inputClass} min-w-64`}>
+                  {obrasVisiveis.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
+                </select>
               )}
-              {tela === 'dashboard' && cardDetalhe && <DetalheCard tipo={cardDetalhe} voltar={() => setCardDetalhe(null)} resumo={resumo} fotosDaObra={fotosDaObra} materiais={materiaisDaObra} tarefas={tarefas} />}
-              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} permissaoAdmin={permissaoAdmin} criarNovoCronograma={criarNovoCronograma} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarProgresso={atualizarProgresso} atualizarTarefa={atualizarTarefa} />}
-              {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={fotosDaObra} />}
-              {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtual} equipe={equipeDaObra} semanas={semanasDiarias} setSemanas={setSemanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
-              {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtual} diario={diario} setDiario={setDiario} equipe={equipeDaObra} materiais={materiaisDaObra} />}
-              {tela === 'materiais' && !ehCliente && <TelaMateriais materiais={materiaisDaObra} atualizarMaterial={atualizarMaterial} novoMaterial={novoMaterial} setNovoMaterial={setNovoMaterial} adicionarMaterial={adicionarMaterial} />}
-              {tela === 'financeiro' && !ehCliente && <TelaFinanceiro financeiro={financeiroDaObra} novaTransacao={novaTransacao} setNovaTransacao={setNovaTransacao} adicionarTransacao={adicionarTransacao} />}
-              {tela === 'compras' && !ehCliente && <TelaCompras compras={compras} atualizarCompra={atualizarCompra} />}
-              {tela === 'orcamento' && !ehCliente && <TelaOrcamento orcamento={orcamento} novo={novoOrcamento} setNovo={setNovoOrcamento} adicionar={adicionarItemOrcamento} />}
-              {tela === 'composicoes' && !ehCliente && <TelaComposicoes composicoes={composicoes} />}
-              {tela === 'abc' && !ehCliente && <TelaCurvaABC orcamento={orcamento} />}
-              {tela === 'medicoes' && <TelaMedicoes tarefas={tarefas} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} />}
-              {tela === 'templates' && <TelaTemplates />}
-              {tela === 'ia' && !ehCliente && <TelaIA obraAtual={obraAtual} tarefas={tarefas} alertas={alertas} compras={compras} financeiro={financeiroDaObra} materiais={materiaisDaObra} />}
-              {tela === 'usuarios' && !ehCliente && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
+              {permissaoAdmin && <button onClick={() => trocarTela('usuarios')} className={buttonPrimaryClass}>Nova Obra</button>}
             </div>
-          </section>
-        </div>
-      </div>
+          </header>
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNav 
-        activeTab={tela} 
-        onTabChange={trocarTela} 
-        userProfile={usuario} 
-      />
+          {tela === 'dashboard' && !cardDetalhe && <Dashboard ehCliente={ehCliente} obraAtual={obraAtual} usuario={usuario} resumo={resumo} alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} fotosDaObra={fotosDaObra} materiaisRecebidosHoje={materiaisRecebidosHoje} tarefas={tarefas} obrasVisiveis={obrasVisiveis} cronogramas={cronogramas} setObraId={setObraId} setCardDetalhe={setCardDetalhe} financeiro={financeiroDaObra} compras={compras} atualizarObra={atualizarObra} />}
+          {tela === 'dashboard' && cardDetalhe && <DetalheCard tipo={cardDetalhe} voltar={() => setCardDetalhe(null)} resumo={resumo} fotosDaObra={fotosDaObra} materiais={materiaisDaObra} tarefas={tarefas} />}
+          {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} permissaoAdmin={permissaoAdmin} criarNovoCronograma={criarNovoCronograma} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarProgresso={atualizarProgresso} atualizarTarefa={atualizarTarefa} />}
+          {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={fotosDaObra} />}
+          {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtual} equipe={equipeDaObra} semanas={semanasDiarias} setSemanas={setSemanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
+          {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtual} diario={diario} setDiario={setDiario} equipe={equipeDaObra} materiais={materiaisDaObra} />}
+          {tela === 'materiais' && !ehCliente && <TelaMateriais materiais={materiaisDaObra} atualizarMaterial={atualizarMaterial} novoMaterial={novoMaterial} setNovoMaterial={setNovoMaterial} adicionarMaterial={adicionarMaterial} />}
+          {tela === 'financeiro' && !ehCliente && <TelaFinanceiro financeiro={financeiroDaObra} novaTransacao={novaTransacao} setNovaTransacao={setNovaTransacao} adicionarTransacao={adicionarTransacao} />}
+          {tela === 'compras' && !ehCliente && <TelaCompras compras={compras} atualizarCompra={atualizarCompra} />}
+          {tela === 'orcamento' && !ehCliente && <TelaOrcamento orcamento={orcamento} novo={novoOrcamento} setNovo={setNovoOrcamento} adicionar={adicionarItemOrcamento} />}
+          {tela === 'composicoes' && !ehCliente && <TelaComposicoes composicoes={composicoes} />}
+          {tela === 'abc' && !ehCliente && <TelaCurvaABC orcamento={orcamento} />}
+          {tela === 'medicoes' && <TelaMedicoes tarefas={tarefas} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} />}
+          {tela === 'templates' && <TelaTemplates />}
+          {tela === 'ia' && !ehCliente && <TelaIA obraAtual={obraAtual} tarefas={tarefas} alertas={alertas} compras={compras} financeiro={financeiroDaObra} materiais={materiaisDaObra} />}
+          {tela === 'usuarios' && !ehCliente && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
+        </section>
+      </div>
     </main>
   )
 }
@@ -364,80 +335,11 @@ function Dashboard({ ehCliente, obraAtual, usuario, resumo, alertas, atrasosReai
 function CentralAlertas({ alertas, atrasosReais, possiveisAtrasos, setCardDetalhe }) { return <PanelClean><div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Central de alertas</p><h2 className="text-3xl font-bold text-slate-950">Atrasos e pontos de atenção</h2></div><div className="flex gap-2 text-sm font-black"><button onClick={() => setCardDetalhe('atrasos')} className="rounded-full bg-red-50 px-3 py-2 text-red-700 ring-1 ring-red-100">🔴 {atrasosReais.length} atrasados</button><button onClick={() => setCardDetalhe('possiveis')} className="rounded-full bg-amber-50 px-3 py-2 text-amber-700 ring-1 ring-amber-100">🟡 {possiveisAtrasos.length} possíveis atrasos</button></div></div>{alertas.length === 0 ? <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 font-bold text-emerald-700">🟢 Nenhum alerta no momento.</div> : <div className="grid gap-3 md:grid-cols-2">{alertas.slice(0, 6).map((a) => <button key={a.id} onClick={() => a.id === 'materiais-pendentes' ? setCardDetalhe('materiaisPendentes') : a.tipo === 'critico' ? setCardDetalhe('atrasos') : setCardDetalhe('possiveis')} className={`rounded-2xl border p-4 text-left ${a.tipo === 'critico' ? 'border-red-100 bg-red-50' : 'border-amber-100 bg-amber-50'}`}><div className="flex items-start gap-3"><span className="text-2xl">{a.icone}</span><div><p className="font-bold text-slate-950">{a.titulo}</p><p className="mt-1 text-sm text-slate-600">{a.descricao}</p></div></div></button>)}</div>}</PanelClean> }
 function DetalheCard({ tipo, voltar, resumo, fotosDaObra, materiais, tarefas }) { const titulo = tipo === 'avanco' ? 'Detalhes do avanço da obra' : tipo === 'fotos' ? 'Fotos do dia' : tipo === 'materiais' ? 'Materiais recebidos' : tipo === 'materiaisPendentes' ? 'Materiais pendentes' : tipo === 'atrasos' ? 'Atividades realmente atrasadas' : 'Possíveis atrasos'; const listaMateriais = tipo === 'materiaisPendentes' ? materiais.filter((m) => !m.recebido) : materiais.filter((m) => m.recebido); const listaTarefas = tipo === 'atrasos' ? tarefas.filter(estaAtrasada) : tarefas.filter((t) => !estaAtrasada(t) && Number(t.progresso) < 100); return <div className="space-y-5"><button onClick={voltar} className="font-black text-blue-700">← Voltar ao dashboard</button><PanelClean><h1 className="text-4xl font-bold text-slate-950">{titulo}</h1>{tipo === 'avanco' && <div className="mt-6 grid gap-4 md:grid-cols-2"><ProgressRing value={resumo.media} /><MiniTimeline tarefas={tarefas} /></div>}{tipo === 'fotos' && (fotosDaObra.length ? <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">{fotosDaObra.map((foto) => <img key={foto.id} src={foto.url} alt={foto.nome} className="h-40 w-full rounded-3xl object-cover" />)}</div> : <Empty text="Nenhuma foto cadastrada hoje." />)}{['materiais', 'materiaisPendentes'].includes(tipo) && <div className="mt-6 space-y-3">{listaMateriais.map((m) => <div key={m.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="font-black">{m.material}</p><p className="text-sm text-slate-500">{m.quantidade} · necessidade: {formatarData(m.necessidade)} · {m.recebido ? `recebido em ${formatarData(m.data)}` : 'não recebido'}</p></div>)}</div>}{['atrasos', 'possiveis'].includes(tipo) && <div className="mt-6 space-y-3">{listaTarefas.map((t) => <div key={t.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="font-black">{t.nome}</p><p className="text-sm text-slate-500">Previsto: {formatarData(t.inicio)} até {formatarData(t.termino)} · avanço: {t.progresso}%</p></div>)}</div>}</PanelClean></div> }
 
-function TelaCronograma({ permissaoEditar, permissaoAdmin, criarNovoCronograma, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarProgresso, atualizarTarefa }) { 
-  return (
-    <div className="space-y-6">
-      <PanelClean>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">Cronograma de Obra</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Planejamento e controle de prazos</p>
-          </div>
-          <div className="flex gap-3">
-            {permissaoAdmin && (
-              <button 
-                onClick={criarNovoCronograma} 
-                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-500 hover:bg-slate-50 hover:text-red-600 transition-all active:scale-95 shadow-sm"
-              >
-                Resetar Cronograma
-              </button>
-            )}
-          </div>
-        </div>
-      </PanelClean>
-
-      {permissaoEditar && (
-        <PanelClean>
-          <h3 className="mb-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Adicionar Nova Atividade</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-            <input 
-              value={novaTarefa.nome} 
-              onChange={(e) => setNovaTarefa({ ...novaTarefa, nome: e.target.value })} 
-              placeholder="Ex: Alvenaria de vedação" 
-              className={`${inputClass} md:col-span-2`} 
-            />
-            <div className="grid grid-cols-2 gap-2 md:col-span-2">
-              <input 
-                type="date" 
-                value={novaTarefa.inicio} 
-                onChange={(e) => setNovaTarefa({ ...novaTarefa, inicio: e.target.value })} 
-                className={inputClass} 
-              />
-              <input 
-                type="date" 
-                value={novaTarefa.termino} 
-                onChange={(e) => setNovaTarefa({ ...novaTarefa, termino: e.target.value })} 
-                className={inputClass} 
-              />
-            </div>
-            <button 
-              onClick={adicionarTarefa} 
-              className="rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 transition-premium hover:bg-blue-700 active:scale-95"
-            >
-              Adicionar
-            </button>
-          </div>
-        </PanelClean>
-      )}
-
-      <PanelClean>
-        <h3 className="mb-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Gráfico de Gantt Executivo</h3>
-        <GraficoCronograma tarefas={tarefas} />
-      </PanelClean>
-
-      <PanelClean>
-        <h3 className="mb-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Gestão de Atividades</h3>
-        <CronogramaVisual 
-          tarefas={tarefas} 
-          atualizarProgresso={atualizarProgresso} 
-          atualizarTarefa={atualizarTarefa} 
-          podeEditar={permissaoEditar} 
-        />
-      </PanelClean>
-    </div>
-  )
-}
+function TelaCronograma({ permissaoEditar, permissaoAdmin, criarNovoCronograma, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarProgresso, atualizarTarefa }) { return <div className="space-y-5"><PanelClean><div className="flex justify-end">{permissaoAdmin && <button onClick={criarNovoCronograma} className={buttonPrimaryClass}>Novo cronograma zerado</button>}</div></PanelClean>{permissaoEditar && <PanelClean><h3 className="mb-4 text-xl font-bold text-slate-800">Adicionar tarefa</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-5"><input value={novaTarefa.nome} onChange={(e) => setNovaTarefa({ ...novaTarefa, nome: e.target.value })} placeholder="Nome da tarefa" className={`${inputClass} md:col-span-2`} /><input type="date" value={novaTarefa.inicio} onChange={(e) => setNovaTarefa({ ...novaTarefa, inicio: e.target.value })} className={inputClass} /><input type="date" value={novaTarefa.termino} onChange={(e) => setNovaTarefa({ ...novaTarefa, termino: e.target.value })} className={inputClass} /><button onClick={adicionarTarefa} className={buttonGreenClass}>Adicionar</button></div></PanelClean>}<PanelClean><h3 className="mb-5 text-2xl font-bold text-slate-800">Gráfico do cronograma</h3><GraficoCronograma tarefas={tarefas} /></PanelClean><PanelClean><CronogramaVisual tarefas={tarefas} atualizarProgresso={atualizarProgresso} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} /></PanelClean></div> }
+function GraficoCronograma({ tarefas }) { if (!tarefas.length) return <Empty text="Nenhuma tarefa criada." />; return <div className="overflow-x-auto pb-3"><div className="min-w-[900px] space-y-4"><div className="grid grid-cols-[180px_1fr_80px] gap-4 text-sm font-bold text-slate-500"><span>Atividade</span><div className="grid grid-cols-3 gap-2 text-center"><span className="rounded-xl bg-slate-100 py-2">Maio</span><span className="rounded-xl bg-slate-100 py-2">Junho</span><span className="rounded-xl bg-slate-100 py-2">Julho</span></div><span className="text-right">% real</span></div>{tarefas.map((t) => { const plannedLeft = Math.max(0, Number(t.inicioGrafico || 0)); const plannedWidth = Math.max(Number(t.duracao || 1) * 3.5, 7); const realLeft = t.inicioReal ? plannedLeft + diferencaDias(t.inicio, t.inicioReal) * 1.4 : plannedLeft; const realWidth = t.inicioReal ? Math.max((t.terminoReal ? diferencaDias(t.inicioReal, t.terminoReal) + 1 : Number(t.duracao || 1)) * 3.5, 7) : 0; return <div key={t.id} className="grid grid-cols-[180px_1fr_80px] gap-4 items-center"><div><p className="truncate font-black">{t.nome}</p><p className={`text-xs font-bold ${estaAtrasada(t) ? 'text-red-600' : 'text-slate-400'}`}>{estaAtrasada(t) ? 'Atrasada' : 'Em controle'}</p></div><div className="relative h-12 rounded-2xl bg-slate-100 overflow-hidden"><div className="absolute top-2 h-3 rounded-full bg-blue-300" style={{ left: `${plannedLeft}%`, width: `${plannedWidth}%` }} />{t.inicioReal && <div className="absolute bottom-2 h-3 rounded-full bg-emerald-400" style={{ left: `${Math.max(0, realLeft)}%`, width: `${realWidth}%` }}><div className="h-full rounded-full bg-emerald-600" style={{ width: `${t.progresso}%` }} /></div>}</div><span className="text-right font-black">{t.progresso}%</span></div>})}<div className="flex flex-wrap gap-3 pt-2 text-sm font-bold"><span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700 ring-1 ring-blue-100">Azul: previsto</span><span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700 ring-1 ring-emerald-100">Verde: realizado</span></div></div></div> }
+function CronogramaVisual({ tarefas, atualizarProgresso, atualizarTarefa, podeEditar }) { if (!tarefas.length) return <Empty text="Nenhuma tarefa criada neste cronograma." />; return <div className="overflow-x-auto pb-3"><div className="min-w-[1180px]"><div className="mb-4 grid grid-cols-[210px_145px_145px_145px_145px_90px_1fr] gap-3 text-sm font-bold text-slate-500"><div>Tarefa</div><div>Início previsto</div><div>Término previsto</div><div>Início real</div><div>Término real</div><div>%</div><div>Comparativo visual</div></div><div className="space-y-4">{tarefas.map((t) => <div key={t.id} className={`grid grid-cols-[210px_145px_145px_145px_145px_90px_1fr] items-center gap-3 rounded-[1.5rem] border p-3 ${estaAtrasada(t) ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}><div>{podeEditar ? <input className="w-full bg-transparent font-black outline-none" value={t.nome} onChange={(e) => atualizarTarefa(t.id, 'nome', e.target.value)} /> : <p className="truncate font-black">{t.nome}</p>}<p className={`mt-1 text-xs font-bold ${estaAtrasada(t) ? 'text-red-700' : 'text-slate-400'}`}>{estaAtrasada(t) ? 'Atrasada' : 'Em controle'}</p></div><CampoData valor={t.inicio} podeEditar={podeEditar} onChange={(v) => atualizarTarefa(t.id, 'inicio', v)} /><CampoData valor={t.termino} podeEditar={podeEditar} onChange={(v) => atualizarTarefa(t.id, 'termino', v)} /><CampoData valor={t.inicioReal} podeEditar={podeEditar} onChange={(v) => atualizarTarefa(t.id, 'inicioReal', v)} /><CampoData valor={t.terminoReal} podeEditar={podeEditar} onChange={(v) => atualizarTarefa(t.id, 'terminoReal', v)} />{podeEditar ? <input type="number" min="0" max="100" value={t.progresso} onChange={(e) => atualizarProgresso(t.id, e.target.value)} className={inputClass} /> : <span className="font-black">{t.progresso}%</span>}<ComparativoPlanejadoReal tarefa={t} /></div>)}</div></div></div> }
 function CampoData({ valor, podeEditar, onChange }) { return podeEditar ? <input type="date" className={inputClass} value={valor || ''} onChange={(e) => onChange(e.target.value)} /> : <span className="text-sm font-bold">{formatarData(valor)}</span> }
+function ComparativoPlanejadoReal({ tarefa }) { const l = Number(tarefa.inicioGrafico || 0); const w = Math.max(Number(tarefa.duracao || 1) * 3.5, 7); const rl = tarefa.inicioReal ? l + diferencaDias(tarefa.inicio, tarefa.inicioReal) * 1.4 : l; const rw = tarefa.inicioReal ? Math.max((tarefa.terminoReal ? diferencaDias(tarefa.inicioReal, tarefa.terminoReal) + 1 : Number(tarefa.duracao || 1)) * 3.5, 7) : 0; return <div className="space-y-2"><div className="relative h-5 overflow-hidden rounded-full bg-slate-100"><div className="absolute h-full rounded-full bg-blue-300" style={{ left: `${l}%`, width: `${w}%` }} /></div><div className="relative h-5 overflow-hidden rounded-full bg-slate-100">{tarefa.inicioReal ? <div className="absolute h-full rounded-full bg-emerald-400" style={{ left: `${Math.max(0, rl)}%`, width: `${rw}%` }}><div className="h-full rounded-full bg-emerald-600" style={{ width: `${tarefa.progresso}%` }} /></div> : <span className="absolute left-3 top-0.5 text-xs font-bold text-slate-400">sem início real</span>}</div></div> }
 
 function TelaOrcamento({ orcamento, novo, setNovo, adicionar }) { const total = orcamento.reduce((a, i) => a + i.quantidade * i.unitario, 0); return <div className="space-y-5"><PanelClean><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Orçamento de Obra</p><h2 className="text-3xl font-black">Adicione itens, simule versões e gere base para relatórios</h2><p className="mt-2 text-slate-500">Total do orçamento: <strong>{formatarMoeda(total)}</strong></p></PanelClean><PanelClean><div className="grid gap-3 md:grid-cols-6"><input className={inputClass} placeholder="Etapa" value={novo.etapa} onChange={(e)=>setNovo({...novo, etapa:e.target.value})}/><input className={`${inputClass} md:col-span-2`} placeholder="Item" value={novo.item} onChange={(e)=>setNovo({...novo, item:e.target.value})}/><input className={inputClass} placeholder="Un." value={novo.unidade} onChange={(e)=>setNovo({...novo, unidade:e.target.value})}/><input type="number" className={inputClass} placeholder="Qtd." value={novo.quantidade} onChange={(e)=>setNovo({...novo, quantidade:e.target.value})}/><button className={buttonGreenClass} onClick={adicionar}>Adicionar</button></div></PanelClean><PanelClean><TabelaSimples linhas={orcamento.map(i => [i.etapa, i.item, i.unidade, i.quantidade, formatarMoeda(i.unitario), formatarMoeda(i.quantidade*i.unitario)])} colunas={['Etapa','Item','Un.','Qtd.','Unitário','Total']} /></PanelClean></div> }
 function TelaComposicoes({ composicoes }) { return <PanelClean><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Composição de Custos</p><h2 className="mb-5 text-3xl font-black">Crie composições e simule custos unitários</h2><TabelaSimples colunas={['Código','Composição','Insumos','Mão de obra','Material','Total']} linhas={composicoes.map(c => [c.codigo, c.nome, c.insumos, formatarMoeda(c.maoObra), formatarMoeda(c.material), formatarMoeda(c.total)])} /></PanelClean> }
@@ -544,20 +446,6 @@ function TelaIA({ obraAtual, tarefas, alertas, compras, financeiro, materiais })
 
 function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) { return <div className="space-y-5">{permissaoAdmin && <PanelClean><h2 className="mb-4 text-3xl font-black">Criar nova obra</h2><div className="grid grid-cols-1 gap-3 md:grid-cols-5"><input value={novaObra.nome} onChange={(e) => setNovaObra({ ...novaObra, nome: e.target.value })} placeholder="Nome da obra" className={inputClass} /><input value={novaObra.cliente} onChange={(e) => setNovaObra({ ...novaObra, cliente: e.target.value })} placeholder="Cliente" className={inputClass} /><input value={novaObra.endereco} onChange={(e) => setNovaObra({ ...novaObra, endereco: e.target.value })} placeholder="Endereço" className={inputClass} /><input value={novaObra.responsavel} onChange={(e) => setNovaObra({ ...novaObra, responsavel: e.target.value })} placeholder="Responsável" className={inputClass} /><button onClick={criarNovaObra} className={buttonGreenClass}>Criar obra</button></div></PanelClean>}<PanelClean><h2 className="mb-5 text-3xl font-black">Tipos de usuários</h2><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><UserCard tipo="Engenheiro" texto="Acesso completo." /><UserCard tipo="Estagiário" texto="Atualiza diário, fotos, progresso, equipe e materiais." /><UserCard tipo="Cliente" texto="Visualiza somente a obra vinculada." /></div></PanelClean></div> }
 function TabelaSimples({ colunas, linhas }) { return <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-sm"><thead><tr className="bg-slate-100">{colunas.map(c => <th key={c} className="p-3 text-left font-black text-slate-600">{c}</th>)}</tr></thead><tbody>{linhas.map((linha, i) => <tr key={i} className="border-b border-slate-100">{linha.map((cel, j) => <td key={j} className="p-3">{cel}</td>)}</tr>)}</tbody></table></div> }
-function LogoDark() { 
-  return (
-    <div className="flex flex-col items-center justify-center gap-2">
-      <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-xl shadow-blue-600/30 ring-4 ring-blue-600/10">
-        <span className="text-white font-black text-base">NC</span>
-      </div>
-      <div className="text-center">
-        <p className="text-xl font-black tracking-tight text-slate-900">NeoCanteiro</p>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">OS Platform</p>
-      </div>
-    </div>
-  )
-}
-
 function LoginScreen({ selecionarUsuario }) {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -642,6 +530,28 @@ function LoginScreen({ selecionarUsuario }) {
   )
 }
 
+function LogoNeoCanteiro() { return <div className="flex items-center justify-center gap-3"><div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20"><span className="text-white font-black text-sm">NC</span></div><h1 className="text-xl font-black tracking-tight text-slate-900">NeoCanteiro</h1></div> }
+function LogoIcon() { return <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20"><span className="text-white font-black text-sm">NC</span></div> }
+function LogoDark() { return <div className="flex flex-col items-center justify-center gap-2">
+  <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-xl shadow-blue-600/30 ring-4 ring-blue-600/10">
+    <span className="text-white font-black text-base">NC</span>
+  </div>
+  <div className="text-center">
+    <p className="text-xl font-black tracking-tight text-slate-900">NeoCanteiro</p>
+    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">OS Platform</p>
+  </div>
+</div> }
+function PanelClean({ children, className = '' }) { return <section className={`rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm shadow-slate-200/50 transition-premium hover:shadow-lg hover:shadow-slate-200/40 ${className}`}>{children}</section> }
+function MenuItem({ label, text, active, onClick }) { return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-premium group ${active ? 'bg-blue-50/50 text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><span className={`grid h-8 w-8 place-items-center text-base rounded-lg transition-premium ${active ? 'bg-white shadow-sm ring-1 ring-blue-100' : 'group-hover:bg-white group-hover:shadow-sm'}`}>{label}</span><span className="text-sm tracking-tight">{text}</span></button> }
+function StatusBadge({ status }) { const isAtenção = status === 'Atenção'; return <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ${isAtenção ? 'bg-orange-50 text-orange-600 ring-orange-200' : 'bg-emerald-50 text-emerald-600 ring-emerald-200'}`}>{status}</span> }
+function ClienteBanner({ obraAtual }) { return <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5 flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs">NC</div><div><p className="text-xs font-black uppercase tracking-widest text-blue-600">Painel do Cliente</p><p className="mt-1 text-sm font-medium text-blue-900">Visualizando: <span className="font-bold">{obraAtual.nome}</span></p></div></div> }
+function InfoCard({ titulo, valor, detalhe }) { return <div className="rounded-2xl border border-slate-100 bg-slate-50/30 p-5"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{titulo}</p><p className="mt-2 text-lg font-black text-slate-900">{valor}</p><p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tight">{detalhe}</p></div> }
+function MiniTimeline({ tarefas }) { return <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"><div className="mb-6 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cronograma Principal</p></div>{tarefas.length === 0 ? <p className="text-xs text-slate-400 font-bold">Nenhum dado.</p> : tarefas.slice(0, 5).map((item) => <div key={item.id} className="mb-5 last:mb-0"><div className="mb-2 flex justify-between text-xs font-black text-slate-900"><span>{item.nome}</span><span>{item.progresso}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all duration-1000" style={{ width: `${item.progresso}%` }} /></div></div>)}</div> }
+function MetricCard({ title, value, detail, icon, onClick }) { return <button onClick={onClick} className="group flex w-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-6 text-left shadow-sm shadow-slate-200/50 transition-premium hover:border-blue-300 hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-1"><div className="flex w-full items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</p><p className="mt-2 text-2xl font-black text-slate-900">{value}</p></div><div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-premium">{icon}</div></div><p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-tight">{detail}</p></button> }
+function ExecutiveStat({ label, value, detail }) { return <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p><p className="mt-2 truncate text-xl font-black text-slate-900">{value}</p><p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tight">{detail}</p></div> }
+function ProgressRingDark({ value }) { return <ProgressRing value={value} /> }
+function ProgressRing({ value }) { const radius = 38; const circumference = 2 * Math.PI * radius; const offset = circumference - (value / 100) * circumference; return <div className="relative grid h-32 w-32 place-items-center drop-shadow-sm"><svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100"><circle cx="50" cy="50" r={radius} stroke="#f1f5f9" strokeWidth="8" fill="none" /><circle cx="50" cy="50" r={radius} stroke="#2563eb" strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-1000 ease-out" /></svg><div className="absolute text-center"> <p className="text-2xl font-black text-slate-900">{value}<span className="text-xs text-slate-400 font-bold">%</span></p> </div></div> }
+function UserCard({ tipo, texto }) { return <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-bold text-slate-900">{tipo}</h3><p className="mt-2 text-sm text-slate-600">{texto}</p></div> }
 function Empty({ text }) { return <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-10 text-center flex flex-col items-center gap-3"><span className="text-2xl opacity-20">📂</span><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{text}</p></div> }
 function gerarAlertas(tarefas, materiais, diario) {
   const hoje = new Date()
