@@ -23,78 +23,103 @@ export function DashboardView({ obraAtual, tarefas = [], materiais = [], diarios
   const recebidosHoje = materiais.filter(m => m.recebido).length // simplificado
 
   return (
-    <div className="space-y-6">
-      {/* Banner Principal */}
-      <section className="overflow-hidden rounded-3xl bg-slate-900 text-white shadow-xl">
-        <div className="p-8 lg:p-10">
+    <div className="space-y-8">
+      {/* Header Executive Section */}
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-8 shadow-sm shadow-slate-200/50">
+        <div className="relative z-10">
           <div className="flex flex-wrap items-center gap-3 mb-6">
-            <span className="rounded-full bg-white/10 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-slate-300">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500 ring-1 ring-slate-200">
               Controle Executivo
             </span>
             <StatusBadge status={obraAtual.status} />
           </div>
           
-          <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-4">
-            {obraAtual.nome}
-          </h1>
-          
-          <p className="text-slate-400 max-w-2xl text-lg mb-8">
-            {obraAtual.cliente} · {obraAtual.endereco}. Etapa atual: <strong className="text-white">{obraAtual.etapa || 'Em execução'}</strong>.
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-              <p className="text-slate-400 text-sm font-bold mb-1">Progresso Físico</p>
-              <p className="text-2xl font-black text-white">{progressoMedio}%</p>
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+            <div>
+              <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900 mb-3">
+                {obraAtual.nome}
+              </h1>
+              <p className="text-slate-500 max-w-2xl text-sm font-medium">
+                {obraAtual.cliente} · {obraAtual.endereco}. Etapa: <span className="text-slate-900 font-bold">{obraAtual.etapa || 'Em execução'}</span>
+              </p>
             </div>
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-              <p className="text-slate-400 text-sm font-bold mb-1">Previsão</p>
-              <p className="text-2xl font-black text-white">
+            
+            <div className="flex items-center gap-2">
+              <div className="h-10 px-4 rounded-xl border border-slate-200 flex items-center gap-2 bg-slate-50/50">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-xs font-bold text-slate-600 tracking-tight">Obra Ativa</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="group">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Progresso Físico</p>
+              <div className="flex items-end gap-2">
+                <p className="text-3xl font-black text-slate-900">{progressoMedio}%</p>
+                <div className="flex-1 h-1.5 mb-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${progressoMedio}%` }}></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Previsão de Entrega</p>
+              <p className="text-xl font-bold text-slate-900">
                 {obraAtual.previsao_entrega ? new Date(obraAtual.previsao_entrega).toLocaleDateString('pt-BR') : 'A definir'}
               </p>
             </div>
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-              <p className="text-slate-400 text-sm font-bold mb-1">Responsável</p>
-              <p className="text-xl font-black text-white truncate">{obraAtual.responsavel || 'A definir'}</p>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Responsável Técnico</p>
+              <p className="text-lg font-bold text-slate-900 truncate">{obraAtual.responsavel || 'A definir'}</p>
             </div>
-            <div className="bg-white/5 rounded-2xl p-4 border border-red-500/30">
-              <p className="text-red-300 text-sm font-bold mb-1">Atrasos</p>
-              <p className="text-2xl font-black text-red-400">{atrasadas}</p>
+            <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/50">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1">Atrasos Críticos</p>
+              <p className="text-2xl font-black text-red-600">{atrasadas}</p>
             </div>
           </div>
         </div>
+        
+        {/* Subtle Background Pattern */}
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl -z-0"></div>
       </section>
 
-      {/* Métricas Secundárias */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* Primary Metrics Grid */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <MetricCard 
-          title="Atividades Concluídas" 
-          value={`${concluidas}/${tarefas.length}`} 
-          detail="tarefas entregues" 
-          icon="✅" 
+          title="Cronograma" 
+          value={`${concluidas}/${totalTarefas}`} 
+          detail="atividades concluídas" 
+          icon="📅" 
         />
         <MetricCard 
-          title="Diários de Obra" 
+          title="Relatórios Diários" 
           value={diarios.length} 
-          detail="registros no sistema" 
+          detail="diários enviados" 
           icon="📝" 
         />
         <MetricCard 
-          title="Materiais Recebidos" 
+          title="Suprimentos" 
           value={recebidosHoje} 
-          detail="total de entregas" 
+          detail="materiais recebidos" 
           icon="📦" 
         />
       </section>
 
-      {/* Área de Alertas */}
+      {/* Attention Section */}
       {atrasadas > 0 && (
-        <PanelClean className="border-red-200 bg-red-50/50">
-          <div className="flex items-center gap-4">
-            <div className="text-3xl">🔴</div>
+        <PanelClean className="border-red-100 bg-red-50/30">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl shadow-sm shadow-red-200/50">⚠️</div>
             <div>
-              <h3 className="text-red-800 font-black text-lg">Atenção: Há {atrasadas} atividades em atraso</h3>
-              <p className="text-red-600 text-sm mt-1">Verifique o cronograma para realocar esforços e evitar impactos no prazo final.</p>
+              <h3 className="text-red-900 font-bold text-base">Alerta de Atraso Detectado</h3>
+              <p className="text-red-600/80 text-xs font-medium mt-1 leading-relaxed max-w-xl">
+                Identificamos {atrasadas} atividades com prazo expirado. Recomendamos a revisão imediata do cronograma para mitigar riscos de entrega.
+              </p>
+            </div>
+            <div className="ml-auto hidden sm:block">
+              <button className="px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-premium shadow-sm active:scale-95">
+                Ver Detalhes
+              </button>
             </div>
           </div>
         </PanelClean>
@@ -102,3 +127,4 @@ export function DashboardView({ obraAtual, tarefas = [], materiais = [], diarios
     </div>
   )
 }
+

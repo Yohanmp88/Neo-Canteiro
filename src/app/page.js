@@ -70,12 +70,12 @@ const composicoesInicial = [
 const diarioInicial = { data: '2026-05-09', clima: 'Dia com tempo bom, serviços operantes.', atividades: 'Execução de infraestrutura elétrica, conferência de pontos hidráulicos e preparação para fechamento de forro.', observacoes: 'Sem ocorrências relevantes. Equipe orientada sobre limpeza e organização do canteiro.' }
 const templates = ['Diário de Obra Padrão', 'Relatório Semanal da Obra', 'Relatório Fotográfico', 'Medição Mensal', 'Solicitação de Compra']
 
-const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm'
-const buttonPrimaryClass = 'rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900 transition hover:bg-slate-800'
-const buttonGreenClass = 'rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700'
-const surfaceClass = 'rounded-xl border border-slate-200 bg-white shadow-sm'
-const eyebrowClass = 'text-xs font-semibold uppercase tracking-wider text-slate-500'
-const professionalIconClass = 'grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100/50'
+const inputClass = 'w-full rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-premium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 shadow-sm'
+const buttonPrimaryClass = 'rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-premium hover:bg-slate-800 active:scale-95'
+const buttonGreenClass = 'rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-premium hover:bg-blue-700 active:scale-95'
+const surfaceClass = 'rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-200/50'
+const eyebrowClass = 'text-[10px] font-black uppercase tracking-widest text-slate-400'
+const professionalIconClass = 'grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/50'
 
 export default function Home() {
   const [usuario, setUsuario] = useState(null)
@@ -173,12 +173,13 @@ export default function Home() {
   if (!usuario) return <LoginScreen selecionarUsuario={selecionarUsuario} />
 
   return (
-    <main className="min-h-screen bg-white text-slate-800">
+    <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex min-h-screen w-full">
-        <aside className="hidden w-64 flex-col justify-between border-r border-slate-200 bg-white p-5 lg:flex">
-          <div className="flex flex-col gap-6">
+        <aside className="hidden w-64 flex-col justify-between border-r border-slate-200/60 bg-white px-4 py-6 lg:flex">
+          <div className="flex flex-col gap-8">
             <div className="px-2"><LogoDark /></div>
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
+              <p className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Plataforma</p>
               <MenuItem label="📊" text="Dashboard" active={tela === 'dashboard'} onClick={() => trocarTela('dashboard')} />
               <MenuItem label="📅" text="Cronograma" active={tela === 'cronograma'} onClick={() => trocarTela('cronograma')} />
               <MenuItem label="📷" text="Fotos" active={tela === 'fotos'} onClick={() => trocarTela('fotos')} />
@@ -196,11 +197,32 @@ export default function Home() {
               {!ehCliente && <MenuItem label="⚙️" text="Usuários" active={tela === 'usuarios'} onClick={() => trocarTela('usuarios')} />}
             </nav>
           </div>
-          <button onClick={() => setUsuario(null)} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:bg-slate-100"><span className="grid h-9 w-9 place-items-center rounded-lg bg-white text-sm font-bold text-slate-800 ring-1 ring-slate-200">{usuario.iniciais}</span><span><span className="block text-sm font-semibold text-slate-800">{usuario.nome}</span><span className="block text-xs text-slate-500">Sair da demo</span></span></button>
+          <button onClick={() => setUsuario(null)} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 text-left transition-premium hover:bg-slate-100 group">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-white text-xs font-black text-slate-900 shadow-sm border border-slate-200 group-hover:border-blue-200 transition-premium">
+              {usuario.iniciais}
+            </span>
+            <div className="flex-1 min-w-0">
+              <span className="block text-xs font-black text-slate-900 truncate">{usuario.nome}</span>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight">Sair da demo</span>
+            </div>
+          </button>
         </aside>
 
         <section className="flex-1 overflow-auto px-4 py-8 lg:px-10">
-          <header className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-5 xl:flex-row xl:items-end xl:justify-between"><div><p className={eyebrowClass}>NeoCanteiro OS</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-800">Central de gestão inteligente</h1></div><div className="flex flex-wrap items-center gap-3">{obrasVisiveis.length > 1 && <select value={obraId} onChange={(e) => setObraId(Number(e.target.value))} className={`${inputClass} min-w-60`}>{obrasVisiveis.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}</select>}{permissaoAdmin && <button onClick={() => trocarTela('usuarios')} className={buttonPrimaryClass}>Nova obra</button>}</div></header>
+          <header className="mb-10 flex flex-col gap-6 border-b border-slate-200/60 pb-8 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className={eyebrowClass}>NeoCanteiro OS</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Gestão Inteligente</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {obrasVisiveis.length > 1 && (
+                <select value={obraId} onChange={(e) => setObraId(Number(e.target.value))} className={`${inputClass} min-w-64`}>
+                  {obrasVisiveis.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
+                </select>
+              )}
+              {permissaoAdmin && <button onClick={() => trocarTela('usuarios')} className={buttonPrimaryClass}>Nova Obra</button>}
+            </div>
+          </header>
 
           {tela === 'dashboard' && !cardDetalhe && <Dashboard ehCliente={ehCliente} obraAtual={obraAtual} usuario={usuario} resumo={resumo} alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} fotosDaObra={fotosDaObra} materiaisRecebidosHoje={materiaisRecebidosHoje} tarefas={tarefas} obrasVisiveis={obrasVisiveis} cronogramas={cronogramas} setObraId={setObraId} setCardDetalhe={setCardDetalhe} financeiro={financeiroDaObra} compras={compras} atualizarObra={atualizarObra} />}
           {tela === 'dashboard' && cardDetalhe && <DetalheCard tipo={cardDetalhe} voltar={() => setCardDetalhe(null)} resumo={resumo} fotosDaObra={fotosDaObra} materiais={materiaisDaObra} tarefas={tarefas} />}
@@ -232,36 +254,35 @@ function Dashboard({ ehCliente, obraAtual, usuario, resumo, alertas, atrasosReai
   const tarefasAtrasadas = tarefas.filter((t) => estaAtrasada(t)).length
   const comprasAbertas = compras.filter(c => c.status !== 'Aprovado').length
 
-  return <div className="space-y-5">
+  return <div className="space-y-6">
     {ehCliente && <ClienteBanner obraAtual={obraAtual} />}
 
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="p-6 lg:p-8">
-        <div className="grid gap-8 xl:grid-cols-[1.2fr_.8fr]">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 ring-1 ring-slate-200">Controle executivo da obra</span>
-              <StatusBadge status={obraAtual.status} />
-            </div>
-            <h1 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight text-slate-900">{obraAtual.nome}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">{obraAtual.cliente} · {obraAtual.endereco}. Etapa atual: <strong className="text-slate-900">{obraAtual.etapa}</strong>.</p>
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <ExecutiveStat label="Progresso físico" value={`${resumo.media}%`} detail="média do cronograma" />
-              <ExecutiveStat label="Entrega prevista" value={formatarData(obraAtual.previsaoEntrega)} detail={obraAtual.prazo} />
-              <ExecutiveStat label="Responsável" value={obraAtual.responsavel} detail={`Perfil: ${usuario.tipo}`} />
-            </div>
+    <section className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-8 shadow-sm shadow-slate-200/50">
+      <div className="grid gap-10 xl:grid-cols-[1.2fr_.8fr]">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500 ring-1 ring-slate-200">Visão Geral da Obra</span>
+            <StatusBadge status={obraAtual.status} />
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Saúde operacional</p>
-            <div className="mt-5 flex items-center justify-center"><ProgressRing value={resumo.media} /></div>
-            <div className="mt-5 grid grid-cols-2 gap-4 text-xs">
-              <div className="rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200/50"><p className="text-slate-500">Atrasos</p><p className="mt-1 text-lg font-bold text-red-600">{tarefasAtrasadas}</p></div>
-              <div className="rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200/50"><p className="text-slate-500">Compras abertas</p><p className="mt-1 text-lg font-bold text-amber-600">{comprasAbertas}</p></div>
-            </div>
+          <h1 className="mt-6 text-3xl font-black tracking-tight text-slate-900">{obraAtual.nome}</h1>
+          <p className="mt-3 max-w-2xl text-sm font-medium text-slate-500 leading-relaxed">{obraAtual.cliente} · {obraAtual.endereco}. Etapa: <span className="text-slate-900 font-bold">{obraAtual.etapa}</span>.</p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+            <ExecutiveStat label="Avanço Físico" value={`${resumo.media}%`} detail="progresso real" />
+            <ExecutiveStat label="Entrega Prevista" value={formatarData(obraAtual.previsaoEntrega)} detail={obraAtual.prazo} />
+            <ExecutiveStat label="Resp. Técnico" value={obraAtual.responsavel} detail={`Nível: ${usuario.tipo}`} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-6 flex flex-col justify-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 text-center">Saúde do Empreendimento</p>
+          <div className="flex items-center justify-center mb-8"><ProgressRing value={resumo.media} /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Atrasos</p><p className="mt-1 text-xl font-black text-red-600">{tarefasAtrasadas}</p></div>
+            <div className="rounded-xl bg-white p-4 shadow-sm border border-slate-100"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Suprimentos</p><p className="mt-1 text-xl font-black text-amber-600">{comprasAbertas}</p></div>
           </div>
         </div>
       </div>
     </section>
+
 
     {!ehCliente && <CentralAlertas alertas={alertas} atrasosReais={atrasosReais} possiveisAtrasos={possiveisAtrasos} setCardDetalhe={setCardDetalhe} />}
 
@@ -433,38 +454,34 @@ function LoginScreen({ selecionarUsuario }) {
 
   function entrarDemo(e) {
     e.preventDefault()
-
     const emailCorreto = 'investidor@nc.com'
     const senhaCorreta = 'nc123'
-
     if (email.trim().toLowerCase() === emailCorreto && senha === senhaCorreta) {
       setErro('')
       setAutenticado(true)
       return
     }
-
-    setErro('E-mail ou senha incorretos. Confira os dados de acesso demo.')
+    setErro('E-mail ou senha incorretos.')
   }
 
   if (autenticado) {
     return (
-      <main className="min-h-screen bg-white p-5 text-slate-800">
-        <div className="relative mx-auto grid min-h-screen max-w-4xl place-items-center">
-          <div className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-            <LogoNeoCanteiro />
-            <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-blue-600">Acesso demo liberado</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Escolha o perfil</h1>
-            <p className="mt-2 text-slate-600">O investidor pode testar o NeoCanteiro nos três perfis principais da plataforma.</p>
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-[600px]">
+          <div className="text-center mb-10">
+            <LogoDark />
+            <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-blue-600">Acesso demo liberado</p>
+            <h1 className="mt-2 text-3xl font-black text-slate-900 tracking-tight">Escolha seu Perfil</h1>
+          </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {usuarios.map((user) => (
-                <button key={user.id} onClick={() => selecionarUsuario(user)} className="rounded-xl border border-slate-200 bg-white p-6 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-                  <div className="mb-4 grid h-12 w-12 place-items-center rounded-lg bg-blue-50 text-sm font-bold text-blue-700 ring-1 ring-blue-100">{user.iniciais}</div>
-                  <h2 className="text-xl font-bold text-slate-900">{user.tipo}</h2>
-                  <p className="mt-1 text-sm text-slate-500">Acessar como {user.nome}</p>
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {usuarios.map((user) => (
+              <button key={user.id} onClick={() => selecionarUsuario(user)} className="group bg-white border border-slate-200/60 rounded-2xl p-6 text-left transition-premium hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-200 hover:-translate-y-1">
+                <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-slate-50 text-xs font-black text-slate-900 border border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-premium">{user.iniciais}</div>
+                <h2 className="text-sm font-black text-slate-900">{user.tipo}</h2>
+                <p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tight">Acessar como {user.nome}</p>
+              </button>
+            ))}
           </div>
         </div>
       </main>
@@ -472,28 +489,40 @@ function LoginScreen({ selecionarUsuario }) {
   }
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <div className="mb-8 flex justify-center"><LogoNeoCanteiro /></div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">Acesse sua conta</h2>
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-[400px]">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <span className="text-white font-black text-sm">NC</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NeoCanteiro</h1>
+          </div>
+          <p className="text-slate-500 font-medium text-sm">Acesso de demonstração (Investor Mode)</p>
+        </div>
+
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-8 shadow-xl shadow-slate-200/40">
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-slate-900">Entrar na Demo</h2>
+            <p className="text-slate-400 text-xs mt-1 font-medium">Utilize as credenciais de investidor.</p>
+          </div>
 
           {erro && (
             <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-6">
-              <p className="text-red-600 text-sm font-semibold text-center">{erro}</p>
+              <p className="text-red-600 text-xs font-bold text-center">{erro}</p>
             </div>
           )}
 
-          <form onSubmit={entrarDemo} className="space-y-4">
+          <form onSubmit={entrarDemo} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">E-mail corporativo</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">E-mail</label>
               <input type="email" placeholder="investidor@nc.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Senha</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Senha</label>
               <input type="password" placeholder="nc123" value={senha} onChange={(e) => setSenha(e.target.value)} className={inputClass} />
             </div>
-            <button type="submit" className={buttonPrimaryClass + ' w-full'}>Entrar na plataforma</button>
+            <button type="submit" className={buttonPrimaryClass + ' w-full py-3 shadow-lg shadow-slate-900/10'}>Acessar Plataforma</button>
           </form>
         </div>
       </div>
@@ -501,21 +530,29 @@ function LoginScreen({ selecionarUsuario }) {
   )
 }
 
-function LogoNeoCanteiro() { return <div className="flex items-center justify-center gap-3"><div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center"><span className="text-white font-bold text-xs">NC</span></div><div><h1 className="text-lg font-bold tracking-tight text-slate-900">Neo<span className="text-blue-600">Canteiro</span></h1></div></div> }
-function LogoIcon() { return <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center"><span className="text-white font-bold text-sm">NC</span></div> }
-function LogoDark() { return <div className="flex items-center gap-3"><div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center"><span className="text-white font-bold text-xs">NC</span></div><div><p className="text-base font-bold tracking-tight text-slate-900">NeoCanteiro</p><p className="text-[9px] uppercase tracking-wider text-slate-500">Construction OS</p></div></div> }
-function PanelClean({ children }) { return <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">{children}</section> }
-function MenuItem({ label, text, active, onClick }) { return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${active ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}><span className={`grid h-6 w-6 place-items-center text-sm ${active ? 'text-blue-700' : 'text-slate-500'}`}>{label}</span><span className="text-sm">{text}</span></button> }
-function StatusBadge({ status }) { const color = status === 'Atenção' ? 'bg-orange-50 text-orange-700 ring-orange-200' : 'bg-emerald-50 text-emerald-700 ring-emerald-200'; return <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ${color}`}>{status}</span> }
-function ClienteBanner({ obraAtual }) { return <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 shadow-sm"><p className="text-sm font-semibold text-blue-800">Painel do cliente</p><p className="mt-1 text-xs text-blue-700">Você está visualizando a obra: <strong>{obraAtual.nome}</strong>.</p></div> }
-function InfoCard({ titulo, valor, detalhe }) { return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{titulo}</p><p className="mt-1.5 text-base font-semibold text-slate-900">{valor}</p><p className="mt-1 text-xs text-slate-500">{detalhe}</p></div> }
-function MiniTimeline({ tarefas }) { return <div className="rounded-xl border border-slate-200 bg-white p-4"><div className="mb-4 flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cronograma</p></div>{tarefas.length === 0 ? <p className="text-xs text-slate-500">Nenhum cronograma.</p> : tarefas.slice(0, 5).map((item) => <div key={item.id} className="mb-3 last:mb-0"><div className="mb-1.5 flex justify-between text-xs text-slate-600"><span>{item.nome}</span><span className="font-semibold">{item.progresso}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-500" style={{ width: `${item.progresso}%` }} /></div></div>)}</div> }
-function MetricCard({ title, value, detail, icon, onClick }) { return <button onClick={onClick} className="group flex w-full flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md"><div className="flex w-full items-start justify-between"><div><p className="text-xs font-medium text-slate-500">{title}</p><p className="mt-1 text-2xl font-bold text-slate-900">{value}</p></div><div className="text-xl">{icon}</div></div><p className="mt-3 text-xs text-slate-400">{detail}</p></button> }
-function ExecutiveStat({ label, value, detail }) { return <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 truncate text-base font-semibold text-slate-900">{value}</p><p className="mt-0.5 text-xs text-slate-500">{detail}</p></div> }
+function LogoNeoCanteiro() { return <div className="flex items-center justify-center gap-3"><div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20"><span className="text-white font-black text-sm">NC</span></div><h1 className="text-xl font-black tracking-tight text-slate-900">NeoCanteiro</h1></div> }
+function LogoIcon() { return <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20"><span className="text-white font-black text-sm">NC</span></div> }
+function LogoDark() { return <div className="flex flex-col items-center justify-center gap-2">
+  <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-xl shadow-blue-600/30 ring-4 ring-blue-600/10">
+    <span className="text-white font-black text-base">NC</span>
+  </div>
+  <div className="text-center">
+    <p className="text-xl font-black tracking-tight text-slate-900">NeoCanteiro</p>
+    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">OS Platform</p>
+  </div>
+</div> }
+function PanelClean({ children, className = '' }) { return <section className={`rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm shadow-slate-200/50 transition-premium hover:shadow-lg hover:shadow-slate-200/40 ${className}`}>{children}</section> }
+function MenuItem({ label, text, active, onClick }) { return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-premium group ${active ? 'bg-blue-50/50 text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><span className={`grid h-8 w-8 place-items-center text-base rounded-lg transition-premium ${active ? 'bg-white shadow-sm ring-1 ring-blue-100' : 'group-hover:bg-white group-hover:shadow-sm'}`}>{label}</span><span className="text-sm tracking-tight">{text}</span></button> }
+function StatusBadge({ status }) { const isAtenção = status === 'Atenção'; return <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ${isAtenção ? 'bg-orange-50 text-orange-600 ring-orange-200' : 'bg-emerald-50 text-emerald-600 ring-emerald-200'}`}>{status}</span> }
+function ClienteBanner({ obraAtual }) { return <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5 flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs">NC</div><div><p className="text-xs font-black uppercase tracking-widest text-blue-600">Painel do Cliente</p><p className="mt-1 text-sm font-medium text-blue-900">Visualizando: <span className="font-bold">{obraAtual.nome}</span></p></div></div> }
+function InfoCard({ titulo, valor, detalhe }) { return <div className="rounded-2xl border border-slate-100 bg-slate-50/30 p-5"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{titulo}</p><p className="mt-2 text-lg font-black text-slate-900">{valor}</p><p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tight">{detalhe}</p></div> }
+function MiniTimeline({ tarefas }) { return <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"><div className="mb-6 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cronograma Principal</p></div>{tarefas.length === 0 ? <p className="text-xs text-slate-400 font-bold">Nenhum dado.</p> : tarefas.slice(0, 5).map((item) => <div key={item.id} className="mb-5 last:mb-0"><div className="mb-2 flex justify-between text-xs font-black text-slate-900"><span>{item.nome}</span><span>{item.progresso}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all duration-1000" style={{ width: `${item.progresso}%` }} /></div></div>)}</div> }
+function MetricCard({ title, value, detail, icon, onClick }) { return <button onClick={onClick} className="group flex w-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-6 text-left shadow-sm shadow-slate-200/50 transition-premium hover:border-blue-300 hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-1"><div className="flex w-full items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</p><p className="mt-2 text-2xl font-black text-slate-900">{value}</p></div><div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-premium">{icon}</div></div><p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-tight">{detail}</p></button> }
+function ExecutiveStat({ label, value, detail }) { return <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p><p className="mt-2 truncate text-xl font-black text-slate-900">{value}</p><p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tight">{detail}</p></div> }
 function ProgressRingDark({ value }) { return <ProgressRing value={value} /> }
-function ProgressRing({ value }) { const radius = 38; const circumference = 2 * Math.PI * radius; const offset = circumference - (value / 100) * circumference; return <div className="relative grid h-28 w-28 place-items-center"><svg className="h-28 w-28 -rotate-90" viewBox="0 0 100 100"><circle cx="50" cy="50" r={radius} stroke="#f1f5f9" strokeWidth="10" fill="none" /><circle cx="50" cy="50" r={radius} stroke="#3b82f6" strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} /></svg><div className="absolute text-center"><p className="text-2xl font-bold text-slate-900">{value}%</p></div></div> }
+function ProgressRing({ value }) { const radius = 38; const circumference = 2 * Math.PI * radius; const offset = circumference - (value / 100) * circumference; return <div className="relative grid h-32 w-32 place-items-center drop-shadow-sm"><svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100"><circle cx="50" cy="50" r={radius} stroke="#f1f5f9" strokeWidth="8" fill="none" /><circle cx="50" cy="50" r={radius} stroke="#2563eb" strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-1000 ease-out" /></svg><div className="absolute text-center"> <p className="text-2xl font-black text-slate-900">{value}<span className="text-xs text-slate-400 font-bold">%</span></p> </div></div> }
 function UserCard({ tipo, texto }) { return <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-bold text-slate-900">{tipo}</h3><p className="mt-2 text-sm text-slate-600">{texto}</p></div> }
-function Empty({ text }) { return <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">{text}</div> }
+function Empty({ text }) { return <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-10 text-center flex flex-col items-center gap-3"><span className="text-2xl opacity-20">📂</span><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{text}</p></div> }
 function gerarAlertas(tarefas, materiais, diario) {
   const hoje = new Date()
   const alertas = []

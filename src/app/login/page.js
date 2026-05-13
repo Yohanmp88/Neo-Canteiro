@@ -34,49 +34,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-[400px]">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">NeoCanteiro</h1>
-          <p className="text-zinc-400">Gestão Profissional de Obras</p>
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <span className="text-white font-black text-sm">NC</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NeoCanteiro</h1>
+          </div>
+          <p className="text-slate-500 font-medium text-sm">Gestão Inteligente de Obras</p>
         </div>
 
         {/* Card de Login */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 shadow-2xl">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">Entrar</h2>
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-8 shadow-xl shadow-slate-200/40">
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-slate-900">Bem-vindo de volta</h2>
+            <p className="text-slate-400 text-xs mt-1 font-medium">Acesse sua conta para gerenciar suas obras.</p>
+          </div>
 
           {/* Erros */}
           {(errorMsg || error) && (
-            <div className="bg-red-500/15 border border-red-500/30 rounded p-4 mb-4">
-              <p className="text-red-300 text-sm">{errorMsg || error}</p>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-6">
+              <p className="text-red-600 text-xs font-bold">{errorMsg || error}</p>
             </div>
           )}
 
           {/* Formulário */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Email</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">E-mail</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-yellow-400 transition"
+                className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                 placeholder="seu@email.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Senha</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Senha</label>
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-yellow-400 transition"
+                className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                 placeholder="••••••••"
               />
             </div>
@@ -84,35 +92,32 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-[#ff0000] text-zinc-950 font-bold rounded hover:bg-[#ff1a1a] transition disabled:opacity-50"
+              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-premium disabled:opacity-50 shadow-lg shadow-blue-600/10 active:scale-[0.98] text-sm"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Autenticando...' : 'Entrar na Plataforma'}
             </button>
           </form>
 
           {/* Link para Sign Up */}
-          <p className="text-center text-zinc-400 text-sm mt-6">
-            Não tem conta?{' '}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center text-slate-500 text-xs font-medium">
+            Ainda não tem uma conta?{' '}
             <button
               onClick={() => router.push('/signup')}
-              className="text-yellow-400 hover:text-yellow-300 font-medium transition"
+              className="text-blue-600 hover:text-blue-700 font-bold transition-premium"
             >
-              Criar conta
+              Criar conta gratuita
             </button>
-          </p>
+          </div>
         </div>
 
         {/* Info de Demo */}
-        <div className="mt-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded text-center">
-          <p className="text-xs text-zinc-400">
-            <strong>Demo:</strong> Use credenciais de teste para explorar
+        <div className="mt-8 p-4 bg-white/50 border border-slate-200/50 rounded-xl text-center">
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            Ambiente de Demonstração
           </p>
         </div>
       </div>
-
-      <p className="fixed bottom-4 left-0 w-full text-center text-sm font-bold text-white">
-        CODEX UPDATE TEST
-      </p>
     </div>
   )
+
 }

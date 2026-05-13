@@ -59,104 +59,114 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 py-12">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-[420px]">
         {/* Logo */}
-        <div className="text-center mb-8 flex flex-col items-center">
-          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20 mb-4">
-            <span className="text-white font-black text-2xl">NC</span>
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <span className="text-white font-black text-sm">NC</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NeoCanteiro</h1>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">NeoCanteiro</h1>
-          <p className="text-slate-500 font-medium mt-1">Gestão Profissional de Obras</p>
+          <p className="text-slate-500 font-medium text-sm">Crie seu workspace de gestão</p>
         </div>
 
         {/* Card de Signup */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl shadow-slate-200/50">
-          <h2 className="text-2xl font-black text-slate-900 mb-6 text-center">Criar Workspace</h2>
+        <div className="bg-white border border-slate-200/60 rounded-2xl p-8 shadow-xl shadow-slate-200/40">
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-slate-900">Começar agora</h2>
+            <p className="text-slate-400 text-xs mt-1 font-medium">Preencha os dados abaixo para criar sua conta.</p>
+          </div>
 
           {/* Erros */}
           {(errorMsg || error) && (
-            <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-6">
-              <p className="text-red-600 text-sm font-bold text-center">{errorMsg || error}</p>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-6">
+              <p className="text-red-600 text-xs font-bold">{errorMsg || error}</p>
             </div>
           )}
 
           {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Nome Completo</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Nome Completo</label>
               <input
                 type="text"
                 name="nome"
                 value={formData.nome}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                 placeholder="Seu nome"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">E-mail corporativo</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">E-mail corporativo</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                 placeholder="seu@email.com.br"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Perfil de Acesso</label>
-                <select
-                  name="tipo_usuario"
-                  value={formData.tipo_usuario}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium appearance-none"
-                >
-                  <option value="estagiario">Estagiário</option>
-                  <option value="engenheiro">Engenheiro</option>
-                  <option value="cliente">Cliente</option>
-                </select>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Perfil de Acesso</label>
+                <div className="relative">
+                  <select
+                    name="tipo_usuario"
+                    value={formData.tipo_usuario}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium appearance-none"
+                  >
+                    <option value="estagiario">Estagiário</option>
+                    <option value="engenheiro">Engenheiro</option>
+                    <option value="cliente">Cliente</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <span className="text-[10px]">▼</span>
+                  </div>
+                </div>
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Empresa</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Empresa</label>
                 <input
                   type="text"
                   name="empresa"
                   value={formData.empresa}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                  className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                   placeholder="Nome da construtora"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Senha</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Senha</label>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                  className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                   placeholder="••••••••"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Confirmar Senha</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Confirmar</label>
                 <input
                   type="password"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                  className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-premium text-sm font-medium"
                   placeholder="••••••••"
                 />
               </div>
@@ -165,24 +175,25 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 shadow-md shadow-blue-600/20"
+              className="w-full mt-4 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-premium disabled:opacity-50 shadow-lg shadow-blue-600/10 active:scale-[0.98] text-sm"
             >
-              {loading ? 'Criando conta...' : 'Criar Conta'}
+              {loading ? 'Criando conta...' : 'Criar Conta Gratuita'}
             </button>
           </form>
 
           {/* Link para Login */}
-          <p className="text-center text-slate-500 font-medium text-sm mt-6">
-            Já possui conta?{' '}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center text-slate-500 text-xs font-medium">
+            Já possui uma conta?{' '}
             <button
               onClick={() => router.push('/login')}
-              className="text-blue-600 hover:text-blue-700 font-black transition-colors"
+              className="text-blue-600 hover:text-blue-700 font-bold transition-premium"
             >
-              Entrar
+              Fazer login
             </button>
-          </p>
+          </div>
         </div>
       </div>
     </div>
   )
+
 }
