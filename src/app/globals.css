@@ -1,217 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #020617;
-  --foreground: #e5eefb;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
+html, body {
   min-height: 100%;
-  color-scheme: dark;
-  background: #020617;
-}
-
-body {
-  min-height: 100%;
-  background:
-    radial-gradient(circle at top left, rgba(6, 182, 212, 0.16), transparent 32rem),
-    radial-gradient(circle at 85% 5%, rgba(59, 130, 246, 0.14), transparent 28rem),
-    linear-gradient(135deg, #020617 0%, #050816 45%, #020617 100%);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-::selection {
-  background: rgba(34, 211, 238, 0.32);
-  color: #f8fafc;
+  color: #0f172a;
+  background-color: #ffffff;
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #020617;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #155e75, #1e3a8a);
-  border: 2px solid #020617;
+  background: #cbd5e1;
   border-radius: 999px;
 }
 
-/* Enterprise dark theme normalization for legacy Tailwind utility markup. */
-[class~="bg-white"],
-[class~="bg-white/90"],
-[class~="bg-white/85"],
-[class~="bg-white/80"],
-[class~="bg-slate-50"],
-[class~="bg-slate-100"],
-[class~="from-slate-50"],
-[class~="from-blue-50"],
-[class~="to-white"],
-[class~="to-indigo-50"] {
-  background-color: rgba(15, 23, 42, 0.78) !important;
-  background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.78)) !important;
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-[class~="bg-blue-50"],
-[class~="from-blue-50/60"],
-[class~="to-emerald-50/40"] {
-  background-color: rgba(8, 47, 73, 0.62) !important;
-  background-image: linear-gradient(135deg, rgba(8, 47, 73, 0.75), rgba(6, 78, 59, 0.34)) !important;
-}
-
-[class~="hover:bg-blue-50"]:hover,
-[class~="hover:bg-slate-50"]:hover {
-  background-color: rgba(14, 165, 233, 0.14) !important;
-}
-
-[class~="border-white/70"],
-[class~="border-slate-200"],
-[class~="border-slate-200/70"],
-[class~="border-slate-200/80"],
-[class~="border-slate-100"],
-[class~="border-blue-100"] {
-  border-color: rgba(148, 163, 184, 0.18) !important;
-}
-
-[class~="text-slate-950"],
-[class~="text-slate-900"],
-[class~="text-zinc-950"]:not([class*="bg-yellow"]):not([class*="from-yellow"]) {
-  color: #f8fafc !important;
-}
-
-[class~="text-slate-700"],
-[class~="text-slate-600"],
-[class~="text-blue-700"],
-[class~="text-blue-800"] {
-  color: #bfdbfe !important;
-}
-
-[class~="text-slate-500"],
-[class~="text-slate-400"],
-[class~="text-zinc-400"] {
-  color: #94a3b8 !important;
-}
-
-[class~="text-blue-600"] {
-  color: #67e8f9 !important;
-}
-
-[class~="shadow-slate-200/60"],
-[class~="shadow-slate-200/70"],
-[class~="shadow-slate-300/60"],
-[class~="shadow-slate-300"] {
-  --tw-shadow-color: rgba(0, 0, 0, 0.5) !important;
-}
-
-input,
-select,
-textarea {
-  color-scheme: dark;
-}
-
-/* Premium SaaS density pass: keeps the dark product language while dialing back oversized legacy utilities. */
-body {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 14px;
-  line-height: 1.55;
-  letter-spacing: -0.006em;
-}
-
-[class~="font-black"] {
-  font-weight: 750 !important;
-}
-
-[class~="text-6xl"] { font-size: 3rem !important; line-height: 1.05 !important; }
-[class~="text-5xl"] { font-size: 2.5rem !important; line-height: 1.08 !important; }
-[class~="text-4xl"] { font-size: 1.875rem !important; line-height: 1.15 !important; }
-[class~="text-3xl"] { font-size: 1.45rem !important; line-height: 1.2 !important; }
-[class~="text-2xl"] { font-size: 1.2rem !important; line-height: 1.28 !important; }
-[class~="text-xl"] { font-size: 1.05rem !important; line-height: 1.35 !important; }
-[class~="text-lg"] { font-size: 0.98rem !important; line-height: 1.45 !important; }
-[class~="text-base"] { font-size: 0.9rem !important; line-height: 1.6 !important; }
-[class~="text-sm"] { font-size: 0.8125rem !important; line-height: 1.5 !important; }
-[class~="text-xs"] { font-size: 0.6875rem !important; line-height: 1.45 !important; }
-
-[class~="tracking-[0.34em]"],
-[class~="tracking-[0.28em]"],
-[class~="tracking-[0.25em]"],
-[class~="tracking-[0.2em]"] {
-  letter-spacing: 0.14em !important;
-}
-
-[class~="rounded-[2.5rem]"] { border-radius: 1.75rem !important; }
-[class~="rounded-[2.25rem]"] { border-radius: 1.5rem !important; }
-[class~="rounded-[2rem]"] { border-radius: 1.35rem !important; }
-[class~="rounded-[1.7rem]"] { border-radius: 1.25rem !important; }
-[class~="rounded-[1.5rem]"] { border-radius: 1.15rem !important; }
-[class~="rounded-2xl"] { border-radius: 0.95rem !important; }
-[class~="rounded-xl"] { border-radius: 0.75rem !important; }
-
-[class~="p-12"] { padding: 2rem !important; }
-[class~="p-10"] { padding: 1.75rem !important; }
-[class~="p-9"] { padding: 1.75rem !important; }
-[class~="p-8"] { padding: 1.5rem !important; }
-[class~="p-7"] { padding: 1.5rem !important; }
-[class~="p-6"] { padding: 1.25rem !important; }
-[class~="p-5"] { padding: 1.1rem !important; }
-[class~="p-4"] { padding: 0.9rem !important; }
-[class~="px-8"] { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
-[class~="px-6"] { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
-[class~="px-5"] { padding-left: 1rem !important; padding-right: 1rem !important; }
-[class~="px-4"] { padding-left: 0.85rem !important; padding-right: 0.85rem !important; }
-[class~="py-5"] { padding-top: 1.05rem !important; padding-bottom: 1.05rem !important; }
-[class~="py-4"] { padding-top: 0.9rem !important; padding-bottom: 0.9rem !important; }
-[class~="py-3"] { padding-top: 0.7rem !important; padding-bottom: 0.7rem !important; }
-[class~="py-2"] { padding-top: 0.45rem !important; padding-bottom: 0.45rem !important; }
-
-[class~="gap-8"] { gap: 1.5rem !important; }
-[class~="gap-6"] { gap: 1.25rem !important; }
-[class~="gap-5"] { gap: 1rem !important; }
-[class~="gap-4"] { gap: 0.85rem !important; }
-[class~="gap-3"] { gap: 0.7rem !important; }
-[class~="mt-16"] { margin-top: 3rem !important; }
-[class~="mt-12"] { margin-top: 2rem !important; }
-[class~="mt-8"] { margin-top: 1.5rem !important; }
-[class~="mt-7"] { margin-top: 1.25rem !important; }
-[class~="mt-6"] { margin-top: 1.15rem !important; }
-[class~="mt-5"] { margin-top: 1rem !important; }
-[class~="mt-4"] { margin-top: 0.85rem !important; }
-[class~="mb-6"] { margin-bottom: 1.15rem !important; }
-[class~="mb-5"] { margin-bottom: 1rem !important; }
-[class~="mb-4"] { margin-bottom: 0.85rem !important; }
-
-[class~="shadow-2xl"],
-[class~="shadow-xl"],
-[class~="shadow-lg"],
-[class*="shadow-[0_30px"],
-[class*="shadow-[0_24px"],
-[class*="shadow-[0_22px"],
-[class*="shadow-[0_18px"] {
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.26) !important;
-}
-
-[class~="blur-3xl"] {
-  opacity: 0.72;
-}
-
-input,
-select,
-textarea,
-button {
+input, select, textarea, button {
   font: inherit;
 }
