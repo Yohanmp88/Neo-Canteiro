@@ -55,7 +55,7 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
           </div>
           <div className="flex flex-col">
             <span className="text-slate-900 font-black tracking-tight text-base leading-none">NeoCanteiro</span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">SaaS Platform</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão inteligente de obras com IA</span>
           </div>
         </div>
       </div>

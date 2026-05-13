@@ -82,5 +82,3 @@ export function Header({ userProfile, obras, obraSelecionadaId, onObraChange }) 
     </header>
   )
 }
-  )
-}

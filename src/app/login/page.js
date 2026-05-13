@@ -44,7 +44,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">NeoCanteiro</h1>
           </div>
-          <p className="text-slate-500 font-medium text-sm">Gestão Inteligente de Obras</p>
+          <p className="text-slate-500 font-medium text-sm">Gestão inteligente de obras com IA</p>
         </div>
 
         {/* Card de Login */}
