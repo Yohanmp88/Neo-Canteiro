@@ -436,7 +436,7 @@ function LoginScreen({ selecionarUsuario }) {
   function entrarDemo(e) {
     e.preventDefault()
 
-    const emailCorreto = 'investidor@neocanteiro.com.br'
+    const emailCorreto = 'investidor@nc.com'
     const senhaCorreta = 'nc123'
 
     if (email.trim().toLowerCase() === emailCorreto && senha === senhaCorreta) {
@@ -500,7 +500,7 @@ function LoginScreen({ selecionarUsuario }) {
             <form onSubmit={entrarDemo} className="mt-8 space-y-4">
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-600">E-mail</span>
-                <input className={inputClass} type="email" placeholder="investidor@neocanteiro.com.br" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input className={inputClass} type="email" placeholder="investidor@nc.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-600">Senha</span>
