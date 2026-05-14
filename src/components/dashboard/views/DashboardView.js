@@ -135,19 +135,19 @@ export function DashboardView({
 
               <div className="space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-tight text-slate-400">
-                  Data de Entrega
+                  Prazo Final
                 </p>
 
                 <div className="flex items-center gap-2">
                   <Calendar size={18} className="text-slate-400" />
 
                   <span className="text-lg font-black text-slate-900">
-                    12 Jul 2026
+                    {obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '---'}
                   </span>
                 </div>
 
                 <p className="text-[10px] font-bold uppercase text-slate-500">
-                  Faltam 18 dias úteis
+                  {obraAtual.prazo || 'Prazo a definir'}
                 </p>
               </div>
 

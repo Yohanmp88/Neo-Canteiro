@@ -1,12 +1,19 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { Header } from '@/components/dashboard/Header'
 import { BottomNav } from '@/components/dashboard/BottomNav'
 import { DashboardView } from '@/components/dashboard/views/DashboardView'
 import { GraficoCronograma, CronogramaVisual } from '@/components/dashboard/Schedule'
 import { PanelClean, MetricCard, StatusBadge, InfoCard, MiniTimeline, ProgressRing } from '@/components/ui/Cards'
+
+// Hooks Supabase
+import { useAuth } from '@/hooks/useAuth'
+import { useObras } from '@/hooks/useObras'
+import { useTarefas } from '@/hooks/useTarefas'
+import { useDiarios } from '@/hooks/useDiarios'
+import { useMateriais } from '@/hooks/useMateriais'
 
 const usuarios = [
   { id: 1, nome: 'Yohan', tipo: 'Engenheiro', iniciais: 'YP', obrasPermitidas: 'todas' },
@@ -83,11 +90,24 @@ const surfaceClass = 'rounded-2xl border border-slate-200/60 bg-white shadow-sm 
 const eyebrowClass = 'text-[10px] font-black uppercase tracking-widest text-slate-400'
 const professionalIconClass = 'grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/50'
 export default function Home() {
-  const [usuario, setUsuario] = useState(null)
+  const { user, userProfile, login: authLogin, logout: authLogout, loading: authLoading, isClient, isEngineer } = useAuth()
+  const { obras, loading: obrasLoading, criar: criarObraHook, atualizar: atualizarObraHook } = useObras()
+  
   const [tela, setTela] = useState('dashboard')
-  const [obras, setObras] = useState(obrasIniciais)
-  const [obraId, setObraId] = useState(1)
-  const [cronogramas, setCronogramas] = useState({ 1: tarefasIniciais, 2: tarefasIniciais.slice(0, 5), 3: tarefasIniciais.slice(0, 6) })
+  const [obraId, setObraId] = useState(null)
+  
+  const { tarefas, loading: tarefasLoading, criar: adicionarTarefaHook, atualizar: atualizarTarefaHook } = useTarefas(obraId)
+  const { materiais, loading: materiaisLoading, criar: adicionarMaterialHook, atualizar: atualizarMaterialHook } = useMateriais(obraId)
+  const { diarios, loading: diariosLoading, criar: criarDiarioHook, atualizar: atualizarDiarioHook } = useDiarios(obraId)
+
+  // Sincronizar obraId inicial quando as obras carregarem
+  useEffect(() => {
+    if (obras.length > 0 && !obraId) {
+      setObraId(obras[0].id)
+    }
+  }, [obras, obraId])
+
+  const [usuario, setUsuario] = useState(null) // Mantido para compatibilidade temporária
   const [fotos, setFotos] = useState([])
   const [novaTarefa, setNovaTarefa] = useState({ nome: '', inicio: '', termino: '', duracao: 1 })
   const [novaObra, setNovaObra] = useState({ nome: '', cliente: '', endereco: '', responsavel: '', etapa: '' })
@@ -95,7 +115,6 @@ export default function Home() {
   const [equipe, setEquipe] = useState(equipeInicial)
   const [novoMembro, setNovoMembro] = useState({ nome: '', funcao: '' })
   const [diario, setDiario] = useState(diarioInicial)
-  const [materiais, setMateriais] = useState(materiaisIniciais)
   const [novoMaterial, setNovoMaterial] = useState({ material: '', quantidade: '' })
   const [compras, setCompras] = useState(comprasIniciais)
   const [financeiro, setFinanceiro] = useState(financeiroInicial)
@@ -105,87 +124,220 @@ export default function Home() {
   const [composicoes, setComposicoes] = useState(composicoesInicial)
   const [semanasDiarias, setSemanasDiarias] = useState(['03/04 a 05/04', '06/04 a 12/04', '13/04 a 19/04', '20/04 a 26/04', '27/04 a 03/05', '04/05 a 05/05'])
 
-  const obrasVisiveis = useMemo(() => {
-    if (!usuario) return []
-    if (usuario.obrasPermitidas === 'todas') return obras
-    return obras.filter((obra) => usuario.obrasPermitidas.includes(obra.id))
-  }, [usuario, obras])
+  // Atualizar o "usuario" legado para bater com o userProfile do Supabase
+  useEffect(() => {
+    if (userProfile) {
+      setUsuario({
+        id: userProfile.id,
+        nome: userProfile.nome,
+        tipo: userProfile.tipo_usuario.charAt(0).toUpperCase() + userProfile.tipo_usuario.slice(1),
+        iniciais: userProfile.nome.split(' ').map(n => n[0]).join('').toUpperCase()
+      })
+    } else {
+      setUsuario(null)
+    }
+  }, [userProfile])
 
-  const obraAtual = obrasVisiveis.find((obra) => obra.id === Number(obraId)) || obrasVisiveis[0] || obras[0]
-  const tarefas = cronogramas[obraAtual.id] || []
-  const permissaoEditar = usuario?.tipo === 'Engenheiro' || usuario?.tipo === 'Estagiário'
-  const permissaoAdmin = usuario?.tipo === 'Engenheiro'
-  const ehCliente = usuario?.tipo === 'Cliente'
+  const [saveStatus, setSaveStatus] = useState(null) // 'saving', 'saved', 'error'
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const triggerFeedback = (status, msg = '') => {
+    setSaveStatus(status)
+    setErrorMsg(msg)
+    if (status === 'saved') {
+      setTimeout(() => setSaveStatus(null), 3000)
+    }
+  }
+
+  const obraAtual = obrasVisiveis.find((obra) => obra.id === obraId) || obrasVisiveis[0] || { nome: 'Carregando...', status: '...', cliente: '...', endereco: '...', etapa: '...' }
+  
+  const permissaoEditar = userProfile?.tipo_usuario === 'engenheiro' || userProfile?.tipo_usuario === 'estagiario'
+  const permissaoAdmin = userProfile?.tipo_usuario === 'engenheiro'
+  const ehCliente = userProfile?.tipo_usuario === 'cliente'
+  
   const fotosDaObra = fotos.filter((foto) => foto.obraId === obraAtual.id)
   const equipeDaObra = equipe.filter((membro) => membro.obraId === obraAtual.id)
-  const materiaisDaObra = materiais.filter((m) => m.obraId === obraAtual.id)
-  const materiaisRecebidosHoje = materiaisDaObra.filter((m) => m.recebido && m.data === diario.data).length
+  const materiaisDaObra = materiais
+  
+  const diarioAtual = diarios[0] || { data: new Date().toISOString().split('T')[0], clima: '', atividades: '', observacoes: '' }
+  
+  const materiaisRecebidosHoje = materiaisDaObra.filter((m) => m.recebido && m.data === diarioAtual.data).length
   const financeiroDaObra = financeiro.filter((f) => f.obraId === obraAtual.id)
 
   const resumo = useMemo(() => {
     const total = tarefas.length || 1
-    const media = Math.round(tarefas.reduce((acc, tarefa) => acc + Number(tarefa.progresso), 0) / total)
+    const media = Math.round(tarefas.reduce((acc, tarefa) => acc + Number(tarefa.progresso || 0), 0) / total)
     const concluidas = tarefas.filter((tarefa) => Number(tarefa.progresso) === 100).length
     const pendentes = tarefas.filter((tarefa) => Number(tarefa.progresso) === 0).length
     return { media, concluidas, pendentes }
   }, [tarefas])
 
-  const alertas = gerarAlertas(tarefas, materiaisDaObra, diario)
+  const alertas = gerarAlertas(tarefas, materiaisDaObra, diarioAtual)
   const atrasosReais = alertas.filter((a) => a.tipo === 'critico')
   const possiveisAtrasos = alertas.filter((a) => a.tipo === 'atencao')
 
-  function selecionarUsuario(user) { setUsuario(user); setTela('dashboard'); setCardDetalhe(null); setObraId(user.obrasPermitidas === 'todas' ? 1 : user.obrasPermitidas[0]) }
+  function selecionarUsuario(user) { /* Legado, será removido após login real */ }
   function trocarTela(novaTela) { setTela(novaTela); setCardDetalhe(null) }
 
-  function adicionarTarefa() {
-    if (!permissaoEditar) return alert('Cliente não pode alterar o cronograma.')
+  async function adicionarTarefa() {
+    if (!permissaoEditar) return alert('Sem permissão para alterar o cronograma.')
     if (!novaTarefa.nome.trim()) return alert('Digite o nome da tarefa.')
-    const novoId = tarefas.length ? Math.max(...tarefas.map((t) => t.id)) + 1 : 1
-    const nova = { id: novoId, nome: novaTarefa.nome.trim(), inicio: novaTarefa.inicio || '2026-07-01', termino: novaTarefa.termino || '2026-07-05', inicioReal: '', terminoReal: '', duracao: Number(novaTarefa.duracao) || 1, progresso: 0, inicioGrafico: Math.min(75, tarefas.length * 8), orcado: 0, medido: 0 }
-    setCronogramas({ ...cronogramas, [obraAtual.id]: [...tarefas, nova] })
-    setNovaTarefa({ nome: '', inicio: '', termino: '', duracao: 1 })
+    
+    try {
+      triggerFeedback('saving')
+      const nova = { 
+        obra_id: obraAtual.id,
+        nome: novaTarefa.nome.trim(), 
+        data_inicio: novaTarefa.inicio || new Date().toISOString().split('T')[0], 
+        data_termino: novaTarefa.termino || new Date().toISOString().split('T')[0], 
+        duracao: Number(novaTarefa.duracao) || 1, 
+        progresso: 0
+      }
+      await adicionarTarefaHook(nova)
+      setNovaTarefa({ nome: '', inicio: '', termino: '', duracao: 1 })
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
   }
 
-  function atualizarTarefa(id, campo, valor) {
+  async function atualizarTarefa(id, campo, valor) {
     if (!permissaoEditar && !['medido'].includes(campo)) return
-    const numericos = ['progresso', 'duracao', 'inicioGrafico', 'orcado', 'medido']
-    const valorFinal = numericos.includes(campo) ? Math.max(0, campo === 'progresso' ? Math.min(100, Number(valor)) : Number(valor)) : valor
-    setCronogramas({ ...cronogramas, [obraAtual.id]: tarefas.map((tarefa) => (tarefa.id === id ? { ...tarefa, [campo]: valorFinal } : tarefa)) })
+    
+    const campoMapeado = {
+      inicio: 'data_inicio',
+      termino: 'data_termino',
+      progresso: 'progresso',
+      nome: 'nome',
+      duracao: 'duracao'
+    }[campo] || campo
+
+    const valorFinal = ['progresso', 'duracao', 'orcado', 'medido'].includes(campo) 
+      ? Math.max(0, campo === 'progresso' ? Math.min(100, Number(valor)) : Number(valor)) 
+      : valor
+
+    try {
+      triggerFeedback('saving')
+      await atualizarTarefaHook(id, { [campoMapeado]: valorFinal })
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
   }
 
   function atualizarProgresso(id, progresso) { atualizarTarefa(id, 'progresso', progresso) }
   function criarNovoCronograma() { if (!permissaoAdmin) return alert('Somente engenheiro pode criar novo cronograma.'); if (confirm('Criar um novo cronograma zerado para esta obra?')) setCronogramas({ ...cronogramas, [obraAtual.id]: [] }) }
 
-  function criarNovaObra() {
+  async function criarNovaObra() {
     if (!permissaoAdmin) return alert('Somente engenheiro pode criar uma nova obra.')
     if (!novaObra.nome.trim()) return alert('Digite o nome da obra.')
-    const novoId = obras.length ? Math.max(...obras.map((obra) => obra.id)) + 1 : 1
-    const obra = { id: novoId, nome: novaObra.nome.trim(), cliente: novaObra.cliente.trim() || 'Cliente não informado', endereco: novaObra.endereco.trim() || 'Endereço não informado', status: 'Nova obra', prazo: 'Prazo a definir', etapa: novaObra.etapa || 'Planejamento inicial', responsavel: novaObra.responsavel || 'Responsável a definir', previsaoEntrega: '', materiaisHoje: 0 }
-    setObras([...obras, obra]); setCronogramas({ ...cronogramas, [novoId]: [] }); setObraId(novoId); setNovaObra({ nome: '', cliente: '', endereco: '', responsavel: '', etapa: '' }); setTela('cronograma')
+    
+    try {
+      triggerFeedback('saving')
+      const obra = { 
+        nome: novaObra.nome.trim(), 
+        cliente: novaObra.cliente.trim() || 'Cliente não informado', 
+        endereco: novaObra.endereco.trim() || 'Endereço não informado', 
+        status: 'No prazo', 
+        etapa: novaObra.etapa || 'Planejamento inicial'
+      }
+      const criada = await criarObraHook(obra)
+      setObraId(criada.id)
+      setNovaObra({ nome: '', cliente: '', endereco: '', responsavel: '', etapa: '' })
+      setTela('cronograma')
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
   }
 
-  function atualizarObra(id, campo, valor) { setObras(obras.map((obra) => obra.id === id ? { ...obra, [campo]: valor } : obra)) }
+  async function atualizarObra(id, campo, valor) {
+    try {
+      triggerFeedback('saving')
+      await atualizarObraHook(id, { [campo]: valor })
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
+  }
+
   function adicionarFotos(event) { const arquivos = Array.from(event.target.files || []); const novasFotos = arquivos.map((arquivo) => ({ id: crypto.randomUUID(), nome: arquivo.name, url: URL.createObjectURL(arquivo), obraId: obraAtual.id, data: new Date().toLocaleDateString('pt-BR') })); setFotos([...novasFotos, ...fotos]); event.target.value = '' }
   function adicionarMembro() { if (!novoMembro.nome.trim()) return alert('Digite o nome do membro da equipe.'); setEquipe([...equipe, { id: crypto.randomUUID(), obraId: obraAtual.id, nome: novoMembro.nome.trim(), funcao: novoMembro.funcao.trim() || 'Função não informada', diaria: true, diasTrabalhados: 0, semanas: [0, 0, 0, 0, 0, 0], salarioUnitario: 0, vale: 0 }]); setNovoMembro({ nome: '', funcao: '' }) }
   function atualizarEquipe(id, campo, valor) { setEquipe(equipe.map((m) => (m.id === id ? { ...m, [campo]: ['diasTrabalhados', 'salarioUnitario', 'vale'].includes(campo) ? Number(valor) : valor } : m))) }
   function atualizarSemanaEquipe(id, i, valor) { setEquipe(equipe.map((m) => { if (m.id !== id) return m; const semanas = [...(m.semanas || [0, 0, 0, 0, 0, 0])]; semanas[i] = Number(valor); return { ...m, semanas, diasTrabalhados: semanas.reduce((a, d) => a + Number(d || 0), 0) } })) }
-  function atualizarMaterial(id, campo, valor) { setMateriais(materiais.map((item) => (item.id === id ? { ...item, [campo]: campo === 'custo' ? Number(valor) : valor } : item))) }
-  function adicionarMaterial() { if (!novoMaterial.material.trim()) return alert('Digite o nome do material.'); setMateriais([...materiais, { id: crypto.randomUUID(), obraId: obraAtual.id, material: novoMaterial.material.trim(), quantidade: novoMaterial.quantidade || 'Qtd. a definir', recebido: false, data: '', necessidade: '', custo: 0 }]); setNovoMaterial({ material: '', quantidade: '' }) }
+  
+  async function atualizarMaterial(id, campo, valor) {
+    try {
+      triggerFeedback('saving')
+      await atualizarMaterialHook(id, { [campo]: campo === 'custo' ? Number(valor) : valor })
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
+  }
+
+  async function adicionarMaterial() {
+    if (!novoMaterial.material.trim()) return alert('Digite o nome do material.')
+    try {
+      triggerFeedback('saving')
+      await adicionarMaterialHook({ 
+        material: novoMaterial.material.trim(), 
+        quantidade: novoMaterial.quantidade || 'Qtd. a definir', 
+        recebido: false,
+        custo: 0 
+      })
+      setNovoMaterial({ material: '', quantidade: '' })
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
+  }
+
   function atualizarCompra(id, campo, valor) { setCompras(compras.map((item) => (item.id === id ? { ...item, [campo]: campo === 'qtd' || campo === 'valorUnitario' ? Number(valor) : valor } : item))) }
   function adicionarTransacao() { if (!novaTransacao.descricao.trim()) return alert('Descreva a transação.'); setFinanceiro([...financeiro, { id: crypto.randomUUID(), obraId: obraAtual.id, tipo: novaTransacao.tipo, descricao: novaTransacao.descricao, valor: Number(novaTransacao.valor || 0), data: novaTransacao.data || new Date().toISOString().slice(0, 10), status: novaTransacao.tipo === 'Receita' ? 'A receber' : 'A pagar' }]); setNovaTransacao({ tipo: 'Despesa', descricao: '', valor: '', data: '' }) }
   function adicionarItemOrcamento() { if (!novoOrcamento.item.trim()) return alert('Digite o item do orçamento.'); setOrcamento([...orcamento, { id: crypto.randomUUID(), etapa: novoOrcamento.etapa || 'Sem etapa', item: novoOrcamento.item, unidade: novoOrcamento.unidade || 'un', quantidade: Number(novoOrcamento.quantidade || 0), unitario: Number(novoOrcamento.unitario || 0), categoria: novoOrcamento.categoria }]); setNovoOrcamento({ etapa: '', item: '', unidade: '', quantidade: '', unitario: '', categoria: 'Serviços' }) }
 
-  if (!usuario) return <LoginScreen selecionarUsuario={selecionarUsuario} />
+  async function salvarDiario(updates) {
+    try {
+      triggerFeedback('saving')
+      if (diarios[0]) {
+        await atualizarDiarioHook(diarios[0].id, updates)
+      } else {
+        await criarDiarioHook({ ...updates, obra_id: obraId, data: new Date().toISOString().split('T')[0] })
+      }
+      triggerFeedback('saved')
+    } catch (err) {
+      triggerFeedback('error', err.message)
+    }
+  }
+
+  if (authLoading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-black text-blue-600">Carregando NeoCanteiro...</div>
+  if (!user) return <LoginScreen login={authLogin} />
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20 lg:pb-0">
+      {/* Toast Feedback */}
+      {saveStatus && (
+        <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 rounded-2xl border px-6 py-4 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 ${
+          saveStatus === 'saving' ? 'bg-white border-blue-100 text-blue-600' :
+          saveStatus === 'saved' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+          'bg-red-50 border-red-100 text-red-700'
+        }`}>
+          <div className="flex h-2 w-2 rounded-full bg-current animate-pulse"></div>
+          <p className="text-xs font-black uppercase tracking-widest">
+            {saveStatus === 'saving' ? 'Salvando alterações...' :
+             saveStatus === 'saved' ? 'Alterações salvas!' :
+             `Erro: ${errorMsg}`}
+          </p>
+        </div>
+      )}
       <div className="flex min-h-screen w-full">
         {/* Desktop Sidebar */}
         <Sidebar
           activeTab={tela}
           onTabChange={trocarTela}
           userProfile={usuario}
-          logout={() => setUsuario(null)}
+          logout={authLogout}
         />
 
         <div className="flex-1 flex flex-col min-w-0 lg:ml-72">
@@ -248,7 +400,7 @@ export default function Home() {
               {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} permissaoAdmin={permissaoAdmin} criarNovoCronograma={criarNovoCronograma} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarProgresso={atualizarProgresso} atualizarTarefa={atualizarTarefa} />}
               {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={fotosDaObra} />}
               {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtual} equipe={equipeDaObra} semanas={semanasDiarias} setSemanas={setSemanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
-              {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtual} diario={diario} setDiario={setDiario} equipe={equipeDaObra} materiais={materiaisDaObra} />}
+              {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtual} diario={diarioAtual} setDiario={salvarDiario} equipe={equipeDaObra} materiais={materiaisDaObra} />}
               {tela === 'materiais' && !ehCliente && <TelaMateriais materiais={materiaisDaObra} atualizarMaterial={atualizarMaterial} novoMaterial={novoMaterial} setNovoMaterial={setNovoMaterial} adicionarMaterial={adicionarMaterial} />}
               {tela === 'financeiro' && !ehCliente && <TelaFinanceiro financeiro={financeiroDaObra} novaTransacao={novaTransacao} setNovaTransacao={setNovaTransacao} adicionarTransacao={adicionarTransacao} />}
               {tela === 'compras' && !ehCliente && <TelaCompras compras={compras} atualizarCompra={atualizarCompra} />}
@@ -448,8 +600,73 @@ function TelaTemplates() { return <div className="space-y-6"><section className=
 
 function TelaFotos({ permissaoEditar, adicionarFotos, fotosDaObra }) { return <PanelClean><div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><p className="text-sm text-slate-500">Fotos da obra</p><h2 className="text-3xl font-black">Registro em campo</h2></div>{permissaoEditar && <label className={`${buttonPrimaryClass} cursor-pointer`}>Adicionar fotos<input type="file" multiple accept="image/*" onChange={adicionarFotos} className="hidden" /></label>}</div>{fotosDaObra.length === 0 ? <Empty text="Nenhuma foto cadastrada nesta obra." /> : <div className="grid grid-cols-2 gap-4 md:grid-cols-4">{fotosDaObra.map((foto) => <div key={foto.id} className="overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-sm"><img src={foto.url} alt={foto.nome} className="h-40 w-full object-cover" /><div className="p-3"><p className="truncate font-bold">{foto.nome}</p><p className="text-sm text-slate-400">{foto.data}</p></div></div>)}</div>}</PanelClean> }
 function TelaEquipe({ obraAtual, equipe, semanas, setSemanas, novoMembro, setNovoMembro, adicionarMembro, atualizarEquipe, atualizarSemanaEquipe }) { const totalDiarias = equipe.reduce((a, m) => a + Number(m.diasTrabalhados || 0), 0); const totalVales = equipe.reduce((a, m) => a + Number(m.vale || 0), 0); const totalSalarios = equipe.reduce((a, m) => a + ((Number(m.diasTrabalhados || 0) * Number(m.salarioUnitario || 0)) - Number(m.vale || 0)), 0); return <div className="space-y-5"><section className="grid grid-cols-1 gap-5 md:grid-cols-4"><MetricCard title="Membros" value={equipe.length} detail="vinculados" icon="👷" /><MetricCard title="Presentes hoje" value={equipe.filter((m) => m.diaria).length} detail="diária marcada" icon="✅" /><MetricCard title="Dias trabalhados" value={totalDiarias.toLocaleString('pt-BR')} detail="total" icon="📅" /><MetricCard title="Total a pagar" value={formatarMoeda(totalSalarios)} detail="salário - vales" icon="💰" /></section><PanelClean><p className="mb-1 text-sm font-bold uppercase tracking-wide text-blue-600">{obraAtual.nome}</p><h2 className="mb-4 text-3xl font-black text-slate-800">Equipe, diárias e pagamento</h2><div className="grid gap-3 md:grid-cols-3"><input className={inputClass} placeholder="Nome" value={novoMembro.nome} onChange={(e) => setNovoMembro({ ...novoMembro, nome: e.target.value })} /><input className={inputClass} placeholder="Função" value={novoMembro.funcao} onChange={(e) => setNovoMembro({ ...novoMembro, funcao: e.target.value })} /><button className={buttonGreenClass} onClick={adicionarMembro}>Adicionar membro</button></div></PanelClean><PanelClean><h3 className="mb-4 text-2xl font-black text-slate-800">Resumo mensal por trabalhador</h3><div className="mb-5 grid gap-3 md:grid-cols-3">{semanas.map((s, i) => <label key={i}><span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-400">Semana {i + 1}</span><input className={inputClass} value={s} onChange={(e) => setSemanas(semanas.map((x, idx) => idx === i ? e.target.value : x))} /></label>)}</div><div className="overflow-x-auto"><table className="min-w-[1150px] w-full border-collapse text-sm"><thead><tr className="bg-slate-100 text-slate-600 font-semibold"><th className="border border-slate-200 p-3 text-left">Trabalhador</th><th className="border border-slate-200 p-3 text-left">Função</th>{semanas.map((s) => <th key={s} className="border border-slate-200 p-3 text-center">{s}</th>)}<th className="border border-slate-200 p-3">Total dias</th><th className="border border-slate-200 p-3">Salário Unit.</th><th className="border border-slate-200 p-3">Vale</th><th className="border border-slate-200 p-3">Salário Mês</th><th className="border border-slate-200 p-3">Hoje</th></tr></thead><tbody>{equipe.map((m) => { const salario = (Number(m.diasTrabalhados || 0) * Number(m.salarioUnitario || 0)) - Number(m.vale || 0); return <tr key={m.id} className="odd:bg-slate-50 even:bg-white"><td className="border border-slate-200 p-2"><input className="w-full bg-transparent font-bold outline-none" value={m.nome} onChange={(e) => atualizarEquipe(m.id, 'nome', e.target.value)} /></td><td className="border border-slate-200 p-2"><input className="w-full bg-transparent outline-none" value={m.funcao} onChange={(e) => atualizarEquipe(m.id, 'funcao', e.target.value)} /></td>{semanas.map((s, i) => <td key={s} className="border border-slate-200 p-2 text-center"><input type="number" step="0.5" min="0" className="w-20 rounded-xl border border-slate-200 px-2 py-1 text-right" value={(m.semanas || [0, 0, 0, 0, 0, 0])[i] || 0} onChange={(e) => atualizarSemanaEquipe(m.id, i, e.target.value)} /></td>)}<td className="border border-slate-200 p-2 text-center font-black">{Number(m.diasTrabalhados || 0).toLocaleString('pt-BR')}</td><td className="border border-slate-200 p-2"><input type="number" className="w-24 rounded-xl border border-slate-200 px-2 py-1 text-right" value={m.salarioUnitario || 0} onChange={(e) => atualizarEquipe(m.id, 'salarioUnitario', e.target.value)} /></td><td className="border border-slate-200 p-2"><input type="number" className="w-24 rounded-xl border border-slate-200 px-2 py-1 text-right" value={m.vale || 0} onChange={(e) => atualizarEquipe(m.id, 'vale', e.target.value)} /></td><td className="border border-slate-200 p-2 text-right font-black">{formatarMoeda(salario)}</td><td className="border border-slate-200 p-2 text-center"><input type="checkbox" checked={m.diaria} onChange={(e) => atualizarEquipe(m.id, 'diaria', e.target.checked)} /></td></tr> })}</tbody><tfoot><tr className="bg-slate-100 text-slate-800 font-black"><td className="border border-slate-200 p-3" colSpan={8}>TOTAL</td><td className="border border-slate-200 p-3 text-center">{totalDiarias.toLocaleString('pt-BR')}</td><td className="border border-slate-200 p-3" /><td className="border border-slate-200 p-3 text-right">{formatarMoeda(totalVales)}</td><td className="border border-slate-200 p-3 text-right">{formatarMoeda(totalSalarios)}</td><td className="border border-slate-200 p-3" /></tr></tfoot></table></div></PanelClean></div> }
-function TelaDiario({ obraAtual, diario, setDiario, equipe, materiais }) { return <PanelClean><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Diário de obra online</p><h2 className="mb-6 text-3xl font-black text-slate-800">Registre e centralize todas as informações da obra</h2><div className="overflow-auto"><div className="min-w-[850px] border border-slate-200 bg-white text-slate-700 shadow-sm rounded-xl"><div className="border-b border-slate-200 bg-slate-50 p-3 text-center font-black"><input className="w-full text-center bg-transparent font-black outline-none" value={obraAtual.nome} readOnly /></div><div className="grid grid-cols-[160px_1fr] border-b border-slate-200"><div className="border-r border-slate-200 p-2 font-bold bg-slate-50">Data</div><input type="date" className="p-2 outline-none" value={diario.data} onChange={(e) => setDiario({ ...diario, data: e.target.value })} /></div><div className="border-b border-slate-200 p-2"><p className="font-bold bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Condições de trabalho do dia:</p><textarea className="mt-2 min-h-20 w-full outline-none" value={diario.clima} onChange={(e) => setDiario({ ...diario, clima: e.target.value })} /></div><div className="border-b border-slate-200 p-2 font-black bg-slate-50">Funcionários presentes</div><div className="grid grid-cols-2 border-b border-slate-200">{equipe.filter((m) => m.diaria).map((m) => <div key={m.id} className="grid grid-cols-2 border-r border-slate-200 last:border-r-0"><div className="border-b border-slate-200 p-2">{m.nome}</div><div className="border-b border-slate-200 p-2">{m.funcao}</div></div>)}</div><div className="border-b border-slate-200 p-2"><p className="font-black bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Atividades Desenvolvidas:</p><textarea className="mt-2 min-h-40 w-full outline-none" value={diario.atividades} onChange={(e) => setDiario({ ...diario, atividades: e.target.value })} /></div><div className="border-b border-slate-200 p-2"><p className="font-black bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Materiais Recebidos:</p><textarea className="mt-2 min-h-24 w-full outline-none" value={materiais.filter((m) => m.recebido).map((m) => `${m.material} - ${m.quantidade} - ${formatarData(m.data)}`).join('\n')} readOnly /></div><div className="p-2"><p className="font-black bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Observações:</p><textarea className="mt-2 min-h-24 w-full outline-none" value={diario.observacoes} onChange={(e) => setDiario({ ...diario, observacoes: e.target.value })} /></div></div></div></PanelClean> }
-function TelaMateriais({ materiais, atualizarMaterial, novoMaterial, setNovoMaterial, adicionarMaterial }) { return <div className="space-y-5"><PanelClean><h2 className="mb-4 text-3xl font-black">Materiais</h2><div className="grid gap-3 md:grid-cols-3"><input className={inputClass} placeholder="Material" value={novoMaterial.material} onChange={(e) => setNovoMaterial({ ...novoMaterial, material: e.target.value })} /><input className={inputClass} placeholder="Quantidade" value={novoMaterial.quantidade} onChange={(e) => setNovoMaterial({ ...novoMaterial, quantidade: e.target.value })} /><button className={buttonGreenClass} onClick={adicionarMaterial}>Adicionar material</button></div></PanelClean><PanelClean><TabelaSimples colunas={['Material', 'Quantidade', 'Recebido', 'Necessidade', 'Recebimento', 'Custo']} linhas={materiais.map((item) => [item.material, item.quantidade, item.recebido ? 'Sim' : 'Não', formatarData(item.necessidade), formatarData(item.data), formatarMoeda(item.custo)])} /></PanelClean></div> }
+function TelaDiario({ obraAtual, diario, setDiario, equipe, materiais }) { 
+  return <PanelClean>
+    <p className="text-sm font-bold uppercase tracking-wide text-blue-600">Diário de obra online</p>
+    <h2 className="mb-6 text-3xl font-black text-slate-800">Registre e centralize todas as informações da obra</h2>
+    <div className="overflow-auto">
+      <div className="min-w-[850px] border border-slate-200 bg-white text-slate-700 shadow-sm rounded-xl">
+        <div className="border-b border-slate-200 bg-slate-50 p-3 text-center font-black">
+          <input className="w-full text-center bg-transparent font-black outline-none" value={obraAtual.nome} readOnly />
+        </div>
+        <div className="grid grid-cols-[160px_1fr] border-b border-slate-200">
+          <div className="border-r border-slate-200 p-2 font-bold bg-slate-50">Data</div>
+          <input type="date" className="p-2 outline-none" value={diario.data || ''} onChange={(e) => setDiario({ data: e.target.value })} />
+        </div>
+        <div className="border-b border-slate-200 p-2">
+          <p className="font-bold bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Condições de trabalho do dia:</p>
+          <textarea className="mt-2 min-h-20 w-full outline-none" value={diario.clima || ''} onChange={(e) => setDiario({ clima: e.target.value })} />
+        </div>
+        <div className="border-b border-slate-200 p-2 font-black bg-slate-50">Funcionários presentes</div>
+        <div className="grid grid-cols-2 border-b border-slate-200">
+          {equipe.filter((m) => m.diaria).map((m) => (
+            <div key={m.id} className="grid grid-cols-2 border-r border-slate-200 last:border-r-0">
+              <div className="border-b border-slate-200 p-2">{m.nome}</div>
+              <div className="border-b border-slate-200 p-2">{m.funcao}</div>
+            </div>
+          ))}
+        </div>
+        <div className="border-b border-slate-200 p-2">
+          <p className="font-black bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Atividades Desenvolvidas:</p>
+          <textarea className="mt-2 min-h-40 w-full outline-none" value={diario.atividades || ''} onChange={(e) => setDiario({ atividades: e.target.value })} />
+        </div>
+        <div className="border-b border-slate-200 p-2">
+          <p className="font-black bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Materiais Recebidos:</p>
+          <textarea className="mt-2 min-h-24 w-full outline-none" value={materiais.filter((m) => m.recebido).map((m) => `${m.material} - ${m.quantidade} - ${formatarData(m.data)}`).join('\n')} readOnly />
+        </div>
+        <div className="p-2">
+          <p className="font-black bg-slate-50 p-1 -m-2 mb-2 border-b border-slate-200">Observações:</p>
+          <textarea className="mt-2 min-h-24 w-full outline-none" value={diario.observacoes || ''} onChange={(e) => setDiario({ observacoes: e.target.value })} />
+        </div>
+      </div>
+    </div>
+  </PanelClean> 
+}
+function TelaMateriais({ materiais, atualizarMaterial, novoMaterial, setNovoMaterial, adicionarMaterial }) { 
+  return <div className="space-y-5">
+    <PanelClean>
+      <h2 className="mb-4 text-3xl font-black">Materiais</h2>
+      <div className="grid gap-3 md:grid-cols-3">
+        <input className={inputClass} placeholder="Material" value={novoMaterial.material} onChange={(e) => setNovoMaterial({ ...novoMaterial, material: e.target.value })} />
+        <input className={inputClass} placeholder="Quantidade" value={novoMaterial.quantidade} onChange={(e) => setNovoMaterial({ ...novoMaterial, quantidade: e.target.value })} />
+        <button className={buttonGreenClass} onClick={adicionarMaterial}>Adicionar material</button>
+      </div>
+    </PanelClean>
+    <PanelClean>
+      <TabelaSimples 
+        colunas={['Material', 'Quantidade', 'Recebido', 'Necessidade', 'Recebimento', 'Custo']} 
+        linhas={materiais.map((item) => [
+          item.material, 
+          item.quantidade, 
+          <input key={item.id} type="checkbox" checked={item.recebido} onChange={(e) => atualizarMaterial(item.id, 'recebido', e.target.checked)} />,
+          <input key={`nec-${item.id}`} type="date" className="bg-transparent text-xs" value={item.necessidade || ''} onChange={(e) => atualizarMaterial(item.id, 'necessidade', e.target.value)} />,
+          <input key={`dat-${item.id}`} type="date" className="bg-transparent text-xs" value={item.data || ''} onChange={(e) => atualizarMaterial(item.id, 'data', e.target.value)} />,
+          formatarMoeda(item.custo)
+        ])} 
+      />
+    </PanelClean>
+  </div> 
+}
 function TelaIA({ obraAtual, tarefas, alertas, compras, financeiro, materiais }) {
   const [mensagem, setMensagem] = useState('')
   const [chat, setChat] = useState([
@@ -557,46 +774,26 @@ function LogoDark() {
   )
 }
 
-function LoginScreen({ selecionarUsuario }) {
+function LoginScreen({ login }) {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
-  const [autenticado, setAutenticado] = useState(false)
+  const [carregando, setCarregando] = useState(false)
 
-  function entrarDemo(e) {
+  async function handleLogin(e) {
     e.preventDefault()
-    const emailCorreto = 'investidor@nc.com'
-    const senhaCorreta = 'nc123'
-    if (email.trim().toLowerCase() === emailCorreto && senha === senhaCorreta) {
-      setErro('')
-      setAutenticado(true)
-      return
+    if (!email || !senha) return setErro('Preencha todos os campos.')
+    
+    setCarregando(true)
+    setErro('')
+    
+    try {
+      await login(email, senha)
+    } catch (err) {
+      setErro('Falha no login: ' + (err.message === 'Invalid login credentials' ? 'Credenciais inválidas' : err.message))
+    } finally {
+      setCarregando(false)
     }
-    setErro('E-mail ou senha incorretos.')
-  }
-
-  if (autenticado) {
-    return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-[600px]">
-          <div className="text-center mb-10">
-            <LogoDark />
-            <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-blue-600">Acesso demo liberado</p>
-            <h1 className="mt-2 text-3xl font-black text-slate-900 tracking-tight">Escolha seu Perfil</h1>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {usuarios.map((user) => (
-              <button key={user.id} onClick={() => selecionarUsuario(user)} className="group bg-white border border-slate-200/60 rounded-2xl p-6 text-left transition-premium hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-200 hover:-translate-y-1">
-                <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-slate-50 text-xs font-black text-slate-900 border border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-premium">{user.iniciais}</div>
-                <h2 className="text-sm font-black text-slate-900">{user.tipo}</h2>
-                <p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-tight">Acessar como {user.nome}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </main>
-    )
   }
 
   return (
@@ -614,8 +811,8 @@ function LoginScreen({ selecionarUsuario }) {
 
         <div className="bg-white border border-slate-200/60 rounded-2xl p-8 shadow-xl shadow-slate-200/40">
           <div className="mb-8">
-            <h2 className="text-xl font-bold text-slate-900">Entrar na Demo</h2>
-            <p className="text-slate-400 text-xs mt-1 font-medium">Utilize as credenciais de investidor.</p>
+            <h2 className="text-xl font-bold text-slate-900">Acesse sua Conta</h2>
+            <p className="text-slate-400 text-xs mt-1 font-medium">Digite suas credenciais do Supabase.</p>
           </div>
 
           {erro && (
@@ -624,17 +821,23 @@ function LoginScreen({ selecionarUsuario }) {
             </div>
           )}
 
-          <form onSubmit={entrarDemo} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">E-mail</label>
-              <input type="email" placeholder="investidor@nc.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+              <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required />
             </div>
             <div>
               <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Senha</label>
-              <input type="password" placeholder="nc123" value={senha} onChange={(e) => setSenha(e.target.value)} className={inputClass} />
+              <input type="password" placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className={inputClass} required />
             </div>
-            <button type="submit" className={buttonPrimaryClass + ' w-full py-3 shadow-lg shadow-slate-900/10'}>Acessar Plataforma</button>
+            <button type="submit" disabled={carregando} className={buttonPrimaryClass + ' w-full py-3 shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2'}>
+              {carregando ? 'Autenticando...' : 'Acessar Plataforma'}
+            </button>
           </form>
+          
+          <div className="mt-8 text-center">
+             <p className="text-xs text-slate-400 font-medium">Ainda não tem conta? <a href="/signup" className="text-blue-600 font-bold hover:underline">Cadastre-se</a></p>
+          </div>
         </div>
       </div>
     </main>
