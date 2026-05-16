@@ -319,8 +319,8 @@ export default function Home() {
       {/* Toast Feedback */}
       {saveStatus && (
         <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 rounded-2xl border px-6 py-4 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 ${saveStatus === 'saving' ? 'bg-white border-blue-100 text-blue-600' :
-            saveStatus === 'saved' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
-              'bg-red-50 border-red-100 text-red-700'
+          saveStatus === 'saved' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+            'bg-red-50 border-red-100 text-red-700'
           }`}>
           <div className="flex h-2 w-2 rounded-full bg-current animate-pulse"></div>
           <p className="text-xs font-black uppercase tracking-widest">
@@ -756,7 +756,23 @@ function TelaIA({ obraAtual, tarefas, alertas, compras, financeiro, materiais })
     </div>
   )
 }
+function UserCard({ tipo, texto }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-black uppercase tracking-widest text-blue-600">
+        {tipo}
+      </p>
 
+      <p className="mt-2 text-sm font-medium text-slate-500">
+        {texto}
+      </p>
+    </div>
+  )
+}
+
+function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) {
+  return <div className="space-y-5">{permissaoAdmin && <PanelClean><h2 className="mb-4 text-3xl font-black">Criar nova obra</h2><div className="grid grid-cols-1 gap-3 md:grid-cols-5"><input value={novaObra.nome} onChange={(e) => setNovaObra({ ...novaObra, nome: e.target.value })} placeholder="Nome da obra" className={inputClass} /><input value={novaObra.cliente} onChange={(e) => setNovaObra({ ...novaObra, cliente: e.target.value })} placeholder="Cliente" className={inputClass} /><input value={novaObra.endereco} onChange={(e) => setNovaObra({ ...novaObra, endereco: e.target.value })} placeholder="Endereço" className={inputClass} /><input value={novaObra.responsavel} onChange={(e) => setNovaObra({ ...novaObra, responsavel: e.target.value })} placeholder="Responsável" className={inputClass} /><button onClick={criarNovaObra} className={buttonGreenClass}>Criar obra</button></div></PanelClean>}<PanelClean><h2 className="mb-5 text-3xl font-black">Tipos de usuários</h2><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><UserCard tipo="Engenheiro" texto="Acesso completo." /><UserCard tipo="Estagiário" texto="Atualiza diário, fotos, progresso, equipe e materiais." /><UserCard tipo="Cliente" texto="Visualiza somente a obra vinculada." /></div></PanelClean></div>
+}
 function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) { return <div className="space-y-5">{permissaoAdmin && <PanelClean><h2 className="mb-4 text-3xl font-black">Criar nova obra</h2><div className="grid grid-cols-1 gap-3 md:grid-cols-5"><input value={novaObra.nome} onChange={(e) => setNovaObra({ ...novaObra, nome: e.target.value })} placeholder="Nome da obra" className={inputClass} /><input value={novaObra.cliente} onChange={(e) => setNovaObra({ ...novaObra, cliente: e.target.value })} placeholder="Cliente" className={inputClass} /><input value={novaObra.endereco} onChange={(e) => setNovaObra({ ...novaObra, endereco: e.target.value })} placeholder="Endereço" className={inputClass} /><input value={novaObra.responsavel} onChange={(e) => setNovaObra({ ...novaObra, responsavel: e.target.value })} placeholder="Responsável" className={inputClass} /><button onClick={criarNovaObra} className={buttonGreenClass}>Criar obra</button></div></PanelClean>}<PanelClean><h2 className="mb-5 text-3xl font-black">Tipos de usuários</h2><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><UserCard tipo="Engenheiro" texto="Acesso completo." /><UserCard tipo="Estagiário" texto="Atualiza diário, fotos, progresso, equipe e materiais." /><UserCard tipo="Cliente" texto="Visualiza somente a obra vinculada." /></div></PanelClean></div> }
 function TabelaSimples({ colunas, linhas }) { return <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-sm"><thead><tr className="bg-slate-100">{colunas.map(c => <th key={c} className="p-3 text-left font-black text-slate-600">{c}</th>)}</tr></thead><tbody>{linhas.map((linha, i) => <tr key={i} className="border-b border-slate-100">{linha.map((cel, j) => <td key={j} className="p-3">{cel}</td>)}</tr>)}</tbody></table></div> }
 function LogoDark() {
