@@ -7,7 +7,7 @@ export const tarefaService = {
       .from('tarefas')
       .select('*')
       .eq('obra_id', obraId)
-      .order('inicio', { ascending: true })
+      .order('data_inicio', { ascending: true })
 
     if (error) throw new Error(error.message)
     return data
@@ -63,7 +63,7 @@ export const tarefaService = {
     const concluidas = tarefas.filter((t) => t.progresso === 100).length
     const atrasadas = tarefas.filter((t) => {
       const hoje = new Date()
-      return new Date(t.termino) < hoje && t.progresso < 100
+      return new Date(t.data_termino) < hoje && t.progresso < 100
     }).length
 
     const progressoMedio = total > 0 ? Math.round(tarefas.reduce((sum, t) => sum + t.progresso, 0) / total) : 0

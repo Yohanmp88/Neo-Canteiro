@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { MetricCard, PanelClean, StatusBadge } from '@/components/ui/Cards'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -32,6 +33,12 @@ export function DashboardView({
   diarios = [],
   isClient,
 }) {
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   if (!obraAtual) {
     return (
       <EmptyState
@@ -54,10 +61,10 @@ export function DashboardView({
   )
 
   const atrasadas = tarefas.filter((t) => {
-    if (!t.termino) return false
+    if (!t.termino && !t.data_termino) return false
 
     const hoje = new Date()
-    const termino = new Date(t.termino)
+    const termino = new Date(t.termino || t.data_termino)
 
     return termino < hoje && Number(t.progresso) < 100
   }).length
@@ -202,7 +209,7 @@ export function DashboardView({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <PanelClean className="min-h-[350px]">
+        <PanelClean className="min-h-[350px] w-full">
           <div className="mb-8">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               Evolução da Obra
@@ -214,35 +221,56 @@ export function DashboardView({
           </div>
 
           <div className="h-[260px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dadosEvolucao}>
-                <CartesianGrid strokeDasharray="3 3" />
-
-                <XAxis dataKey="name" />
-
-                <YAxis />
-
-                <Tooltip />
-
-                <Area
-                  type="monotone"
-                  dataKey="previsto"
-                  stroke="#2563eb"
-                  fill="#2563eb22"
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="realizado"
-                  stroke="#10b981"
-                  fill="#10b98122"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dadosEvolucao}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
+                  />
+                  <Tooltip 
+                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="previsto"
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    fill="url(#colorPrevisto)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="realizado"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    fill="url(#colorRealizado)"
+                  />
+                  <defs>
+                    <linearGradient id="colorPrevisto" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </PanelClean>
 
-        <PanelClean className="min-h-[350px]">
+        <PanelClean className="min-h-[350px] w-full">
           <div className="mb-8 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -260,30 +288,41 @@ export function DashboardView({
           </div>
 
           <div className="h-[260px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosMensais}>
-                <CartesianGrid strokeDasharray="3 3" />
-
-                <XAxis dataKey="name" />
-
-                <YAxis />
-
-                <Tooltip />
-
-                <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
-                  {dadosMensais.map((entry, index) => (
-                    <Cell
-                      key={index}
-                      fill={
-                        index === dadosMensais.length - 1
-                          ? '#2563eb'
-                          : '#cbd5e1'
-                      }
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dadosMensais}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
+                  />
+                  <Tooltip 
+                    cursor={{fill: '#f8fafc'}}
+                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                  />
+                  <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={30}>
+                    {dadosMensais.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={
+                          index === dadosMensais.length - 1
+                            ? '#2563eb'
+                            : '#cbd5e1'
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">

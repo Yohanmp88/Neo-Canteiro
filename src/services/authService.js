@@ -59,16 +59,28 @@ export const authService = {
     return data.session
   },
 
-  // Obter dados do usuário logado
+  // Obter dados do usuário logado (Perfil)
   async getUserProfile(userId) {
-    const { data, error } = await supabase
+    // 1. Tentar buscar na nova tabela 'profiles'
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (profile) {
+      // Retorna com mapeamento de 'role' para 'tipo_usuario' para compatibilidade com o resto do código
+      return { ...profile, tipo_usuario: profile.role }
+    }
+
+    // 2. Fallback para a tabela legada 'usuarios'
+    const { data: usuario } = await supabase
       .from('usuarios')
       .select('*')
       .eq('id', userId)
       .single()
 
-    if (error) throw new Error(error.message)
-    return data
+    return usuario
   },
 
   // Subscribe para mudanças de autenticação
