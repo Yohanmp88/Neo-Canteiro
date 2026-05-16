@@ -37,6 +37,12 @@ const EQUIPE_DEMO = [
   { id: 3, obraId: 'demo-1', nome: 'Ataíde Costa', funcao: 'Servente', diaria: false, diasTrabalhados: 20, semanas: [0, 5, 5, 4, 4, 2], salario_unitario: 200, vale: 200 },
 ]
 
+const COMPRAS_DEMO = [
+  { id: 1, item: 'Cimento CP-II', fornecedor: 'Votorantim', data: '2026-05-10', qtd: '100 un', status: 'Pendente' },
+  { id: 2, item: 'Aço CA-50 10mm', fornecedor: 'Gerdau', data: '2026-05-20', qtd: '500kg', status: 'Recebido' },
+  { id: 3, item: 'Marcenaria Sob Medida', fornecedor: 'Marcenaria Silva', data: '2026-05-01', qtd: '1 conj', status: 'Pendente' },
+]
+
 // --- HELPERS ---
 const normalizarObra = (o) => ({ ...o, nome: o.nome || 'Sem nome', status: o.status || 'No prazo', progresso: Number(o.progresso || 0), data_inicio: o.data_inicio || '', prazo_final: o.prazo_final || o.previsaoEntrega || '' })
 const normalizarTarefa = (t) => ({ ...t, nome: t.nome || 'Sem nome', inicio: t.data_inicio || t.inicio || '', termino: t.data_termino || t.termino || '', duracao: Number(t.duracao || 0), progresso: Number(t.progresso || 0) })
@@ -51,14 +57,14 @@ export default function Home() {
   const [inicializandoPerfil, setInicializandoPerfil] = useState(true)
   const [tela, setTela] = useState('dashboard')
   const [obraId, setObraId] = useState(null)
-  
+
   // --- ESTADOS DE DADOS (LOCAIS/DEMO) ---
   const [semanasDiarias, setSemanasDiarias] = useState(['03/04 a 05/04', '06/04 a 12/04', '13/04 a 19/04', '20/04 a 26/04', '27/04 a 03/05', '04/05 a 05/05'])
   const [novaTarefa, setNovaTarefa] = useState({ nome: '', inicio: '', termino: '', duracao: 1 })
   const [novoMembro, setNovoMembro] = useState({ nome: '', funcao: '' })
   const [novaObra, setNovaObra] = useState({ nome: '', cliente: '', endereco: '', responsavel: '', etapa: '', data_inicio: '', prazo_final: '' })
-  const [diarioLocal, setDiarioLocal] = useState({ data: new Date().toISOString().slice(0,10), clima: '', atividades: '', observacoes: '' })
-  
+  const [diarioLocal, setDiarioLocal] = useState({ data: new Date().toISOString().slice(0, 10), clima: '', atividades: '', observacoes: '' })
+
   const [saveStatus, setSaveStatus] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
   const feedbackTimerRef = useRef(null)
@@ -85,7 +91,7 @@ export default function Home() {
 
   const tarefas = useMemo(() => (tarefasRaw || []).map(normalizarTarefa), [tarefasRaw])
   const materiais = useMemo(() => materiaisRaw || [], [materiaisRaw])
-  
+
   const equipeVisivel = useMemo(() => {
     if (String(obraAtualId).startsWith('demo')) return EQUIPE_DEMO.filter(m => m.obraId === obraAtualId)
     return equipeRaw.length > 0 ? equipeRaw : (obrasRaw.length === 0 ? EQUIPE_DEMO.filter(m => m.obraId === 'demo-1') : [])
@@ -132,10 +138,10 @@ export default function Home() {
     if (!permissaoAdmin || !novaObra.nome.trim()) return
     try {
       triggerFeedback('saving')
-      const criada = await criarObraHook({ 
-        nome: novaObra.nome, 
-        cliente: novaObra.cliente, 
-        endereco: novaObra.endereco, 
+      const criada = await criarObraHook({
+        nome: novaObra.nome,
+        cliente: novaObra.cliente,
+        endereco: novaObra.endereco,
         responsavel: novaObra.responsavel,
         etapa: novaObra.etapa || 'Planejamento',
         progresso: 0,
@@ -174,7 +180,7 @@ export default function Home() {
     if (!permissaoEditar || !novoMembro.nome.trim() || !obraAtualId || String(obraAtualId).startsWith('demo')) return
     try {
       triggerFeedback('saving')
-      await adicionarMembroHook({ nome: novoMembro.nome, funcao: novoMembro.funcao, diaria: true, semanas: [0,0,0,0,0,0], salario_unitario: 0, vale: 0 })
+      await adicionarMembroHook({ nome: novoMembro.nome, funcao: novoMembro.funcao, diaria: true, semanas: [0, 0, 0, 0, 0, 0], salario_unitario: 0, vale: 0 })
       setNovoMembro({ nome: '', funcao: '' })
       triggerFeedback('saved')
     } catch (e) { triggerFeedback('error', e.message) }
@@ -194,7 +200,7 @@ export default function Home() {
     try {
       const membro = equipeRaw.find(m => m.id === id)
       if (!membro) return
-      const s = [...(membro.semanas || [0,0,0,0,0,0])]
+      const s = [...(membro.semanas || [0, 0, 0, 0, 0, 0])]
       s[i] = Number(valor)
       triggerFeedback('saving')
       await atualizarMembroHook(id, { semanas: s })
@@ -249,30 +255,27 @@ export default function Home() {
       {saveStatus && <Toast status={saveStatus} msg={errorMsg} />}
       <div className="flex min-h-screen w-full">
         <Sidebar activeTab={tela} onTabChange={setTela} userProfile={userProfile} logout={authLogout} />
-        
+
         <div className="flex-1 flex flex-col min-w-0 lg:ml-72">
-          <Header userProfile={{...userProfile, nome: userProfile?.nome || user.email?.split('@')[0], tipo: perfilAtivo}} obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} />
-          
+          <Header userProfile={{ ...userProfile, nome: userProfile?.nome || user.email?.split('@')[0], tipo: perfilAtivo }} obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} />
+
           <section className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 custom-scrollbar">
-            <div className="mb-8 animate-fade-in">
+            <div className="mb-4 animate-fade-in">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1"><span className="w-2 h-2 rounded-full bg-blue-600 shadow-xl" /><p className={eyebrowClass}>Painel / {tela}</p></div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900 capitalize">{tela === 'dashboard' ? 'Resumo Executivo' : tela}</h1>
-                  <button onClick={trocarPerfil} className="mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 flex items-center gap-1">Alternar Visualização</button>
-                </div>
+                <div />
                 {permissaoAdmin && <button onClick={() => setTela('usuarios')} className={buttonPrimaryClass}>Nova Obra</button>}
               </div>
             </div>
 
             <div className="animate-fade-in">
-              {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} isClient={ehCliente} resumo={{ media: Math.round(tarefas.reduce((a, t) => a + t.progresso, 0) / (tarefas.length || 1)) }} />}
-              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} />}
+              {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} isClient={ehCliente} onNavigate={setTela} />}
+              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} obraAtual={obraAtualSegura} />}
               {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
               {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
               {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
               {tela === 'usuarios' && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
-              {['materiais', 'financeiro', 'compras', 'orcamento', 'ia'].includes(tela) && <ModulePlaceholder tela={tela} setTela={setTela} />}
+              {tela === 'compras' && <TelaCompras compras={COMPRAS_DEMO} materiais={materiais} />}
+              {['materiais', 'financeiro', 'orcamento', 'ia'].includes(tela) && <ModulePlaceholder tela={tela} setTela={setTela} />}
             </div>
           </section>
         </div>
@@ -320,22 +323,81 @@ function LoginScreen({ login }) {
   )
 }
 
-function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa }) {
+function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, obraAtual }) {
+  const total = tarefas.length || 0
+  const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
+  const atrasadas = tarefas.filter(t => (t.progresso < 100 && (t.termino || t.data_termino) && new Date(t.termino || t.data_termino) < new Date())).length
+  const progressoGlobal = total > 0 ? Math.round(tarefas.reduce((a, t) => a + Number(t.progresso), 0) / total) : 0
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Indicadores do Cronograma */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
+          <p className={eyebrowClass + " mb-1"}>Status de Execução</p>
+          <h4 className="text-2xl font-black text-slate-900">{concluidas}/{total}</h4>
+          <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Tarefas Finalizadas</p>
+        </div>
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
+          <p className={eyebrowClass + " mb-1"}>Prazo Final</p>
+          <h4 className="text-2xl font-black text-slate-900">
+            {obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '---'}
+          </h4>
+          <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">{obraAtual.prazo || 'Data Estimada'}</p>
+        </div>
+        <div className={`p-6 rounded-3xl border shadow-sm ${atrasadas > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-slate-200/60'}`}>
+          <p className={atrasadas > 0 ? "text-[10px] font-black uppercase tracking-widest text-red-400 mb-1" : eyebrowClass + " mb-1"}>Pontos Críticos</p>
+          <h4 className={`text-2xl font-black ${atrasadas > 0 ? 'text-red-600' : 'text-slate-900'}`}>{atrasadas}</h4>
+          <p className={`text-[10px] font-bold uppercase mt-1 ${atrasadas > 0 ? 'text-red-500' : 'text-slate-500'}`}>Serviços Atrasados</p>
+        </div>
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
+          <p className={eyebrowClass + " mb-1"}>Progresso Físico</p>
+          <div className="flex items-baseline gap-2">
+            <h4 className="text-2xl font-black text-blue-600">{progressoGlobal}%</h4>
+            <span className="text-[10px] font-bold text-slate-400">Total</span>
+          </div>
+          <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-600" style={{ width: `${progressoGlobal}%` }} />
+          </div>
+        </div>
+      </div>
+
       {permissaoEditar && (
         <PanelClean>
-          <p className={eyebrowClass + ' mb-6'}>Nova Atividade</p>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white">
+              <span className="text-xs font-bold">+</span>
+            </div>
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Nova Atividade no Cronograma</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <input className={inputClass + ' md:col-span-2'} placeholder="Descrição" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} />
-            <input type="date" className={inputClass} value={novaTarefa.inicio} onChange={e => setNovaTarefa({...novaTarefa, inicio: e.target.value})} />
-            <input type="date" className={inputClass} value={novaTarefa.termino} onChange={e => setNovaTarefa({...novaTarefa, termino: e.target.value})} />
-            <button onClick={adicionarTarefa} className={buttonGreenClass}>Lançar</button>
+            <input className={inputClass + ' md:col-span-2'} placeholder="Descrição da Atividade" value={novaTarefa.nome} onChange={e => setNovaTarefa({ ...novaTarefa, nome: e.target.value })} />
+            <div className="relative">
+              <p className="absolute -top-2 left-3 bg-white px-1 text-[8px] font-black text-slate-400 uppercase">Início</p>
+              <input type="date" className={inputClass} value={novaTarefa.inicio} onChange={e => setNovaTarefa({ ...novaTarefa, inicio: e.target.value })} />
+            </div>
+            <div className="relative">
+              <p className="absolute -top-2 left-3 bg-white px-1 text-[8px] font-black text-slate-400 uppercase">Término</p>
+              <input type="date" className={inputClass} value={novaTarefa.termino} onChange={e => setNovaTarefa({ ...novaTarefa, termino: e.target.value })} />
+            </div>
+            <button onClick={adicionarTarefa} className={buttonPrimaryClass}>Lançar</button>
           </div>
         </PanelClean>
       )}
-      <PanelClean><GraficoCronograma tarefas={tarefas} /></PanelClean>
-      <PanelClean><CronogramaVisual tarefas={tarefas} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} /></PanelClean>
+
+      <PanelClean>
+        <div className="mb-6">
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Cronograma Físico (Previsto vs Realizado)</h3>
+        </div>
+        <GraficoCronograma tarefas={tarefas} />
+      </PanelClean>
+
+      <PanelClean>
+        <div className="mb-6">
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Detalhamento de Atividades</h3>
+        </div>
+        <CronogramaVisual tarefas={tarefas} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} />
+      </PanelClean>
     </div>
   )
 }
@@ -346,8 +408,8 @@ function TelaEquipe({ obraAtual, equipe, semanas, novoMembro, setNovoMembro, adi
       <PanelClean>
         <h2 className="text-2xl font-black mb-6">Equipe de Campo: {obraAtual.nome}</h2>
         <div className="grid gap-3 md:grid-cols-3">
-          <input className={inputClass} placeholder="Nome do Profissional" value={novoMembro.nome} onChange={e => setNovoMembro({...novoMembro, nome: e.target.value})} />
-          <input className={inputClass} placeholder="Função" value={novoMembro.funcao} onChange={e => setNovoMembro({...novoMembro, funcao: e.target.value})} />
+          <input className={inputClass} placeholder="Nome do Profissional" value={novoMembro.nome} onChange={e => setNovoMembro({ ...novoMembro, nome: e.target.value })} />
+          <input className={inputClass} placeholder="Função" value={novoMembro.funcao} onChange={e => setNovoMembro({ ...novoMembro, funcao: e.target.value })} />
           <button onClick={adicionarMembro} className={buttonGreenClass}>Adicionar</button>
         </div>
       </PanelClean>
@@ -360,12 +422,12 @@ function TelaEquipe({ obraAtual, equipe, semanas, novoMembro, setNovoMembro, adi
                 <tr key={m.id} className="hover:bg-slate-50 transition-premium">
                   <td className="p-4 border border-slate-100 font-bold">{m.nome}</td>
                   <td className="p-4 border border-slate-100">{m.funcao}</td>
-                  {(m.semanas || [0,0,0,0,0,0]).map((d, i) => (
+                  {(m.semanas || [0, 0, 0, 0, 0, 0]).map((d, i) => (
                     <td key={i} className="p-4 border border-slate-100 text-center">
                       <input type="number" step="0.5" className="w-16 border rounded p-1 text-center" value={d} onChange={e => atualizarSemanaEquipe(m.id, i, e.target.value)} />
                     </td>
                   ))}
-                  <td className="p-4 border border-slate-100 text-center font-black">{(m.semanas || [0,0,0,0,0,0]).reduce((a,b)=>a+b,0)}</td>
+                  <td className="p-4 border border-slate-100 text-center font-black">{(m.semanas || [0, 0, 0, 0, 0, 0]).reduce((a, b) => a + b, 0)}</td>
                 </tr>
               ))}
             </tbody>
@@ -382,9 +444,9 @@ function TelaDiario({ obraAtual, diario, setDiario }) {
     <PanelClean>
       <div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-black tracking-tight">Diário de Obra: {obraAtual.nome}</h2><button onClick={() => setDiario(local)} className={buttonPrimaryClass}>Sincronizar</button></div>
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-6"><input type="date" className={inputClass} value={local?.data || ''} onChange={e => setLocal({...local, data: e.target.value})} /><input placeholder="Condições Climáticas" className={inputClass} value={local?.clima || ''} onChange={e => setLocal({...local, clima: e.target.value})} /></div>
-        <textarea placeholder="Atividades Realizadas" className={inputClass + ' min-h-[250px]'} value={local?.atividades || ''} onChange={e => setLocal({...local, atividades: e.target.value})} />
-        <textarea placeholder="Observações e Ocorrências" className={inputClass + ' min-h-[120px]'} value={local?.observacoes || ''} onChange={e => setLocal({...local, observacoes: e.target.value})} />
+        <div className="grid grid-cols-2 gap-6"><input type="date" className={inputClass} value={local?.data || ''} onChange={e => setLocal({ ...local, data: e.target.value })} /><input placeholder="Condições Climáticas" className={inputClass} value={local?.clima || ''} onChange={e => setLocal({ ...local, clima: e.target.value })} /></div>
+        <textarea placeholder="Atividades Realizadas" className={inputClass + ' min-h-[250px]'} value={local?.atividades || ''} onChange={e => setLocal({ ...local, atividades: e.target.value })} />
+        <textarea placeholder="Observações e Ocorrências" className={inputClass + ' min-h-[120px]'} value={local?.observacoes || ''} onChange={e => setLocal({ ...local, observacoes: e.target.value })} />
       </div>
     </PanelClean>
   )
@@ -406,13 +468,103 @@ function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) 
         <PanelClean>
           <h2 className="text-2xl font-black mb-6">Cadastro de Nova Obra</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input className={inputClass} placeholder="Nome da Obra" value={novaObra.nome} onChange={e => setNovaObra({...novaObra, nome: e.target.value})} />
-            <input className={inputClass} placeholder="Cliente" value={novaObra.cliente} onChange={e => setNovaObra({...novaObra, cliente: e.target.value})} />
-            <input className={inputClass} placeholder="Responsável Técnico" value={novaObra.responsavel} onChange={e => setNovaObra({...novaObra, responsavel: e.target.value})} />
+            <input className={inputClass} placeholder="Nome da Obra" value={novaObra.nome} onChange={e => setNovaObra({ ...novaObra, nome: e.target.value })} />
+            <input className={inputClass} placeholder="Cliente" value={novaObra.cliente} onChange={e => setNovaObra({ ...novaObra, cliente: e.target.value })} />
+            <input className={inputClass} placeholder="Responsável Técnico" value={novaObra.responsavel} onChange={e => setNovaObra({ ...novaObra, responsavel: e.target.value })} />
             <button onClick={criarNovaObra} className={buttonGreenClass}>Salvar Registro</button>
           </div>
         </PanelClean>
       )}
+    </div>
+  )
+}
+
+function TelaCompras({ compras = [], materiais = [] }) {
+  const hoje = new Date()
+
+  // Unificando dados para análise
+  const itensAtrasados = compras.filter(c => c.status !== 'Recebido' && new Date(c.data) < hoje).length
+  const itensPendentes = compras.filter(c => c.status !== 'Recebido').length
+  const itensRecebidos = compras.filter(c => c.status === 'Recebido').length
+
+  return (
+    <div className="space-y-6">
+      {/* Indicadores de Suprimentos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`p-6 rounded-3xl border shadow-sm ${itensAtrasados > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-slate-200/60'}`}>
+          <p className={itensAtrasados > 0 ? "text-[10px] font-black uppercase tracking-widest text-red-400 mb-1" : eyebrowClass + " mb-1"}>Atenção</p>
+          <h4 className={`text-2xl font-black ${itensAtrasados > 0 ? 'text-red-600' : 'text-slate-900'}`}>{itensAtrasados}</h4>
+          <p className={`text-[10px] font-bold uppercase mt-1 ${itensAtrasados > 0 ? 'text-red-500' : 'text-slate-500'}`}>Materiais em Atraso</p>
+        </div>
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
+          <p className={eyebrowClass + " mb-1"}>Logística</p>
+          <h4 className="text-2xl font-black text-slate-900">{itensPendentes}</h4>
+          <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Pedidos Pendentes</p>
+        </div>
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
+          <p className={eyebrowClass + " mb-1"}>Concluído</p>
+          <h4 className="text-2xl font-black text-emerald-600">{itensRecebidos}</h4>
+          <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Entregas Realizadas</p>
+        </div>
+      </div>
+
+      <PanelClean>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Gestão de Compras e Suprimentos</h3>
+            <p className="text-xs text-slate-500 mt-1">Acompanhamento de pedidos e entregas de materiais</p>
+          </div>
+          <button className={buttonPrimaryClass}>Novo Pedido</button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-separate border-spacing-y-2">
+            <thead>
+              <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th className="px-4 py-2">Item / Material</th>
+                <th className="px-4 py-2">Fornecedor</th>
+                <th className="px-4 py-2 text-center">Data Prevista</th>
+                <th className="px-4 py-2 text-center">Qtd</th>
+                <th className="px-4 py-2 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {compras.map((c) => {
+                const isAtrasado = c.status !== 'Recebido' && new Date(c.data) < hoje
+                return (
+                  <tr key={c.id} className="group">
+                    <td className="bg-white border-y border-l border-slate-100 rounded-l-2xl p-4 shadow-sm group-hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${isAtrasado ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} />
+                        <span className="font-black text-slate-900">{c.item}</span>
+                      </div>
+                    </td>
+                    <td className="bg-white border-y border-slate-100 p-4 shadow-sm text-sm text-slate-600 group-hover:bg-slate-50 transition-colors">
+                      {c.fornecedor}
+                    </td>
+                    <td className="bg-white border-y border-slate-100 p-4 shadow-sm text-center group-hover:bg-slate-50 transition-colors">
+                      <span className={`text-xs font-bold ${isAtrasado ? 'text-red-500' : 'text-slate-500'}`}>
+                        {new Date(c.data).toLocaleDateString('pt-BR')}
+                      </span>
+                    </td>
+                    <td className="bg-white border-y border-slate-100 p-4 shadow-sm text-center font-black text-slate-900 group-hover:bg-slate-50 transition-colors">
+                      {c.qtd}
+                    </td>
+                    <td className="bg-white border-y border-r border-slate-100 rounded-r-2xl p-4 shadow-sm text-right group-hover:bg-slate-50 transition-colors">
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${c.status === 'Recebido' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100' :
+                          isAtrasado ? 'bg-red-50 text-red-600 ring-1 ring-red-100' :
+                            'bg-blue-50 text-blue-600 ring-1 ring-blue-100'
+                        }`}>
+                        {isAtrasado ? 'Atrasado' : c.status}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </PanelClean>
     </div>
   )
 }

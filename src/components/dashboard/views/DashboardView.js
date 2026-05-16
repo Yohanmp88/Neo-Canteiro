@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MetricCard, PanelClean, StatusBadge } from '@/components/ui/Cards'
+import { PanelClean, StatusBadge } from '@/components/ui/Cards'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 import {
@@ -12,9 +12,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
 } from 'recharts'
 
 import {
@@ -22,8 +19,13 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle2,
-  Clock,
   FileText,
+  Camera,
+  Layers,
+  ShoppingBag,
+  ArrowRight,
+  Target,
+  BarChart3
 } from 'lucide-react'
 
 export function DashboardView({
@@ -31,7 +33,7 @@ export function DashboardView({
   tarefas = [],
   materiais = [],
   diarios = [],
-  isClient,
+  onNavigate
 }) {
   const [isMounted, setIsMounted] = useState(false)
 
@@ -43,226 +45,101 @@ export function DashboardView({
     return (
       <EmptyState
         title="Nenhuma obra selecionada"
-        description="Selecione ou crie uma nova obra para visualizar o dashboard."
-        icon="🏗️"
+        description="Selecione uma obra para visualizar o dashboard executivo."
       />
     )
   }
 
-  const concluidas = tarefas.filter(
-    (t) => t.status === 'concluida' || Number(t.progresso) === 100
-  ).length
+  // --- LÓGICA DE INDICADORES ---
+  const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
+  const totalTarefas = tarefas.length || 0
+  const progressoMedio = totalTarefas > 0 
+    ? Math.round(tarefas.reduce((acc, t) => acc + (Number(t.progresso) || 0), 0) / totalTarefas) 
+    : 0
 
-  const totalTarefas = tarefas.length || 1
-
-  const progressoMedio = Math.round(
-    tarefas.reduce((acc, t) => acc + (Number(t.progresso) || 0), 0) /
-    totalTarefas
-  )
-
-  const atrasadas = tarefas.filter((t) => {
+  const atrasosCronograma = tarefas.filter(t => {
     if (!t.termino && !t.data_termino) return false
-
     const hoje = new Date()
     const termino = new Date(t.termino || t.data_termino)
-
     return termino < hoje && Number(t.progresso) < 100
   }).length
 
-  const recebidosHoje = materiais.filter((m) => m.recebido).length
+  const materiaisAtrasados = materiais.filter(m => !m.recebido && m.data_prevista && new Date(m.data_prevista) < new Date()).length
+  const ultimoDiario = diarios?.[0] || null
 
   const dadosEvolucao = [
-    { name: 'Sem 1', previsto: 10, realizado: 8 },
-    { name: 'Sem 2', previsto: 25, realizado: 22 },
-    { name: 'Sem 3', previsto: 40, realizado: 42 },
-    { name: 'Sem 4', previsto: 55, realizado: 50 },
-    { name: 'Sem 5', previsto: 70, realizado: 68 },
-    { name: 'Sem 6', previsto: 85, realizado: 82 },
-    { name: 'Sem 7', previsto: 100, realizado: 95 },
+    { name: 'S1', previsto: 10, realizado: 8 },
+    { name: 'S2', previsto: 25, realizado: 22 },
+    { name: 'S3', previsto: 40, realizado: 42 },
+    { name: 'S4', previsto: 55, realizado: 50 },
+    { name: 'S5', previsto: 70, realizado: 68 },
+    { name: 'S6', previsto: 85, realizado: 82 },
+    { name: 'S7', previsto: 100, realizado: 95 },
   ]
 
-  const dadosMensais = [
-    { name: 'Jan', valor: 4000 },
-    { name: 'Fev', valor: 3000 },
-    { name: 'Mar', valor: 2000 },
-    { name: 'Abr', valor: 2780 },
-    { name: 'Mai', valor: 1890 },
-    { name: 'Jun', valor: 2390 },
-  ]
+  const MiniCard = ({ title, value, detail, icon: Icon, color = "blue", onClick }) => (
+    <button 
+      onClick={onClick}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200/60 bg-white p-2.5 text-left transition-all hover:border-blue-400 hover:shadow-sm active:scale-95"
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <div className={`rounded bg-${color}-50 p-1 text-${color}-600`}>
+          <Icon size={12} />
+        </div>
+        <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 truncate">{title}</p>
+      </div>
+      <div>
+        <h4 className="text-base font-black text-slate-900 leading-none">{value}</h4>
+        {detail && <p className="text-[7px] font-bold text-slate-500 truncate mt-0.5">{detail}</p>}
+      </div>
+    </button>
+  )
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2 lg:p-8">
-          <div className="relative z-10">
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-blue-50 p-2 text-blue-600">
-                  <TrendingUp size={20} />
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Status Executivo
-                  </p>
-
-                  <h2 className="text-xl font-black tracking-tight text-slate-900">
-                    {obraAtual.nome}
-                  </h2>
-                </div>
-              </div>
-
-              <StatusBadge status={obraAtual.status} />
-            </div>
-
-            <div className="grid grid-cols-1 gap-8 py-4 sm:grid-cols-3">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-tight text-slate-400">
-                  Progresso Geral
-                </p>
-
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-slate-900">
-                    {progressoMedio}%
-                  </span>
-
-                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-500">
-                    <TrendingUp size={12} />
-                    +2.4%
-                  </span>
-                </div>
-
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full bg-blue-600 transition-all duration-1000"
-                    style={{ width: `${progressoMedio}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-tight text-slate-400">
-                  Prazo Final
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <Calendar size={18} className="text-slate-400" />
-
-                  <span className="text-lg font-black text-slate-900">
-                    {obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '---'}
-                  </span>
-                </div>
-
-                <p className="text-[10px] font-bold uppercase text-slate-500">
-                  {obraAtual.prazo || 'Prazo a definir'}
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-tight text-slate-400">
-                  Atrasos Críticos
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <AlertCircle
-                    size={18}
-                    className={
-                      atrasadas > 0
-                        ? 'text-red-500'
-                        : 'text-emerald-500'
-                    }
-                  />
-
-                  <span
-                    className={`text-2xl font-black ${atrasadas > 0
-                      ? 'text-red-600'
-                      : 'text-emerald-600'
-                      }`}
-                  >
-                    {atrasadas}
-                  </span>
-                </div>
-
-                <p className="text-[10px] font-bold uppercase text-slate-500">
-                  Atividades em alerta
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="space-y-6">
-          <MetricCard
-            title="Cronograma"
-            value={`${concluidas}/${totalTarefas}`}
-            detail="Tarefas finalizadas"
-            icon={<CheckCircle2 size={24} />}
-          />
-
-          <MetricCard
-            title="Diários"
-            value={diarios.length}
-            detail="Enviados esta semana"
-            icon={<FileText size={24} />}
-          />
-        </div>
+    <div className="space-y-3 max-w-[1600px] mx-auto animate-fade-in px-2">
+      {/* HEADER COMPACTO DE MÉTRICAS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+        <MiniCard title="Progresso" value={`${progressoMedio}%`} detail="Evolução Geral" icon={TrendingUp} onClick={() => onNavigate('cronograma')} />
+        <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => onNavigate('cronograma')} />
+        <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => onNavigate('cronograma')} />
+        <MiniCard title="Atrasos" value={atrasosCronograma} detail="Críticos" icon={AlertCircle} color={atrasosCronograma > 0 ? "red" : "emerald"} onClick={() => onNavigate('cronograma')} />
+        <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? "orange" : "slate"} onClick={() => onNavigate('compras')} />
+        <MiniCard title="Registros" value={diarios.length} detail="Diários enviados" icon={FileText} color="blue" onClick={() => onNavigate('diario')} />
+        <MiniCard title="Fotos" value="Galeria" detail="Registros" icon={Camera} color="purple" onClick={() => onNavigate('fotos')} />
+        <button className="flex items-center justify-center p-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors" onClick={() => onNavigate('cronograma')}>
+          <Layers size={14} className="mr-1.5" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <PanelClean className="min-h-[350px] w-full">
-          <div className="mb-8">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Evolução da Obra
-            </p>
-
-            <h3 className="text-lg font-black text-slate-900">
-              Previsto vs Realizado
-            </h3>
+      {/* ÁREA CENTRAL - MÁXIMA DENSIDADE HORIZONTAL */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        
+        {/* Curva S - Desempenho (5/12) */}
+        <PanelClean className="lg:col-span-5 !p-3 min-h-[220px]">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Análise de Performance</p>
+              <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                <Target size={12} className="text-blue-600" />
+                Curva S - Previsto vs Realizado
+              </h3>
+            </div>
+            <StatusBadge status={obraAtual.status} />
           </div>
-
-          <div className="h-[260px] w-full">
+          <div className="h-[150px] w-full">
             {isMounted && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={dadosEvolucao}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
-                  />
-                  <Tooltip 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="previsto"
-                    stroke="#2563eb"
-                    strokeWidth={3}
-                    fill="url(#colorPrevisto)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="realizado"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    fill="url(#colorRealizado)"
-                  />
+                  <XAxis dataKey="name" hide />
+                  <YAxis hide />
+                  <Tooltip contentStyle={{borderRadius: '8px', border: 'none', fontSize: '9px', padding: '4px'}} />
+                  <Area type="monotone" dataKey="previsto" stroke="#2563eb" strokeWidth={2} fill="url(#colorPrevisto)" />
+                  <Area type="monotone" dataKey="realizado" stroke="#10b981" strokeWidth={2} fill="url(#colorRealizado)" />
                   <defs>
-                    <linearGradient id="colorPrevisto" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
+                    <linearGradient id="colorPrevisto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
                   </defs>
                 </AreaChart>
               </ResponsiveContainer>
@@ -270,71 +147,83 @@ export function DashboardView({
           </div>
         </PanelClean>
 
-        <PanelClean className="min-h-[350px] w-full">
-          <div className="mb-8 flex items-center justify-between">
+        {/* Cronograma Físico - Live View (4/12) */}
+        <PanelClean className="lg:col-span-4 !p-3 min-h-[220px] cursor-pointer hover:border-blue-300 transition-colors" onClick={() => onNavigate('cronograma')}>
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Suprimentos
-              </p>
-
-              <h3 className="text-lg font-black text-slate-900">
-                Entregas e Recebimentos
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Acompanhamento</p>
+              <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                <BarChart3 size={12} className="text-indigo-600" />
+                Cronograma Físico
               </h3>
             </div>
-
-            <div className="rounded-xl bg-slate-50 p-2 text-slate-500">
-              <Clock size={16} />
-            </div>
+            <div className="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">LIVE</div>
           </div>
-
-          <div className="h-[260px] w-full">
-            {isMounted && (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dadosMensais}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
-                    dy={10}
+          
+          <div className="space-y-2.5">
+            {tarefas.slice(0, 4).map((t, idx) => (
+              <div key={t.id || idx} className="space-y-1">
+                <div className="flex justify-between items-center text-[9px] font-bold">
+                  <span className="text-slate-700 truncate max-w-[120px]">{t.nome}</span>
+                  <span className="text-slate-400">{t.progresso}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-700 ${Number(t.progresso) === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`}
+                    style={{ width: `${t.progresso}%` }}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}}
-                  />
-                  <Tooltip 
-                    cursor={{fill: '#f8fafc'}}
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                  />
-                  <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={30}>
-                    {dadosMensais.map((entry, index) => (
-                      <Cell
-                        key={index}
-                        fill={
-                          index === dadosMensais.length - 1
-                            ? '#2563eb'
-                            : '#cbd5e1'
-                        }
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                </div>
+              </div>
+            ))}
+            {tarefas.length > 4 && (
+              <p className="text-[8px] font-bold text-slate-400 text-center mt-1 uppercase tracking-tighter">
+                + {tarefas.length - 4} atividades ativas
+              </p>
             )}
           </div>
-
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-            <p className="text-[10px] font-bold uppercase tracking-tight text-slate-500">
-              Total Recebido Hoje
-            </p>
-
-            <span className="text-sm font-black text-slate-900">
-              {recebidosHoje} materiais
-            </span>
-          </div>
         </PanelClean>
+
+        {/* Última Ocorrência + Fotos (3/12) - MOVIDOS PARA O MEIO */}
+        <div className="lg:col-span-3 space-y-3">
+          {/* Relato Diário */}
+          <button 
+            onClick={() => onNavigate('diario')}
+            className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
+          >
+            <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-slate-900 p-1.5 text-white">
+                <FileText size={14} />
+              </div>
+              <ArrowRight size={12} className="text-slate-300 group-hover:text-blue-500" />
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Última Ocorrência</p>
+              <h4 className="text-[10px] font-bold text-slate-900 line-clamp-2 leading-tight">
+                {ultimoDiario?.servicos_executados || "Sem relatos registrados."}
+              </h4>
+            </div>
+          </button>
+
+          {/* Fotos Canteiro */}
+          <button 
+            onClick={() => onNavigate('fotos')}
+            className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
+          >
+            <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-purple-50 p-1.5 text-purple-600">
+                <Camera size={14} />
+              </div>
+              <div className="flex -space-x-1.5">
+                {[1,2,3].map(i => <div key={i} className="w-4 h-4 rounded-full border border-white bg-slate-100" />)}
+              </div>
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Fotos da Obra</p>
+              <h4 className="text-[10px] font-bold text-slate-900 leading-tight">Canteiro e Registros</h4>
+            </div>
+          </button>
+        </div>
+
       </div>
     </div>
   )
