@@ -41,7 +41,6 @@ const EQUIPE_DEMO = [
 const normalizarObra = (o) => ({ ...o, nome: o.nome || 'Sem nome', status: o.status || 'No prazo', progresso: Number(o.progresso || 0), data_inicio: o.data_inicio || '', prazo_final: o.prazo_final || o.previsaoEntrega || '' })
 const normalizarTarefa = (t) => ({ ...t, nome: t.nome || 'Sem nome', inicio: t.data_inicio || t.inicio || '', termino: t.data_termino || t.termino || '', duracao: Number(t.duracao || 0), progresso: Number(t.progresso || 0) })
 const formatarMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const formatarData = (d) => { if (!d) return '--/--/----'; const pts = d.split('-'); return pts.length === 3 ? `${pts[2]}/${pts[1]}/${pts[0]}` : d }
 
 export default function Home() {
   const { user, userProfile, login: authLogin, logout: authLogout, loading: authLoading } = useAuth()
@@ -54,15 +53,11 @@ export default function Home() {
   const [obraId, setObraId] = useState(null)
   
   // --- ESTADOS DE DADOS (LOCAIS/DEMO) ---
-  const [compras, setCompras] = useState([])
-  const [financeiro, setFinanceiro] = useState([])
-  const [orcamento, setOrcamento] = useState([])
   const [semanasDiarias, setSemanasDiarias] = useState(['03/04 a 05/04', '06/04 a 12/04', '13/04 a 19/04', '20/04 a 26/04', '27/04 a 03/05', '04/05 a 05/05'])
   const [novaTarefa, setNovaTarefa] = useState({ nome: '', inicio: '', termino: '', duracao: 1 })
   const [novoMembro, setNovoMembro] = useState({ nome: '', funcao: '' })
   const [novaObra, setNovaObra] = useState({ nome: '', cliente: '', endereco: '', responsavel: '', etapa: '', data_inicio: '', prazo_final: '' })
   const [diarioLocal, setDiarioLocal] = useState({ data: new Date().toISOString().slice(0,10), clima: '', atividades: '', observacoes: '' })
-  const [fotos, setFotos] = useState([])
   
   const [saveStatus, setSaveStatus] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
@@ -86,12 +81,11 @@ export default function Home() {
   const { tarefas: tarefasRaw = [], criar: adicionarTarefaHook, atualizar: atualizarTarefaHook } = useTarefas(obraAtualId)
   const { materiais: materiaisRaw = [] } = useMateriais(obraAtualId)
   const { diarios = [], criar: criarDiarioHook, atualizar: atualizarDiarioHook } = useDiarios(obraAtualId)
-  const { equipe: equipeRaw = [], criar: adicionarMembroHook, atualizar: atualizarMembroHook, loading: equipeLoading } = useEquipe(obraAtualId)
+  const { equipe: equipeRaw = [], criar: adicionarMembroHook, atualizar: atualizarMembroHook } = useEquipe(obraAtualId)
 
   const tarefas = useMemo(() => (tarefasRaw || []).map(normalizarTarefa), [tarefasRaw])
   const materiais = useMemo(() => materiaisRaw || [], [materiaisRaw])
   
-  // Equipe com Fallback Demo
   const equipeVisivel = useMemo(() => {
     if (String(obraAtualId).startsWith('demo')) return EQUIPE_DEMO.filter(m => m.obraId === obraAtualId)
     return equipeRaw.length > 0 ? equipeRaw : (obrasRaw.length === 0 ? EQUIPE_DEMO.filter(m => m.obraId === 'demo-1') : [])
@@ -106,13 +100,13 @@ export default function Home() {
     const init = async () => {
       try {
         if (!user) { setPerfilAtivo(null); return }
-        const salvo = typeof window !== 'undefined' ? window.localStorage.getItem('neocanteiro:perfil_sessao') : null
-        if (salvo) setPerfilAtivo(salvo)
-        else if (userProfile?.tipo_usuario) setPerfilAtivo(userProfile.tipo_usuario)
+        // Para investidor/demo, forçar sempre a escolha do perfil ao iniciar
+        // Não carregamos automaticamente do localStorage para garantir a tela de escolha
+        setPerfilAtivo(null)
       } catch (e) { console.error(e) } finally { setInicializandoPerfil(false) }
     }
     if (!authLoading) init()
-  }, [user, userProfile, authLoading])
+  }, [user, authLoading])
 
   // Sincronizar Diário
   useEffect(() => {
@@ -131,10 +125,9 @@ export default function Home() {
 
   const trocarPerfil = () => {
     setPerfilAtivo(null)
-    if (typeof window !== 'undefined') window.localStorage.removeItem('neocanteiro:perfil_sessao')
   }
 
-  // Obras (Real Persistence)
+  // Obras
   async function criarNovaObra() {
     if (!permissaoAdmin || !novaObra.nome.trim()) return
     try {
@@ -176,7 +169,7 @@ export default function Home() {
     } catch (e) { triggerFeedback('error', e.message) }
   }
 
-  // Equipe (Real Persistence)
+  // Equipe
   async function adicionarMembro() {
     if (!permissaoEditar || !novoMembro.nome.trim() || !obraAtualId || String(obraAtualId).startsWith('demo')) return
     try {
@@ -223,58 +216,31 @@ export default function Home() {
     } catch (e) { triggerFeedback('error', e.message) }
   }
 
-  // Fotos (Real Upload Persistence)
+  // Fotos
   async function adicionarFotos(event) {
     const files = Array.from(event.target.files || [])
     if (!files.length || !obraAtualId || String(obraAtualId).startsWith('demo')) return
-    
     try {
       triggerFeedback('saving')
-      
-      // 1. Garantir que temos um diário para hoje
       let diarioId = diarioLocal?.id
       if (!diarioId) {
-        const novo = await criarDiarioHook({ 
-          obra_id: obraAtualId, 
-          data: new Date().toISOString().slice(0, 10), 
-          responsavel_id: user.id 
-        })
+        const novo = await criarDiarioHook({ obra_id: obraAtualId, data: new Date().toISOString().slice(0, 10), responsavel_id: user.id })
         diarioId = novo.id
       }
-
       for (const file of files) {
         const fileExt = file.name.split('.').pop()
         const fileName = `${obraAtualId}/${diarioId}/${Date.now()}.${fileExt}`
-        
-        // 2. Upload para o Bucket fotos-obras
-        const { error: uploadError } = await supabase.storage
-          .from(FOTO_BUCKET)
-          .upload(fileName, file)
-          
+        const { error: uploadError } = await supabase.storage.from(FOTO_BUCKET).upload(fileName, file)
         if (uploadError) throw uploadError
-        
-        // 3. Obter URL pública
-        const { data: publicUrlData } = supabase.storage
-          .from(FOTO_BUCKET)
-          .getPublicUrl(fileName)
-          
-        // 4. Salvar registro na tabela fotos_diario
-        await supabase.from('fotos_diario').insert({
-          diario_id: diarioId,
-          url_foto: publicUrlData.publicUrl,
-          descricao: file.name
-        })
+        const { data: publicUrlData } = supabase.storage.from(FOTO_BUCKET).getPublicUrl(fileName)
+        await supabase.from('fotos_diario').insert({ diario_id: diarioId, url_foto: publicUrlData.publicUrl, descricao: file.name })
       }
-      
       triggerFeedback('saved')
-    } catch (e) { 
-      console.error('Erro no upload:', e)
-      triggerFeedback('error', 'Falha no upload de fotos') 
-    }
+    } catch (e) { triggerFeedback('error', 'Falha no upload') }
   }
 
   // --- RENDERIZAÇÃO ---
-  if (authLoading || (user && inicializandoPerfil)) return <Loading text="Validando acesso..." />
+  if (authLoading || (user && inicializandoPerfil)) return <Loading text="Processando acesso..." />
   if (!user) return <LoginScreen login={authLogin} />
   if (!perfilAtivo) return <PerfilChoiceScreen onSelect={t => setPerfilAtivo(t)} logout={authLogout} />
 
@@ -291,9 +257,9 @@ export default function Home() {
             <div className="mb-8 animate-fade-in">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><span className="w-2 h-2 rounded-full bg-blue-600 shadow-xl" /><p className={eyebrowClass}>NeoCanteiro / {tela}</p></div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900 capitalize">{tela === 'dashboard' ? 'Painel Executivo' : tela}</h1>
-                  <button onClick={trocarPerfil} className="mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 flex items-center gap-1">Alternar Perfil</button>
+                  <div className="flex items-center gap-2 mb-1"><span className="w-2 h-2 rounded-full bg-blue-600 shadow-xl" /><p className={eyebrowClass}>Painel / {tela}</p></div>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900 capitalize">{tela === 'dashboard' ? 'Resumo Executivo' : tela}</h1>
+                  <button onClick={trocarPerfil} className="mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 flex items-center gap-1">Alternar Visualização</button>
                 </div>
                 {permissaoAdmin && <button onClick={() => setTela('usuarios')} className={buttonPrimaryClass}>Nova Obra</button>}
               </div>
@@ -302,9 +268,9 @@ export default function Home() {
             <div className="animate-fade-in">
               {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} isClient={ehCliente} resumo={{ media: Math.round(tarefas.reduce((a, t) => a + t.progresso, 0) / (tarefas.length || 1)) }} />}
               {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} />}
-              {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} setSemanas={setSemanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
+              {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
               {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
-              {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={fotos} />}
+              {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
               {tela === 'usuarios' && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
               {['materiais', 'financeiro', 'compras', 'orcamento', 'ia'].includes(tela) && <ModulePlaceholder tela={tela} setTela={setTela} />}
             </div>
@@ -319,20 +285,19 @@ export default function Home() {
 // --- SUB-COMPONENTES ---
 
 function PerfilChoiceScreen({ onSelect, logout }) {
-  const perfis = [{ tipo: 'engenheiro', titulo: 'Engenheiro', icon: '🏗️' }, { tipo: 'estagiario', titulo: 'Estagiário', icon: '👷' }, { tipo: 'cliente', titulo: 'Cliente', icon: '📊' }]
+  const perfis = [{ tipo: 'engenheiro', titulo: 'Engenheiro' }, { tipo: 'estagiario', titulo: 'Estagiário' }, { tipo: 'cliente', titulo: 'Cliente' }]
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
       <div className="w-full max-w-4xl">
-        <h1 className="text-4xl font-black text-slate-900 mb-10 tracking-tight">Qual sua função no NeoCanteiro?</h1>
+        <h1 className="text-4xl font-black text-slate-900 mb-10 tracking-tight">Como deseja visualizar o sistema?</h1>
         <div className="grid gap-6 md:grid-cols-3">
           {perfis.map(p => (
             <button key={p.tipo} onClick={() => onSelect(p.tipo)} className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm transition-premium hover:-translate-y-2 hover:border-blue-400 hover:shadow-2xl">
-              <div className="text-4xl mb-4">{p.icon}</div>
               <h2 className="text-2xl font-black text-slate-900">{p.titulo}</h2>
             </button>
           ))}
         </div>
-        <button onClick={logout} className="mt-12 text-xs font-black uppercase text-slate-400 hover:text-red-600">Sair</button>
+        <button onClick={logout} className="mt-12 text-xs font-black uppercase text-slate-400 hover:text-red-600">Sair da Plataforma</button>
       </div>
     </main>
   )
@@ -348,7 +313,7 @@ function LoginScreen({ login }) {
         <form onSubmit={h} className="space-y-5">
           <input type="email" placeholder="E-mail" className={inputClass} value={e} onChange={i => setE(i.target.value)} required />
           <input type="password" placeholder="Senha" className={inputClass} value={s} onChange={i => setS(i.target.value)} required />
-          <button type="submit" disabled={l} className={buttonPrimaryClass + ' w-full py-4 shadow-xl'}>{l ? 'Entrando...' : 'Entrar'}</button>
+          <button type="submit" disabled={l} className={buttonPrimaryClass + ' w-full py-4 shadow-xl'}>{l ? 'Entrando...' : 'Acessar Sistema'}</button>
         </form>
       </div>
     </main>
@@ -365,7 +330,7 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
             <input className={inputClass + ' md:col-span-2'} placeholder="Descrição" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} />
             <input type="date" className={inputClass} value={novaTarefa.inicio} onChange={e => setNovaTarefa({...novaTarefa, inicio: e.target.value})} />
             <input type="date" className={inputClass} value={novaTarefa.termino} onChange={e => setNovaTarefa({...novaTarefa, termino: e.target.value})} />
-            <button onClick={adicionarTarefa} className={buttonGreenClass}>Adicionar</button>
+            <button onClick={adicionarTarefa} className={buttonGreenClass}>Lançar</button>
           </div>
         </PanelClean>
       )}
@@ -379,9 +344,9 @@ function TelaEquipe({ obraAtual, equipe, semanas, novoMembro, setNovoMembro, adi
   return (
     <div className="space-y-6">
       <PanelClean>
-        <h2 className="text-2xl font-black mb-6">Equipe: {obraAtual.nome}</h2>
+        <h2 className="text-2xl font-black mb-6">Equipe de Campo: {obraAtual.nome}</h2>
         <div className="grid gap-3 md:grid-cols-3">
-          <input className={inputClass} placeholder="Nome" value={novoMembro.nome} onChange={e => setNovoMembro({...novoMembro, nome: e.target.value})} />
+          <input className={inputClass} placeholder="Nome do Profissional" value={novoMembro.nome} onChange={e => setNovoMembro({...novoMembro, nome: e.target.value})} />
           <input className={inputClass} placeholder="Função" value={novoMembro.funcao} onChange={e => setNovoMembro({...novoMembro, funcao: e.target.value})} />
           <button onClick={adicionarMembro} className={buttonGreenClass}>Adicionar</button>
         </div>
@@ -389,7 +354,7 @@ function TelaEquipe({ obraAtual, equipe, semanas, novoMembro, setNovoMembro, adi
       <PanelClean>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
-            <thead><tr className="bg-slate-50 text-slate-500 font-bold"><th className="p-4 text-left border border-slate-100">Profissional</th><th className="p-4 text-left border border-slate-100">Cargo</th>{semanas.map((s, i) => <th key={i} className="p-4 border border-slate-100 text-center">{s}</th>)}<th className="p-4 border border-slate-100 text-center">Soma</th></tr></thead>
+            <thead><tr className="bg-slate-50 text-slate-500 font-bold"><th className="p-4 text-left border border-slate-100">Profissional</th><th className="p-4 text-left border border-slate-100">Cargo</th>{semanas.map((s, i) => <th key={i} className="p-4 border border-slate-100 text-center">{s}</th>)}<th className="p-4 border border-slate-100 text-center">Total</th></tr></thead>
             <tbody>
               {equipe.map(m => (
                 <tr key={m.id} className="hover:bg-slate-50 transition-premium">
@@ -415,11 +380,11 @@ function TelaDiario({ obraAtual, diario, setDiario }) {
   const [local, setLocal] = useState(diario); useEffect(() => { setLocal(diario) }, [diario])
   return (
     <PanelClean>
-      <div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-black tracking-tight">Diário: {obraAtual.nome}</h2><button onClick={() => setDiario(local)} className={buttonPrimaryClass}>Salvar</button></div>
+      <div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-black tracking-tight">Diário de Obra: {obraAtual.nome}</h2><button onClick={() => setDiario(local)} className={buttonPrimaryClass}>Sincronizar</button></div>
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-6"><input type="date" className={inputClass} value={local?.data || ''} onChange={e => setLocal({...local, data: e.target.value})} /><input placeholder="Clima" className={inputClass} value={local?.clima || ''} onChange={e => setLocal({...local, clima: e.target.value})} /></div>
+        <div className="grid grid-cols-2 gap-6"><input type="date" className={inputClass} value={local?.data || ''} onChange={e => setLocal({...local, data: e.target.value})} /><input placeholder="Condições Climáticas" className={inputClass} value={local?.clima || ''} onChange={e => setLocal({...local, clima: e.target.value})} /></div>
         <textarea placeholder="Atividades Realizadas" className={inputClass + ' min-h-[250px]'} value={local?.atividades || ''} onChange={e => setLocal({...local, atividades: e.target.value})} />
-        <textarea placeholder="Observações Técnicas" className={inputClass + ' min-h-[120px]'} value={local?.observacoes || ''} onChange={e => setLocal({...local, observacoes: e.target.value})} />
+        <textarea placeholder="Observações e Ocorrências" className={inputClass + ' min-h-[120px]'} value={local?.observacoes || ''} onChange={e => setLocal({...local, observacoes: e.target.value})} />
       </div>
     </PanelClean>
   )
@@ -428,7 +393,7 @@ function TelaDiario({ obraAtual, diario, setDiario }) {
 function TelaFotos({ permissaoEditar, adicionarFotos, fotosDaObra }) {
   return (
     <PanelClean>
-      <div className="mb-8 flex justify-between items-center"><h2 className="text-3xl font-black">Galeria de Fotos</h2>{permissaoEditar && <label className={buttonPrimaryClass + ' cursor-pointer'}>Upload<input type="file" multiple onChange={adicionarFotos} className="hidden" /></label>}</div>
+      <div className="mb-8 flex justify-between items-center"><h2 className="text-3xl font-black">Registros Fotográficos</h2>{permissaoEditar && <label className={buttonPrimaryClass + ' cursor-pointer'}>Fazer Upload<input type="file" multiple onChange={adicionarFotos} className="hidden" /></label>}</div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">{fotosDaObra.map(f => (<div key={f.id} className="rounded-3xl overflow-hidden shadow-xl border border-slate-100 group"><img src={f.url} className="h-48 w-full object-cover group-hover:scale-110 transition-premium" /><div className="p-4 bg-white"><p className="text-[10px] font-black text-slate-400 uppercase">{f.data}</p></div></div>))}</div>
     </PanelClean>
   )
@@ -439,12 +404,12 @@ function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) 
     <div className="space-y-6">
       {permissaoAdmin && (
         <PanelClean>
-          <h2 className="text-2xl font-black mb-6">Cadastrar Nova Obra</h2>
+          <h2 className="text-2xl font-black mb-6">Cadastro de Nova Obra</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input className={inputClass} placeholder="Nome da Obra" value={novaObra.nome} onChange={e => setNovaObra({...novaObra, nome: e.target.value})} />
             <input className={inputClass} placeholder="Cliente" value={novaObra.cliente} onChange={e => setNovaObra({...novaObra, cliente: e.target.value})} />
-            <input className={inputClass} placeholder="Responsável" value={novaObra.responsavel} onChange={e => setNovaObra({...novaObra, responsavel: e.target.value})} />
-            <button onClick={criarNovaObra} className={buttonGreenClass}>Salvar Obra</button>
+            <input className={inputClass} placeholder="Responsável Técnico" value={novaObra.responsavel} onChange={e => setNovaObra({...novaObra, responsavel: e.target.value})} />
+            <button onClick={criarNovaObra} className={buttonGreenClass}>Salvar Registro</button>
           </div>
         </PanelClean>
       )}
@@ -453,5 +418,5 @@ function TelaUsuarios({ permissaoAdmin, novaObra, setNovaObra, criarNovaObra }) 
 }
 
 function Loading({ text }) { return <div className="min-h-screen bg-white flex items-center justify-center font-black text-blue-600 animate-pulse text-lg">{text}</div> }
-function Toast({ status, msg }) { return <div className="fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl bg-white border border-blue-100 text-blue-600 font-black text-xs uppercase">{status === 'saved' ? 'Sincronizado' : status === 'saving' ? 'Sincronizando...' : msg || 'Erro'}</div> }
-function ModulePlaceholder({ tela, setTela }) { return <div className="p-32 text-center border-2 border-dashed border-slate-200 bg-white rounded-[3rem] shadow-sm"><p className="text-slate-400 font-black uppercase text-xs mb-6">Módulo {tela} em desenvolvimento.</p><button onClick={() => setTela('dashboard')} className="text-blue-600 font-black text-sm uppercase">Voltar</button></div> }
+function Toast({ status, msg }) { return <div className="fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl bg-white border border-blue-100 text-blue-600 font-black text-xs uppercase">{status === 'saved' ? 'Dados Sincronizados' : status === 'saving' ? 'Sincronizando...' : msg || 'Erro de Comunicação'}</div> }
+function ModulePlaceholder({ tela, setTela }) { return <div className="p-32 text-center border-2 border-dashed border-slate-200 bg-white rounded-[3rem] shadow-sm"><p className="text-slate-400 font-black uppercase text-xs mb-6">Módulo em desenvolvimento</p><button onClick={() => setTela('dashboard')} className="text-blue-600 font-black text-sm uppercase">Retornar ao Painel</button></div> }
