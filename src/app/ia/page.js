@@ -44,7 +44,7 @@ const TAREFAS_DEMO = [
     progresso: 0,
     responsavel: 'Equipe estrutural',
     status_operacional: 'Bloqueado',
-    bloqueio: 'O cimento tem nova previsão posterior à data necessária para a concretagem.',
+    bloqueio: 'O pedido de cimento vinculado ao serviço possui previsão posterior à data necessária.',
   },
   {
     id: 'tarefa-demo-4',
@@ -71,8 +71,7 @@ const PEDIDOS_DEMO = [
     data_prevista: '2026-07-29',
     status: 'Atrasado',
     tarefa_relacionada: 'Concretagem das vigas V101 até V108',
-    impacto_dias: 2,
-    impacto: 'A nova previsão de 29/07/2026 ocorre dois dias depois da concretagem programada para 27/07/2026.',
+    impacto: 'A nova previsão ocorre depois da data em que o material é necessário para o serviço.',
     atividades_sucessoras: [
       'Desforma e cura das vigas V101 a V108',
       'Infraestrutura elétrica do pavimento',
@@ -89,7 +88,7 @@ const PEDIDOS_DEMO = [
     data_prevista: '2026-07-16',
     status: 'Pendente',
     tarefa_relacionada: 'Montagem das formas das vigas V101 a V108',
-    impacto: 'A entrega ainda não foi confirmada e pode prolongar o atraso da montagem das formas.',
+    impacto: 'A entrega ainda não foi confirmada.',
   },
   {
     id: 'pedido-demo-3',
@@ -117,10 +116,10 @@ const PEDIDOS_DEMO = [
   },
 ]
 
-const PERGUNTAS_CHAVE = [
+const PERGUNTAS_BASE = [
   'Quais serviços estão atrasados?',
-  'Quais materiais não foram entregues?',
-  'O cimento pode impactar a concretagem das vigas V101 a V108?',
+  'Quais materiais estão atrasados?',
+  'Quais materiais ainda não foram entregues?',
   'Quais tarefas estão bloqueadas?',
   'Monte um plano de ação para recuperar o prazo',
 ]
@@ -144,17 +143,21 @@ function normalizarTexto(valor) {
     .toLowerCase()
 }
 
+function contemAlgum(texto, termos) {
+  return termos.some((termo) => texto.includes(termo))
+}
+
 function statusRecebido(status) {
   const texto = normalizarTexto(status)
-  return texto.includes('recebido') || texto.includes('entregue') || texto.includes('concluido')
+  return contemAlgum(texto, ['recebido', 'entregue', 'concluido'])
 }
 
 function statusAtrasado(status) {
-  return normalizarTexto(status).includes('atrasad')
+  return contemAlgum(normalizarTexto(status), ['atrasado', 'vencido', 'fora do prazo'])
 }
 
 function statusBloqueado(status) {
-  return normalizarTexto(status).includes('bloquead')
+  return contemAlgum(normalizarTexto(status), ['bloqueado', 'impedido'])
 }
 
 function diasEntre(dataFinal, dataInicial) {
@@ -173,12 +176,16 @@ function diasAtrasoServico(valor) {
 }
 
 function diasImpactoPedido(pedido) {
-  if (pedido.data_necessidade && pedido.data_prevista) {
-    return diasEntre(pedido.data_prevista, pedido.data_necessidade)
+  const previsao = pedido.data_prevista || pedido.data_reprogramada || pedido.data
+  const necessidade = pedido.data_necessidade
+
+  if (necessidade && previsao) {
+    return diasEntre(previsao, necessidade)
   }
 
-  const prevista = parseData(pedido.data_prevista || pedido.data)
+  const prevista = parseData(previsao)
   if (!prevista) return 0
+
   const hoje = new Date()
   hoje.setHours(12, 0, 0, 0)
   return Math.max(0, Math.ceil((hoje - prevista) / 86400000))
@@ -188,8 +195,14 @@ function pedidoAtrasado(pedido) {
   return !statusRecebido(pedido.status) && (statusAtrasado(pedido.status) || diasImpactoPedido(pedido) > 0)
 }
 
+function nomeMaterial(pedido) {
+  return pedido.item || pedido.material || 'Material sem nome'
+}
+
 function listarServicos(servicos) {
-  if (!servicos.length) return 'Não encontrei serviços atrasados no cronograma desta obra.'
+  if (!servicos.length) {
+    return 'Não encontrei serviços atrasados no cronograma da obra selecionada.'
+  }
 
   return `Encontrei ${servicos.length} serviço${servicos.length === 1 ? '' : 's'} atrasado${servicos.length === 1 ? '' : 's'}:\n\n${servicos.map((tarefa, indice) => {
     const prazo = tarefa.data_termino || tarefa.termino
@@ -198,76 +211,171 @@ function listarServicos(servicos) {
   }).join('\n\n')}`
 }
 
-function listarMateriais(pedidos) {
-  if (!pedidos.length) return 'Não encontrei materiais pendentes de entrega nesta obra.'
+function listarMateriais(pedidos, titulo) {
+  if (!pedidos.length) {
+    return titulo === 'atrasados'
+      ? 'Não encontrei materiais com entrega atrasada na obra selecionada.'
+      : 'Não encontrei materiais pendentes de entrega na obra selecionada.'
+  }
 
-  return `Encontrei ${pedidos.length} material${pedidos.length === 1 ? '' : 'is'} ainda não entregue${pedidos.length === 1 ? '' : 's'}:\n\n${pedidos.map((pedido, indice) => {
-    const atraso = diasImpactoPedido(pedido)
+  const cabecalho = titulo === 'atrasados'
+    ? `Encontrei ${pedidos.length} material${pedidos.length === 1 ? '' : 'is'} com atraso ou impacto no prazo:`
+    : `Encontrei ${pedidos.length} material${pedidos.length === 1 ? '' : 'is'} ainda não entregue${pedidos.length === 1 ? '' : 's'}:`
+
+  return `${cabecalho}\n\n${pedidos.map((pedido, indice) => {
+    const impacto = diasImpactoPedido(pedido)
     const situacao = pedidoAtrasado(pedido)
-      ? `${atraso || pedido.impacto_dias || 1} dia(s) de impacto no prazo`
+      ? `${impacto || 1} dia(s) de atraso ou impacto`
       : `previsão para ${formatarData(pedido.data_prevista || pedido.data)}`
 
-    return `${indice + 1}. ${pedido.item || pedido.material}\nQuantidade: ${pedido.quantidade || 'não informada'} ${pedido.unidade || ''}\nFornecedor: ${pedido.fornecedor || 'não informado'}\nSituação: ${situacao}\nServiço relacionado: ${pedido.tarefa_relacionada || 'não informado'}`
+    return `${indice + 1}. ${nomeMaterial(pedido)}\nQuantidade: ${pedido.quantidade || 'não informada'} ${pedido.unidade || ''}\nFornecedor: ${pedido.fornecedor || 'não informado'}\nStatus: ${pedido.status || 'não informado'}\nSituação: ${situacao}\nServiço relacionado: ${pedido.tarefa_relacionada || 'não informado'}`
   }).join('\n\n')}`
 }
 
-function analisarCimento(cimento) {
-  if (!cimento) return 'Não encontrei um pedido de cimento pendente nesta obra.'
+function analisarMaterial(pedido) {
+  if (!pedido) return 'Não encontrei esse material nos pedidos da obra selecionada.'
 
-  const impacto = cimento.impacto_dias || diasImpactoPedido(cimento)
-  const sucessoras = cimento.atividades_sucessoras?.length
-    ? cimento.atividades_sucessoras.map((atividade, indice) => `${indice + 1}. ${atividade}`).join('\n')
-    : 'Nenhuma atividade sucessora cadastrada.'
+  const impacto = diasImpactoPedido(pedido)
+  const servico = pedido.tarefa_relacionada
+  const sucessoras = Array.isArray(pedido.atividades_sucessoras) && pedido.atividades_sucessoras.length
+    ? pedido.atividades_sucessoras.map((atividade, indice) => `${indice + 1}. ${atividade}`).join('\n')
+    : null
 
-  return `Sim. O atraso do cimento pode impactar a concretagem das vigas V101 a V108.\n\nMaterial: ${cimento.item || 'Cimento'}\nQuantidade: ${cimento.quantidade || 'não informada'} ${cimento.unidade || ''}\nFornecedor: ${cimento.fornecedor || 'não informado'}\nData necessária: ${formatarData(cimento.data_necessidade)}\nPrevisão original: ${formatarData(cimento.data_prevista_original)}\nNova previsão: ${formatarData(cimento.data_prevista)}\nImpacto mínimo estimado: ${impacto} dia(s)\n\nMotivo: ${cimento.impacto || 'A entrega ocorre depois da data necessária para o serviço.'}\n\nAtividades sucessoras sob risco:\n${sucessoras}\n\nRecomendação:\n1. Confirmar imediatamente a entrega com o fornecedor.\n2. Verificar estoque e compra emergencial.\n3. Atualizar a concretagem e as atividades sucessoras no cronograma.\n4. Registrar o risco no diário de obra.`
+  let resposta = `Material: ${nomeMaterial(pedido)}\nQuantidade: ${pedido.quantidade || 'não informada'} ${pedido.unidade || ''}\nFornecedor: ${pedido.fornecedor || 'não informado'}\nStatus: ${pedido.status || 'não informado'}\nData necessária: ${formatarData(pedido.data_necessidade)}\nPrevisão original: ${formatarData(pedido.data_prevista_original)}\nPrevisão atual: ${formatarData(pedido.data_prevista || pedido.data)}\nServiço relacionado: ${servico || 'não cadastrado'}`
+
+  if (servico && impacto > 0) {
+    resposta += `\n\nImpacto identificado: a previsão atual ocorre ${impacto} dia(s) depois da data necessária e pode atrasar o serviço “${servico}”.`
+  } else if (servico && pedidoAtrasado(pedido)) {
+    resposta += `\n\nImpacto identificado: o pedido está marcado como atrasado e pode afetar o serviço “${servico}”.`
+  } else if (!servico) {
+    resposta += '\n\nNão é possível apontar qual serviço será afetado porque este pedido não possui uma atividade do cronograma vinculada.'
+  } else {
+    resposta += `\n\nCom os dados atuais, não identifiquei atraso entre a previsão de entrega e a data necessária para “${servico}”.`
+  }
+
+  if (pedido.impacto) resposta += `\n\nObservação cadastrada: ${pedido.impacto}`
+  if (sucessoras) resposta += `\n\nAtividades sucessoras cadastradas:\n${sucessoras}`
+
+  return resposta
 }
 
 function gerarPlanoAcao({ servicosAtrasados, materiaisAtrasados, tarefasBloqueadas }) {
   const acoes = []
 
-  if (materiaisAtrasados.length) {
-    acoes.push('Confirmar hoje a nova previsão de entrega dos materiais críticos e registrar a resposta do fornecedor.')
-  }
-  if (tarefasBloqueadas.length) {
-    acoes.push('Definir quais serviços podem ser antecipados enquanto o bloqueio não for resolvido.')
-  }
-  if (servicosAtrasados.length) {
-    acoes.push('Reunir os responsáveis pelos serviços atrasados e estabelecer metas diárias de recuperação.')
-  }
-  acoes.push('Atualizar o cronograma sempre que houver alteração de entrega, produtividade ou sequência executiva.')
+  materiaisAtrasados.forEach((pedido) => {
+    const servico = pedido.tarefa_relacionada ? `, vinculado a “${pedido.tarefa_relacionada}”` : ''
+    acoes.push(`Confirmar a entrega de ${nomeMaterial(pedido)} com ${pedido.fornecedor || 'o fornecedor'}${servico}.`)
+  })
 
-  return `Plano de ação sugerido:\n\n${acoes.map((acao, indice) => `${indice + 1}. ${acao}`).join('\n')}\n\nPrioridade: garantir o cimento antes da concretagem das vigas V101 a V108.`
+  tarefasBloqueadas.forEach((tarefa) => {
+    acoes.push(`Resolver o bloqueio de “${tarefa.nome}”: ${tarefa.bloqueio || 'motivo não informado'}.`)
+  })
+
+  servicosAtrasados.forEach((tarefa) => {
+    acoes.push(`Definir recuperação de prazo para “${tarefa.nome}” com ${tarefa.responsavel || tarefa.responsavel_nome || 'o responsável da atividade'}.`)
+  })
+
+  if (!acoes.length) {
+    return 'Não identifiquei materiais atrasados, tarefas bloqueadas ou serviços fora do prazo que exijam um plano de recuperação agora.'
+  }
+
+  acoes.push('Atualizar o cronograma e os pedidos sempre que uma nova data for confirmada.')
+  return `Plano de ação sugerido para a obra selecionada:\n\n${acoes.map((acao, indice) => `${indice + 1}. ${acao}`).join('\n')}`
+}
+
+function encontrarPedidoNaPergunta(perguntaNormalizada, pedidos) {
+  return pedidos.find((pedido) => {
+    const palavras = normalizarTexto(nomeMaterial(pedido))
+      .split(' ')
+      .filter((palavra) => palavra.length > 4)
+
+    return palavras.some((palavra) => perguntaNormalizada.includes(palavra))
+  })
 }
 
 function gerarResposta(pergunta, contexto) {
   const texto = normalizarTexto(pergunta)
   const {
+    obra,
     tarefas,
     pedidos,
     servicosAtrasados,
     materiaisNaoEntregues,
     materiaisAtrasados,
     tarefasBloqueadas,
+    comprasError,
   } = contexto
 
-  const cimento = materiaisNaoEntregues.find((pedido) => normalizarTexto(pedido.item || pedido.material).includes('cimento'))
+  const perguntaSobreMaterial = contemAlgum(texto, [
+    'material', 'materiais', 'insumo', 'insumos', 'cimento', 'aco', 'madeira',
+    'compra', 'compras', 'pedido', 'pedidos', 'entrega', 'entregue',
+    'fornecedor', 'suprimento', 'suprimentos',
+  ])
+  const perguntaSobreServico = contemAlgum(texto, [
+    'servico', 'servicos', 'cronograma', 'atividade', 'atividades', 'tarefa', 'tarefas', 'prazo',
+  ])
+  const perguntaSobreAtraso = contemAlgum(texto, ['atrasado', 'atrasados', 'atrasada', 'atrasadas', 'vencido', 'vencidos', 'fora do prazo'])
+  const perguntaSobrePendencia = contemAlgum(texto, ['nao entregue', 'nao entregues', 'pendente', 'pendentes', 'faltando', 'falta'])
 
-  if (texto.includes('cimento') || texto.includes('v101') || texto.includes('viga 101') || texto.includes('vigas 101')) {
-    return analisarCimento(cimento)
+  if (perguntaSobreMaterial) {
+    if (!pedidos.length) {
+      if (comprasError) {
+        return `Não consegui acessar os pedidos de compra da obra “${obra.nome}”. O cronograma foi carregado, mas os dados de compras/materiais não estão disponíveis no momento. Verifique a tabela pedidos_compra e as permissões do Supabase.`
+      }
+
+      return `Não há pedidos de compra cadastrados para a obra “${obra.nome}”. Sem esses registros, não consigo identificar materiais atrasados ou pendentes.`
+    }
+
+    const pedidoEncontrado = encontrarPedidoNaPergunta(texto, pedidos)
+
+    if (pedidoEncontrado && contemAlgum(texto, ['impacto', 'afeta', 'afetar', 'detalhe', 'situacao', 'status', 'quando', 'qual servico'])) {
+      return analisarMaterial(pedidoEncontrado)
+    }
+
+    if (perguntaSobreAtraso) {
+      return listarMateriais(materiaisAtrasados, 'atrasados')
+    }
+
+    if (perguntaSobrePendencia || contemAlgum(texto, ['nao foi entregue', 'nao foram entregues'])) {
+      return listarMateriais(materiaisNaoEntregues, 'pendentes')
+    }
+
+    if (pedidoEncontrado) {
+      return analisarMaterial(pedidoEncontrado)
+    }
+
+    return listarMateriais(materiaisNaoEntregues, 'pendentes')
   }
 
-  if (texto.includes('plano') || texto.includes('acao') || texto.includes('recuperar') || texto.includes('providencia')) {
+  if (contemAlgum(texto, ['plano', 'acao', 'recuperar', 'providencia'])) {
     return gerarPlanoAcao(contexto)
   }
 
-  if (texto.includes('bloquead') || texto.includes('impedid')) {
-    if (!tarefasBloqueadas.length) return 'Não encontrei tarefas bloqueadas nesta obra.'
+  if (contemAlgum(texto, ['bloqueado', 'bloqueados', 'bloqueada', 'bloqueadas', 'impedido', 'impedida'])) {
+    if (!tarefasBloqueadas.length) return 'Não encontrei tarefas bloqueadas na obra selecionada.'
     return `Encontrei ${tarefasBloqueadas.length} tarefa(s) bloqueada(s):\n\n${tarefasBloqueadas.map((tarefa, indice) => `${indice + 1}. ${tarefa.nome}\nMotivo: ${tarefa.bloqueio || 'não informado'}`).join('\n\n')}`
   }
 
-  if (texto.includes('responsavel') || texto.includes('quem')) {
-    if (!servicosAtrasados.length) return 'Não encontrei serviços atrasados com responsáveis cadastrados.'
-    return servicosAtrasados.map((tarefa, indice) => `${indice + 1}. ${tarefa.nome}: ${tarefa.responsavel || tarefa.responsavel_nome || 'responsável não informado'}`).join('\n')
+  if (perguntaSobreServico || perguntaSobreAtraso) {
+    return listarServicos(servicosAtrasados)
+  }
+
+  if (contemAlgum(texto, ['risco', 'riscos', 'impacto', 'prioridade', 'resumo'])) {
+    const riscos = []
+
+    materiaisAtrasados.forEach((pedido) => {
+      riscos.push(`${nomeMaterial(pedido)} pode afetar ${pedido.tarefa_relacionada || 'um serviço ainda não vinculado'}`)
+    })
+    tarefasBloqueadas.forEach((tarefa) => {
+      riscos.push(`${tarefa.nome} está bloqueada`)
+    })
+    servicosAtrasados.forEach((tarefa) => {
+      riscos.push(`${tarefa.nome} está fora do prazo`)
+    })
+
+    if (!riscos.length) return 'Não identifiquei riscos operacionais relevantes nos dados atuais da obra selecionada.'
+
+    return `Riscos identificados na obra “${obra.nome}”:\n\n${riscos.map((risco, indice) => `${indice + 1}. ${risco}.`).join('\n')}`
   }
 
   const tarefaEncontrada = tarefas.find((tarefa) => {
@@ -275,32 +383,11 @@ function gerarResposta(pergunta, contexto) {
     return palavras.some((palavra) => texto.includes(palavra))
   })
 
-  if (tarefaEncontrada && (texto.includes('detalh') || texto.includes('situacao') || texto.includes('status'))) {
+  if (tarefaEncontrada) {
     return `Serviço: ${tarefaEncontrada.nome}\nInício: ${formatarData(tarefaEncontrada.data_inicio || tarefaEncontrada.inicio)}\nTérmino: ${formatarData(tarefaEncontrada.data_termino || tarefaEncontrada.termino)}\nProgresso: ${Number(tarefaEncontrada.progresso || 0)}%\nResponsável: ${tarefaEncontrada.responsavel || tarefaEncontrada.responsavel_nome || 'não informado'}\nSituação: ${tarefaEncontrada.status_operacional || tarefaEncontrada.status || 'calculada pelo cronograma'}${tarefaEncontrada.bloqueio ? `\nBloqueio: ${tarefaEncontrada.bloqueio}` : ''}`
   }
 
-  const pedidoEncontrado = pedidos.find((pedido) => {
-    const palavras = normalizarTexto(pedido.item || pedido.material).split(' ').filter((palavra) => palavra.length > 4)
-    return palavras.some((palavra) => texto.includes(palavra))
-  })
-
-  if (pedidoEncontrado && (texto.includes('detalh') || texto.includes('situacao') || texto.includes('status') || texto.includes('quando'))) {
-    return `Material: ${pedidoEncontrado.item || pedidoEncontrado.material}\nQuantidade: ${pedidoEncontrado.quantidade || 'não informada'} ${pedidoEncontrado.unidade || ''}\nFornecedor: ${pedidoEncontrado.fornecedor || 'não informado'}\nStatus: ${pedidoEncontrado.status || 'não informado'}\nData necessária: ${formatarData(pedidoEncontrado.data_necessidade)}\nPrevisão atual: ${formatarData(pedidoEncontrado.data_prevista || pedidoEncontrado.data)}\nServiço relacionado: ${pedidoEncontrado.tarefa_relacionada || 'não informado'}\nImpacto: ${pedidoEncontrado.impacto || 'não cadastrado'}`
-  }
-
-  if (texto.includes('servico') || texto.includes('cronograma') || texto.includes('atividade') || texto.includes('atrasad')) {
-    return listarServicos(servicosAtrasados)
-  }
-
-  if (texto.includes('material') || texto.includes('entrega') || texto.includes('compra') || texto.includes('pedido')) {
-    return listarMateriais(materiaisNaoEntregues)
-  }
-
-  if (texto.includes('risco') || texto.includes('impacto') || texto.includes('prioridade') || texto.includes('resumo')) {
-    return `Os principais riscos identificados são:\n\n1. ${servicosAtrasados.length} serviço(s) atrasado(s).\n2. ${materiaisAtrasados.length} material(is) com impacto no prazo.\n3. ${tarefasBloqueadas.length} tarefa(s) bloqueada(s).\n\nO risco mais crítico é o cimento, porque a nova previsão ocorre depois da data programada para a concretagem das vigas V101 a V108.`
-  }
-
-  return `Posso analisar o cronograma, os pedidos e os bloqueios desta obra. Faça uma pergunta mais específica, por exemplo:\n\n• Quais serviços estão atrasados?\n• Quais materiais não foram entregues?\n• O cimento pode impactar a concretagem?\n• Quais tarefas estão bloqueadas?\n• Monte um plano de ação.`
+  return `Posso consultar o cronograma e os pedidos da obra “${obra.nome}”. Pergunte, por exemplo:\n\n• Quais serviços estão atrasados?\n• Quais materiais estão atrasados?\n• Quais materiais ainda não foram entregues?\n• Quais tarefas estão bloqueadas?\n• Qual serviço será afetado por determinado material?`
 }
 
 export default function IAOperacionalPage() {
@@ -314,7 +401,7 @@ export default function IAOperacionalPage() {
   const [mensagens, setMensagens] = useState([
     {
       tipo: 'assistente',
-      texto: 'Olá. Sou a IA operacional desta obra. Pergunte sobre serviços atrasados, materiais pendentes, bloqueios ou impacto no cronograma.',
+      texto: 'Olá. Selecione a obra e faça uma pergunta sobre cronograma, compras, materiais ou bloqueios.',
     },
   ])
 
@@ -334,7 +421,7 @@ export default function IAOperacionalPage() {
   )
 
   const { tarefas: tarefasBanco = [], loading: tarefasLoading } = useTarefas(obraAtual?.id)
-  const { pedidos: pedidosBanco = [], loading: comprasLoading } = useCompras(obraAtual?.id)
+  const { pedidos: pedidosBanco = [], loading: comprasLoading, error: comprasError } = useCompras(obraAtual?.id)
 
   const usandoDemo = String(obraAtual?.id).startsWith('demo')
   const tarefas = useMemo(() => (tarefasBanco.length ? tarefasBanco : usandoDemo ? TAREFAS_DEMO : []), [tarefasBanco, usandoDemo])
@@ -369,6 +456,17 @@ export default function IAOperacionalPage() {
     [materiaisNaoEntregues]
   )
 
+  const perguntaMaterialEspecifica = useMemo(() => {
+    const pedidoCritico = materiaisAtrasados.find((pedido) => pedido.tarefa_relacionada)
+    if (!pedidoCritico) return null
+    return `O atraso de ${nomeMaterial(pedidoCritico)} pode impactar qual serviço?`
+  }, [materiaisAtrasados])
+
+  const perguntasChave = useMemo(
+    () => perguntaMaterialEspecifica ? [...PERGUNTAS_BASE, perguntaMaterialEspecifica] : PERGUNTAS_BASE,
+    [perguntaMaterialEspecifica]
+  )
+
   const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading
 
   function perguntar(textoPergunta) {
@@ -381,12 +479,14 @@ export default function IAOperacionalPage() {
 
     window.setTimeout(() => {
       const resposta = gerarResposta(texto, {
+        obra: obraAtual,
         tarefas,
         pedidos,
         servicosAtrasados,
         materiaisNaoEntregues,
         materiaisAtrasados,
         tarefasBloqueadas,
+        comprasError,
       })
 
       setMensagens((atuais) => [...atuais, { tipo: 'assistente', texto: resposta }])
@@ -404,7 +504,7 @@ export default function IAOperacionalPage() {
     setMensagens([
       {
         tipo: 'assistente',
-        texto: 'Obra alterada. Faça uma pergunta para analisar os dados da nova obra.',
+        texto: 'Obra alterada. As próximas respostas usarão somente os dados da obra selecionada.',
       },
     ])
   }
@@ -418,14 +518,14 @@ export default function IAOperacionalPage() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-5 p-6 text-center">
         <Bot className="text-blue-600" size={42} />
         <h1 className="text-2xl font-black text-slate-900">Sua sessão terminou</h1>
-        <button type="button" onClick={() => router.push('/')} className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white">Voltar ao login</button>
+        <button onClick={() => router.push('/')} className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white">Voltar ao login</button>
       </div>
     )
   }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200/70 bg-white">
+      <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 lg:px-8">
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => router.push('/')} className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:text-blue-600">
@@ -436,7 +536,7 @@ export default function IAOperacionalPage() {
             </div>
             <div>
               <h1 className="text-lg font-black tracking-tight">IA da Obra</h1>
-              <p className="text-xs font-medium text-slate-500">Converse com os dados operacionais da obra selecionada</p>
+              <p className="text-xs font-medium text-slate-500">Respostas limitadas aos dados da obra selecionada</p>
             </div>
           </div>
 
@@ -462,12 +562,12 @@ export default function IAOperacionalPage() {
               <div className="rounded-2xl bg-blue-50 p-3 text-blue-600"><Sparkles size={20} /></div>
               <div>
                 <h2 className="font-black">Chat operacional</h2>
-                <p className="text-xs font-medium text-slate-500">As informações só aparecem depois que você fizer uma pergunta</p>
+                <p className="text-xs font-medium text-slate-500">Pergunte e a resposta será montada com os dados desta obra</p>
               </div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {PERGUNTAS_CHAVE.map((sugestao) => (
+              {perguntasChave.map((sugestao) => (
                 <button
                   type="button"
                   key={sugestao}
@@ -491,11 +591,11 @@ export default function IAOperacionalPage() {
 
             {respondendo && (
               <div className="flex justify-start">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-400 shadow-sm">Analisando cronograma e compras...</div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-400 shadow-sm">Consultando cronograma e pedidos da obra...</div>
               </div>
             )}
 
-            {carregando && <p className="text-xs font-bold text-slate-400">Atualizando dados operacionais...</p>}
+            {carregando && <p className="text-xs font-bold text-slate-400">Atualizando dados da obra...</p>}
             <div ref={chatEndRef} />
           </div>
 
@@ -504,7 +604,7 @@ export default function IAOperacionalPage() {
               <input
                 value={pergunta}
                 onChange={(event) => setPergunta(event.target.value)}
-                placeholder="Pergunte sobre atrasos, entregas, bloqueios ou riscos da obra..."
+                placeholder="Ex.: Qual material está atrasado nesta obra?"
                 className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
               />
               <button
