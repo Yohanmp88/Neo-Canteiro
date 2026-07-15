@@ -29,23 +29,18 @@ export function useAuth() {
 
     checkUser()
 
-    // Subscribe para mudanças de autenticação
-    const { data: subscription } = authService.onAuthStateChange(async (event, session) => {
+    // O callback precisa permanecer síncrono.
+    // Consultas ao Supabase dentro de um callback async podem travar o signInWithPassword.
+    const {
+      data: { subscription },
+    } = authService.onAuthStateChange((event, session) => {
       setUser(session?.user || null)
 
-      if (session?.user) {
-        try {
-          const profile = await authService.getUserProfile(session.user.id)
-          setUserProfile(profile)
-        } catch (err) {
-          setError(err.message)
-        }
-      } else {
+      if (!session?.user) {
         setUserProfile(null)
       }
     })
 
-    // Cleanup
     return () => {
       subscription?.unsubscribe()
     }
