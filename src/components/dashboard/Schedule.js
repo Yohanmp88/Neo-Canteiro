@@ -30,9 +30,12 @@ function diasEntre(final, inicial) {
   return Math.max(0, Math.round((final - inicial) / 86400000))
 }
 
-function formatarData(valor) {
+function formatarData(valor, completa = false) {
   const data = parseDataOperacional(valor)
-  return data ? data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--'
+  if (!data) return '--/--'
+  return data.toLocaleDateString('pt-BR', completa
+    ? { day: '2-digit', month: 'short', year: 'numeric' }
+    : { day: '2-digit', month: '2-digit' })
 }
 
 function obterPeriodo(tarefas) {
@@ -122,6 +125,55 @@ function obterStatus(tarefa) {
   }
 }
 
+function GanttMobile({ tarefas }) {
+  return (
+    <div className="space-y-3 md:hidden">
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Visualização para celular</p>
+        <p className="mt-1 text-xs font-medium text-blue-600">Toque e role para acompanhar as 20 etapas da obra.</p>
+      </div>
+
+      {tarefas.map((tarefa, indice) => {
+        const progresso = Math.max(0, Math.min(100, Number(tarefa.progresso || 0)))
+        const status = obterStatus(tarefa)
+        const IconeStatus = status.Icone
+
+        return (
+          <article key={tarefa.id || indice} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-[10px] font-black text-slate-500">
+                {String(indice + 1).padStart(2, '0')}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-black leading-snug text-slate-900">{tarefa.nome}</h3>
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[8px] font-black uppercase ring-1 ${status.classe}`}>
+                    <IconeStatus size={9} /> {status.texto}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-[10px] font-bold text-slate-500">
+                  {formatarData(tarefa.inicio || tarefa.data_inicio, true)} — {formatarData(tarefa.termino || tarefa.data_termino, true)}
+                </p>
+                {tarefa.responsavel && <p className="mt-1 text-[10px] font-medium text-slate-400">{tarefa.responsavel}</p>}
+
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full ${status.barra}`} style={{ width: `${progresso}%` }} />
+                  </div>
+                  <span className={`w-10 text-right text-xs font-black ${tarefaAtrasadaOperacional(tarefa) ? 'text-red-600' : 'text-slate-900'}`}>
+                    {progresso}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
 export function GraficoCronograma({ tarefas }) {
   if (!tarefas || !tarefas.length) {
     return (
@@ -143,155 +195,159 @@ export function GraficoCronograma({ tarefas }) {
     : null
 
   return (
-    <div className="overflow-x-auto pb-3 custom-scrollbar">
-      <div className="min-w-[1450px] overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="grid grid-cols-[320px_1fr_90px] border-b border-slate-200 bg-slate-50">
-          <div className="flex items-center px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            Etapas da obra
+    <>
+      <GanttMobile tarefas={tarefas} />
+
+      <div className="hidden overflow-x-auto pb-3 custom-scrollbar md:block">
+        <div className="min-w-[1450px] overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="grid grid-cols-[320px_1fr_90px] border-b border-slate-200 bg-slate-50">
+            <div className="flex items-center px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Etapas da obra
+            </div>
+
+            <div className="relative h-12 border-x border-slate-200">
+              {periodo.meses.map((mes) => (
+                <div
+                  key={mes.chave}
+                  className="absolute inset-y-0 flex items-center justify-center border-r border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500"
+                  style={{ left: `${mes.left}%`, width: `${mes.width}%` }}
+                >
+                  {mes.nome}<span className="ml-1 text-slate-300">{String(mes.ano).slice(-2)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-center px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Avanço
+            </div>
           </div>
 
-          <div className="relative h-12 border-x border-slate-200">
-            {periodo.meses.map((mes) => (
-              <div
-                key={mes.chave}
-                className="absolute inset-y-0 flex items-center justify-center border-r border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500"
-                style={{ left: `${mes.left}%`, width: `${mes.width}%` }}
-              >
-                {mes.nome}<span className="ml-1 text-slate-300">{String(mes.ano).slice(-2)}</span>
-              </div>
-            ))}
-          </div>
+          <div className="divide-y divide-slate-100">
+            {tarefas.map((tarefa, indice) => {
+              const inicio = parseDataOperacional(tarefa.inicio || tarefa.data_inicio)
+              const fim = parseDataOperacional(tarefa.termino || tarefa.data_termino)
+              const progresso = Math.max(0, Math.min(100, Number(tarefa.progresso || 0)))
+              const status = obterStatus(tarefa)
+              const IconeStatus = status.Icone
 
-          <div className="flex items-center justify-center px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            Avanço
-          </div>
-        </div>
+              const left = inicio
+                ? (diasEntre(inicio, periodo.inicio) / periodo.totalDias) * 100
+                : 0
+              const width = inicio && fim
+                ? Math.max(0.9, ((diasEntre(fim, inicio) + 1) / periodo.totalDias) * 100)
+                : 1
 
-        <div className="divide-y divide-slate-100">
-          {tarefas.map((tarefa, indice) => {
-            const inicio = parseDataOperacional(tarefa.inicio || tarefa.data_inicio)
-            const fim = parseDataOperacional(tarefa.termino || tarefa.data_termino)
-            const progresso = Math.max(0, Math.min(100, Number(tarefa.progresso || 0)))
-            const status = obterStatus(tarefa)
-            const IconeStatus = status.Icone
-
-            const left = inicio
-              ? (diasEntre(inicio, periodo.inicio) / periodo.totalDias) * 100
-              : 0
-            const width = inicio && fim
-              ? Math.max(0.9, ((diasEntre(fim, inicio) + 1) / periodo.totalDias) * 100)
-              : 1
-
-            return (
-              <div key={tarefa.id || indice} className="grid min-h-[62px] grid-cols-[320px_1fr_90px] transition hover:bg-slate-50/70">
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black text-slate-500">
-                    {String(indice + 1).padStart(2, '0')}
+              return (
+                <div key={tarefa.id || indice} className="grid min-h-[62px] grid-cols-[320px_1fr_90px] transition hover:bg-slate-50/70">
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black text-slate-500">
+                      {String(indice + 1).padStart(2, '0')}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-black text-slate-900" title={tarefa.nome}>{tarefa.nome}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-slate-400">
+                          {formatarData(tarefa.inicio || tarefa.data_inicio)} — {formatarData(tarefa.termino || tarefa.data_termino)}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ring-1 ${status.classe}`}>
+                          <IconeStatus size={8} /> {status.texto}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-black text-slate-900" title={tarefa.nome}>{tarefa.nome}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-[9px] font-bold text-slate-400">
-                        {formatarData(tarefa.inicio || tarefa.data_inicio)} — {formatarData(tarefa.termino || tarefa.data_termino)}
-                      </span>
-                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase ring-1 ${status.classe}`}>
-                        <IconeStatus size={8} /> {status.texto}
+
+                  <div
+                    className="relative border-x border-slate-100"
+                    style={{
+                      backgroundImage: 'repeating-linear-gradient(to right, transparent 0, transparent calc(8.333% - 1px), #f1f5f9 calc(8.333% - 1px), #f1f5f9 8.333%)',
+                    }}
+                  >
+                    {periodo.meses.map((mes) => (
+                      <div
+                        key={mes.chave}
+                        className="pointer-events-none absolute inset-y-0 border-r border-slate-200/80"
+                        style={{ left: `${mes.left}%`, width: `${mes.width}%` }}
+                      />
+                    ))}
+
+                    {posicaoHoje !== null && (
+                      <div
+                        className="pointer-events-none absolute inset-y-0 z-10 w-px bg-red-400"
+                        style={{ left: `${posicaoHoje}%` }}
+                        title="Hoje"
+                      />
+                    )}
+
+                    <div
+                      className="absolute top-1/2 h-7 -translate-y-1/2 overflow-hidden rounded-lg bg-slate-200 shadow-sm ring-1 ring-slate-300/50"
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                      title={`${tarefa.nome}: ${formatarData(tarefa.inicio || tarefa.data_inicio)} a ${formatarData(tarefa.termino || tarefa.data_termino)}`}
+                    >
+                      <div
+                        className={`h-full ${status.barra} transition-all duration-700`}
+                        style={{ width: `${progresso}%` }}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center px-1 text-[8px] font-black text-white drop-shadow-sm">
+                        {width > 4 ? `${progresso}%` : ''}
                       </span>
                     </div>
                   </div>
-                </div>
 
-                <div
-                  className="relative border-x border-slate-100"
-                  style={{
-                    backgroundImage: 'repeating-linear-gradient(to right, transparent 0, transparent calc(8.333% - 1px), #f1f5f9 calc(8.333% - 1px), #f1f5f9 8.333%)',
-                  }}
-                >
-                  {periodo.meses.map((mes) => (
-                    <div
-                      key={mes.chave}
-                      className="pointer-events-none absolute inset-y-0 border-r border-slate-200/80"
-                      style={{ left: `${mes.left}%`, width: `${mes.width}%` }}
-                    />
-                  ))}
-
-                  {posicaoHoje !== null && (
-                    <div
-                      className="pointer-events-none absolute inset-y-0 z-10 w-px bg-red-400"
-                      style={{ left: `${posicaoHoje}%` }}
-                      title="Hoje"
-                    />
-                  )}
-
-                  <div
-                    className="absolute top-1/2 h-7 -translate-y-1/2 overflow-hidden rounded-lg bg-slate-200 shadow-sm ring-1 ring-slate-300/50"
-                    style={{ left: `${left}%`, width: `${width}%` }}
-                    title={`${tarefa.nome}: ${formatarData(tarefa.inicio || tarefa.data_inicio)} a ${formatarData(tarefa.termino || tarefa.data_termino)}`}
-                  >
-                    <div
-                      className={`h-full ${status.barra} transition-all duration-700`}
-                      style={{ width: `${progresso}%` }}
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center px-1 text-[8px] font-black text-white drop-shadow-sm">
-                      {width > 4 ? `${progresso}%` : ''}
-                    </span>
+                  <div className="flex items-center justify-center px-3 py-2.5">
+                    <div className="text-center">
+                      <p className={`text-sm font-black ${tarefaAtrasadaOperacional(tarefa) ? 'text-red-600' : 'text-slate-900'}`}>{progresso}%</p>
+                      <p className="text-[8px] font-bold uppercase text-slate-400">executado</p>
+                    </div>
                   </div>
                 </div>
+              )
+            })}
+          </div>
 
-                <div className="flex items-center justify-center px-3 py-2.5">
-                  <div className="text-center">
-                    <p className={`text-sm font-black ${tarefaAtrasadaOperacional(tarefa) ? 'text-red-600' : 'text-slate-900'}`}>{progresso}%</p>
-                    <p className="text-[8px] font-bold uppercase text-slate-400">executado</p>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-5 border-t border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-5 rounded bg-blue-600" />
-            <span className="text-[9px] font-bold uppercase text-slate-500">Em execução</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-5 rounded bg-emerald-500" />
-            <span className="text-[9px] font-bold uppercase text-slate-500">Concluído</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-5 rounded bg-red-500" />
-            <span className="text-[9px] font-bold uppercase text-slate-500">Atrasado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-5 rounded bg-slate-500" />
-            <span className="text-[9px] font-bold uppercase text-slate-500">Planejado</span>
-          </div>
-          {hojeDentroDoPeriodo && (
-            <div className="ml-auto flex items-center gap-2">
-              <div className="h-4 w-px bg-red-400" />
-              <span className="text-[9px] font-black uppercase text-red-500">Data atual</span>
+          <div className="flex flex-wrap items-center gap-5 border-t border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-5 rounded bg-blue-600" />
+              <span className="text-[9px] font-bold uppercase text-slate-500">Em execução</span>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-5 rounded bg-emerald-500" />
+              <span className="text-[9px] font-bold uppercase text-slate-500">Concluído</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-5 rounded bg-red-500" />
+              <span className="text-[9px] font-bold uppercase text-slate-500">Atrasado</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-5 rounded bg-slate-500" />
+              <span className="text-[9px] font-bold uppercase text-slate-500">Planejado</span>
+            </div>
+            {hojeDentroDoPeriodo && (
+              <div className="ml-auto flex items-center gap-2">
+                <div className="h-4 w-px bg-red-400" />
+                <span className="text-[9px] font-black uppercase text-red-500">Data atual</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
-export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
+export function CronogramaVisual({ tarefas, atualizarProgresso, atualizarTarefa, podeEditar }) {
   if (!tarefas || !tarefas.length) return null
 
   return (
     <div className="overflow-x-auto pb-4 custom-scrollbar">
-      <div className="min-w-[1000px]">
-        <table className="w-full border-separate border-spacing-y-2 text-left">
+      <div className="min-w-[880px]">
+        <table className="w-full text-left border-separate border-spacing-y-2">
           <thead>
             <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               <th className="px-4 py-2">Atividade</th>
               <th className="px-4 py-2 text-center">Início</th>
               <th className="px-4 py-2 text-center">Término</th>
               <th className="px-4 py-2 text-center">Progresso</th>
-              <th className="px-4 py-2">Status visual</th>
+              <th className="px-4 py-2">Status Visual</th>
             </tr>
           </thead>
           <tbody>
@@ -315,22 +371,22 @@ export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
                   </td>
 
                   <td className="border-y border-slate-200/60 bg-white p-4 text-center shadow-sm transition-colors group-hover:bg-slate-50">
-                    <span className="text-xs font-bold text-slate-500">{formatarData(inicio)}</span>
+                    <span className="text-xs font-bold text-slate-500">{formatarData(inicio, true)}</span>
                   </td>
 
                   <td className="border-y border-slate-200/60 bg-white p-4 text-center shadow-sm transition-colors group-hover:bg-slate-50">
-                    <span className={`text-xs font-bold ${atrasada ? 'text-red-500' : 'text-slate-500'}`}>{formatarData(termino)}</span>
+                    <span className={`text-xs font-bold ${atrasada ? 'text-red-500' : 'text-slate-500'}`}>{formatarData(termino, true)}</span>
                   </td>
 
                   <td className="border-y border-slate-200/60 bg-white p-4 text-center shadow-sm transition-colors group-hover:bg-slate-50">
-                    {podeEditar ? (
+                    {podeEditar && atualizarProgresso ? (
                       <div className="flex items-center justify-center gap-2">
                         <input
                           type="number"
                           min="0"
                           max="100"
                           value={tarefa.progresso}
-                          onChange={(event) => atualizarTarefa(tarefa.id, 'progresso', Number(event.target.value))}
+                          onChange={(event) => atualizarProgresso(tarefa.id, event.target.value)}
                           className="w-16 rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-center text-xs font-black"
                         />
                         <span className="text-xs font-bold text-slate-400">%</span>
@@ -344,7 +400,7 @@ export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
                     <div className="flex items-center gap-3">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                         <div
-                          className={`h-full transition-all duration-500 ${atrasada ? 'bg-red-500' : Number(tarefa.progresso) >= 100 ? 'bg-emerald-500' : 'bg-blue-600'}`}
+                          className={`h-full transition-all duration-500 ${atrasada ? 'bg-red-500' : 'bg-blue-600'}`}
                           style={{ width: `${Math.max(0, Math.min(100, Number(tarefa.progresso || 0)))}%` }}
                         />
                       </div>
