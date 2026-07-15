@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { compraService } from '@/services/compraService'
+import { obterPedidosDemoPorObra } from '@/lib/operationalData'
 
 export function useCompras(obraId) {
   const [pedidos, setPedidos] = useState([])
@@ -12,9 +13,20 @@ export function useCompras(obraId) {
     let ativo = true
 
     const carregar = async () => {
-      if (!obraId || String(obraId).startsWith('demo')) {
-        setPedidos([])
-        setLoading(false)
+      if (!obraId) {
+        if (ativo) {
+          setPedidos([])
+          setLoading(false)
+        }
+        return
+      }
+
+      if (String(obraId).startsWith('demo')) {
+        if (ativo) {
+          setPedidos(obterPedidosDemoPorObra(obraId))
+          setError(null)
+          setLoading(false)
+        }
         return
       }
 
