@@ -10,10 +10,31 @@
 
 html, body {
   min-height: 100%;
-  color: #0f172a; /* slate-900 */
-  background-color: #f8fafc; /* slate-50 */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  color: #0f172a;
+  background-color: #f8fafc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 0;
+  overscroll-behavior-x: none;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+.pb-safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 ::-webkit-scrollbar {
@@ -26,35 +47,34 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e2e8f0; /* slate-200 */
+  background: #e2e8f0;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1; /* slate-300 */
+  background: #cbd5e1;
 }
 
 input, select, textarea, button {
   font: inherit;
 }
 
-/* Base transitions for premium feel */
 .transition-premium {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .shadow-premium {
-  shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
 .shadow-premium-lg {
-  shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
 }
 
 @keyframes fadeIn {
@@ -74,4 +94,3 @@ input, select, textarea, button {
 .animate-pulse-subtle {
   animation: pulse-subtle 2s infinite ease-in-out;
 }
-
