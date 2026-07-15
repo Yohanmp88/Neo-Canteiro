@@ -9,39 +9,54 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const carregarPerfilSemBloquear = async (userId) => {
+    try {
+      const profile = await authService.getUserProfile(userId)
+      setUserProfile(profile || null)
+    } catch (err) {
+      // O login não deve ficar travado caso o perfil/RLS apresente erro.
+      console.error('Erro ao carregar perfil:', err)
+      setUserProfile(null)
+    }
+  }
+
   useEffect(() => {
-    // Verificar usuário atual ao montar
+    let ativo = true
+
     const checkUser = async () => {
       try {
         const currentUser = await authService.getCurrentUser()
+
+        if (!ativo) return
         setUser(currentUser)
 
         if (currentUser) {
-          const profile = await authService.getUserProfile(currentUser.id)
-          setUserProfile(profile)
+          carregarPerfilSemBloquear(currentUser.id)
         }
       } catch (err) {
-        setError(err.message)
+        if (ativo) setError(err.message)
       } finally {
-        setLoading(false)
+        if (ativo) setLoading(false)
       }
     }
 
     checkUser()
 
-    // O callback precisa permanecer síncrono.
-    // Consultas ao Supabase dentro de um callback async podem travar o signInWithPassword.
+    // O callback precisa permanecer síncrono. Fazer consultas ao Supabase
+    // dentro de um callback async pode bloquear o signInWithPassword.
     const {
       data: { subscription },
     } = authService.onAuthStateChange((event, session) => {
-      setUser(session?.user || null)
+      const sessionUser = session?.user || null
+      setUser(sessionUser)
 
-      if (!session?.user) {
+      if (!sessionUser) {
         setUserProfile(null)
       }
     })
 
     return () => {
+      ativo = false
       subscription?.unsubscribe()
     }
   }, [])
@@ -50,16 +65,23 @@ export function useAuth() {
     try {
       setLoading(true)
       setError(null)
-      const data = await authService.login(email, password)
+
+      const data = await authService.login(email.trim(), password)
+
+      if (!data?.user) {
+        throw new Error('Não foi possível iniciar a sessão. Tente novamente.')
+      }
+
       setUser(data.user)
 
-      const profile = await authService.getUserProfile(data.user.id)
-      setUserProfile(profile)
+      // Não bloqueia o redirecionamento aguardando a consulta da tabela profiles.
+      carregarPerfilSemBloquear(data.user.id)
 
       return data
     } catch (err) {
-      setError(err.message)
-      throw err
+      const message = err?.message || 'Erro ao entrar. Verifique os dados e tente novamente.'
+      setError(message)
+      throw new Error(message)
     } finally {
       setLoading(false)
     }
@@ -72,8 +94,9 @@ export function useAuth() {
       const data = await authService.signup(email, password, userData)
       setUser(data.user)
 
-      const profile = await authService.getUserProfile(data.user.id)
-      setUserProfile(profile)
+      if (data?.user) {
+        carregarPerfilSemBloquear(data.user.id)
+      }
 
       return data
     } catch (err) {
