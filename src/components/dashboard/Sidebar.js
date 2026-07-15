@@ -1,21 +1,20 @@
 'use client'
 
-import { useState } from 'react'
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Camera, 
-  HardHat, 
-  FileText, 
-  Package, 
-  DollarSign, 
-  ShoppingCart, 
-  Ruler, 
-  ClipboardList, 
-  Layers, 
-  TrendingUp, 
-  FileCode, 
-  Bot, 
+import {
+  LayoutDashboard,
+  Calendar,
+  Camera,
+  HardHat,
+  FileText,
+  Package,
+  DollarSign,
+  ShoppingCart,
+  Ruler,
+  ClipboardList,
+  Layers,
+  TrendingUp,
+  FileCode,
+  Bot,
   Settings,
   LogOut,
   ChevronRight
@@ -39,11 +38,20 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
     { id: 'abc', label: 'Curva ABC', icon: TrendingUp, visible: !isClient },
     { id: 'medicoes', label: 'Medições', icon: Ruler, visible: true },
     { id: 'templates', label: 'Templates', icon: FileCode, visible: true },
-    { id: 'ia', label: 'IA da Obra', icon: Bot, visible: !isClient },
+    { id: 'ia', label: 'IA Operacional', icon: Bot, visible: !isClient },
     { id: 'usuarios', label: 'Usuários', icon: Settings, visible: !isClient },
   ]
 
   const visibleTabs = allTabs.filter(tab => tab.visible)
+
+  const navegar = (tabId) => {
+    if (tabId === 'ia') {
+      window.location.href = '/ia'
+      return
+    }
+
+    onTabChange(tabId)
+  }
 
   return (
     <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200/60 flex-col z-30 transition-all duration-300">
@@ -65,18 +73,18 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
         <div className="px-3 py-3 flex items-center justify-between">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Plataforma</p>
         </div>
-        
+
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id
           const Icon = tab.icon
           return (
             <button
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
+              onClick={() => navegar(tab.id)}
               className={`
                 w-full px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-200 group relative
-                ${isActive 
-                  ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50' 
+                ${isActive
+                  ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
               `}
             >
@@ -110,8 +118,8 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
               </p>
             </div>
           </div>
-          
-          <button 
+
+          <button
             onClick={logout}
             className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all duration-200 shadow-sm active:scale-95"
           >
@@ -123,4 +131,3 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
     </aside>
   )
 }
-
