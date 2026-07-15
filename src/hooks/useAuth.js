@@ -3,6 +3,25 @@
 import { useEffect, useState } from 'react'
 import { authService } from '@/services/authService'
 
+const DEMO_EMAIL = 'investidor@nc.com'
+const DEMO_PASSWORD = 'nc123'
+const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
+
+const demoUser = {
+  id: 'demo-investidor',
+  email: DEMO_EMAIL,
+  app_metadata: { provider: 'demo' },
+  user_metadata: { nome: 'Investidor NeoCanteiro' },
+}
+
+const demoProfile = {
+  id: demoUser.id,
+  nome: 'Investidor NeoCanteiro',
+  email: DEMO_EMAIL,
+  role: 'investidor',
+  tipo_usuario: 'investidor',
+}
+
 export function useAuth() {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
@@ -14,7 +33,7 @@ export function useAuth() {
       const profile = await authService.getUserProfile(userId)
       setUserProfile(profile || null)
     } catch (err) {
-      // O login não deve ficar travado caso o perfil/RLS apresente erro.
+      // O acesso ao sistema não deve depender da leitura da tabela de perfis.
       console.error('Erro ao carregar perfil:', err)
       setUserProfile(null)
     }
@@ -23,8 +42,22 @@ export function useAuth() {
   useEffect(() => {
     let ativo = true
 
+    const existeSessaoDemo = () => {
+      if (typeof window === 'undefined') return false
+      return window.localStorage.getItem(DEMO_STORAGE_KEY) === 'true'
+    }
+
     const checkUser = async () => {
       try {
+        // O acesso de demonstração precisa funcionar mesmo se o Supabase estiver
+        // pausado, sem usuário cadastrado ou com alguma regra RLS incorreta.
+        if (existeSessaoDemo()) {
+          if (!ativo) return
+          setUser(demoUser)
+          setUserProfile(demoProfile)
+          return
+        }
+
         const currentUser = await authService.getCurrentUser()
 
         if (!ativo) return
@@ -34,7 +67,7 @@ export function useAuth() {
           carregarPerfilSemBloquear(currentUser.id)
         }
       } catch (err) {
-        if (ativo) setError(err.message)
+        if (ativo) setError(err?.message || 'Não foi possível verificar a sessão.')
       } finally {
         if (ativo) setLoading(false)
       }
@@ -42,12 +75,19 @@ export function useAuth() {
 
     checkUser()
 
-    // O callback precisa permanecer síncrono. Fazer consultas ao Supabase
-    // dentro de um callback async pode bloquear o signInWithPassword.
+    // O callback permanece síncrono para não bloquear o signInWithPassword.
     const {
       data: { subscription },
     } = authService.onAuthStateChange((event, session) => {
       const sessionUser = session?.user || null
+
+      // Eventos de sessão vazia do Supabase não podem apagar a sessão demo local.
+      if (!sessionUser && existeSessaoDemo()) {
+        setUser(demoUser)
+        setUserProfile(demoProfile)
+        return
+      }
+
       setUser(sessionUser)
 
       if (!sessionUser) {
@@ -66,15 +106,28 @@ export function useAuth() {
       setLoading(true)
       setError(null)
 
-      const data = await authService.login(email.trim(), password)
+      const normalizedEmail = email.trim().toLowerCase()
+
+      // O investidor usa uma sessão demo local. Assim, o acesso público não
+      // quebra quando o projeto do Supabase está pausado ou sem esse usuário.
+      if (normalizedEmail === DEMO_EMAIL && password === DEMO_PASSWORD) {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(DEMO_STORAGE_KEY, 'true')
+        }
+
+        setUser(demoUser)
+        setUserProfile(demoProfile)
+
+        return { user: demoUser, session: { user: demoUser, access_token: 'demo' } }
+      }
+
+      const data = await authService.login(normalizedEmail, password)
 
       if (!data?.user) {
         throw new Error('Não foi possível iniciar a sessão. Tente novamente.')
       }
 
       setUser(data.user)
-
-      // Não bloqueia o redirecionamento aguardando a consulta da tabela profiles.
       carregarPerfilSemBloquear(data.user.id)
 
       return data
@@ -111,7 +164,17 @@ export function useAuth() {
     try {
       setLoading(true)
       setError(null)
-      await authService.logout()
+
+      const sessaoDemo = typeof window !== 'undefined' && window.localStorage.getItem(DEMO_STORAGE_KEY) === 'true'
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY)
+      }
+
+      if (!sessaoDemo) {
+        await authService.logout()
+      }
+
       setUser(null)
       setUserProfile(null)
     } catch (err) {
