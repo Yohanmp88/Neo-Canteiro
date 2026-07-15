@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react'
 import { PanelClean, StatusBadge } from '@/components/ui/Cards'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useCompras } from '@/hooks/useCompras'
+import {
+  pedidoAtrasadoOperacional,
+  tarefaAtrasadaOperacional,
+} from '@/lib/operationalData'
 
 import {
   AreaChart,
@@ -31,11 +36,11 @@ import {
 export function DashboardView({
   obraAtual,
   tarefas = [],
-  materiais = [],
   diarios = [],
   onNavigate
 }) {
   const [isMounted, setIsMounted] = useState(false)
+  const { pedidos = [] } = useCompras(obraAtual?.id)
 
   useEffect(() => {
     setIsMounted(true)
@@ -50,21 +55,15 @@ export function DashboardView({
     )
   }
 
-  // --- LÓGICA DE INDICADORES ---
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const totalTarefas = tarefas.length || 0
-  const progressoMedio = totalTarefas > 0 
-    ? Math.round(tarefas.reduce((acc, t) => acc + (Number(t.progresso) || 0), 0) / totalTarefas) 
+  const progressoMedio = totalTarefas > 0
+    ? Math.round(tarefas.reduce((acc, t) => acc + (Number(t.progresso) || 0), 0) / totalTarefas)
     : 0
 
-  const atrasosCronograma = tarefas.filter(t => {
-    if (!t.termino && !t.data_termino) return false
-    const hoje = new Date()
-    const termino = new Date(t.termino || t.data_termino)
-    return termino < hoje && Number(t.progresso) < 100
-  }).length
-
-  const materiaisAtrasados = materiais.filter(m => !m.recebido && m.data_prevista && new Date(m.data_prevista) < new Date()).length
+  // Os mesmos critérios são usados pela IA da Obra e pelos cards do dashboard.
+  const atrasosCronograma = tarefas.filter((tarefa) => tarefaAtrasadaOperacional(tarefa)).length
+  const materiaisAtrasados = pedidos.filter((pedido) => pedidoAtrasadoOperacional(pedido)).length
   const ultimoDiario = diarios?.[0] || null
 
   const dadosEvolucao = [
@@ -77,8 +76,8 @@ export function DashboardView({
     { name: 'S7', previsto: 100, realizado: 95 },
   ]
 
-  const MiniCard = ({ title, value, detail, icon: Icon, color = "blue", onClick }) => (
-    <button 
+  const MiniCard = ({ title, value, detail, icon: Icon, color = 'blue', onClick }) => (
+    <button
       onClick={onClick}
       className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200/60 bg-white p-2.5 text-left transition-all hover:border-blue-400 hover:shadow-sm active:scale-95"
     >
@@ -97,13 +96,12 @@ export function DashboardView({
 
   return (
     <div className="space-y-3 max-w-[1600px] mx-auto animate-fade-in px-2">
-      {/* HEADER COMPACTO DE MÉTRICAS */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
         <MiniCard title="Progresso" value={`${progressoMedio}%`} detail="Evolução Geral" icon={TrendingUp} onClick={() => onNavigate('cronograma')} />
         <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => onNavigate('cronograma')} />
         <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => onNavigate('cronograma')} />
-        <MiniCard title="Atrasos" value={atrasosCronograma} detail="Críticos" icon={AlertCircle} color={atrasosCronograma > 0 ? "red" : "emerald"} onClick={() => onNavigate('cronograma')} />
-        <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? "orange" : "slate"} onClick={() => onNavigate('compras')} />
+        <MiniCard title="Atrasos" value={atrasosCronograma} detail="Serviços atrasados" icon={AlertCircle} color={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => onNavigate('cronograma')} />
+        <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => onNavigate('compras')} />
         <MiniCard title="Registros" value={diarios.length} detail="Diários enviados" icon={FileText} color="blue" onClick={() => onNavigate('diario')} />
         <MiniCard title="Fotos" value="Galeria" detail="Registros" icon={Camera} color="purple" onClick={() => onNavigate('fotos')} />
         <button className="flex items-center justify-center p-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors" onClick={() => onNavigate('cronograma')}>
@@ -112,10 +110,7 @@ export function DashboardView({
         </button>
       </div>
 
-      {/* ÁREA CENTRAL - MÁXIMA DENSIDADE HORIZONTAL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        
-        {/* Curva S - Desempenho (5/12) */}
         <PanelClean className="lg:col-span-5 !p-3 min-h-[220px]">
           <div className="flex items-center justify-between mb-2">
             <div>
@@ -134,7 +129,7 @@ export function DashboardView({
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" hide />
                   <YAxis hide />
-                  <Tooltip contentStyle={{borderRadius: '8px', border: 'none', fontSize: '9px', padding: '4px'}} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '9px', padding: '4px' }} />
                   <Area type="monotone" dataKey="previsto" stroke="#2563eb" strokeWidth={2} fill="url(#colorPrevisto)" />
                   <Area type="monotone" dataKey="realizado" stroke="#10b981" strokeWidth={2} fill="url(#colorRealizado)" />
                   <defs>
@@ -147,7 +142,6 @@ export function DashboardView({
           </div>
         </PanelClean>
 
-        {/* Cronograma Físico - Live View (4/12) */}
         <PanelClean className="lg:col-span-4 !p-3 min-h-[220px] cursor-pointer hover:border-blue-300 transition-colors" onClick={() => onNavigate('cronograma')}>
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -159,7 +153,7 @@ export function DashboardView({
             </div>
             <div className="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">LIVE</div>
           </div>
-          
+
           <div className="space-y-2.5">
             {tarefas.slice(0, 4).map((t, idx) => (
               <div key={t.id || idx} className="space-y-1">
@@ -168,8 +162,8 @@ export function DashboardView({
                   <span className="text-slate-400">{t.progresso}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-700 ${Number(t.progresso) === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`}
+                  <div
+                    className={`h-full transition-all duration-700 ${Number(t.progresso) === 100 ? 'bg-emerald-500' : tarefaAtrasadaOperacional(t) ? 'bg-red-500' : 'bg-blue-600'}`}
                     style={{ width: `${t.progresso}%` }}
                   />
                 </div>
@@ -183,10 +177,8 @@ export function DashboardView({
           </div>
         </PanelClean>
 
-        {/* Última Ocorrência + Fotos (3/12) - MOVIDOS PARA O MEIO */}
         <div className="lg:col-span-3 space-y-3">
-          {/* Relato Diário */}
-          <button 
+          <button
             onClick={() => onNavigate('diario')}
             className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
           >
@@ -199,13 +191,12 @@ export function DashboardView({
             <div>
               <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Última Ocorrência</p>
               <h4 className="text-[10px] font-bold text-slate-900 line-clamp-2 leading-tight">
-                {ultimoDiario?.servicos_executados || "Sem relatos registrados."}
+                {ultimoDiario?.servicos_executados || 'Sem relatos registrados.'}
               </h4>
             </div>
           </button>
 
-          {/* Fotos Canteiro */}
-          <button 
+          <button
             onClick={() => onNavigate('fotos')}
             className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
           >
@@ -214,7 +205,7 @@ export function DashboardView({
                 <Camera size={14} />
               </div>
               <div className="flex -space-x-1.5">
-                {[1,2,3].map(i => <div key={i} className="w-4 h-4 rounded-full border border-white bg-slate-100" />)}
+                {[1, 2, 3].map(i => <div key={i} className="w-4 h-4 rounded-full border border-white bg-slate-100" />)}
               </div>
             </div>
             <div>
@@ -223,7 +214,6 @@ export function DashboardView({
             </div>
           </button>
         </div>
-
       </div>
     </div>
   )
