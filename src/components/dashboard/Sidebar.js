@@ -21,6 +21,7 @@ import {
   UsersRound,
   Truck,
   FolderKanban,
+  History,
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set([
@@ -46,6 +47,7 @@ const MENU_GROUPS = [
     label: 'Gestão',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: true },
+      { id: 'timeline', label: 'Linha do Tempo', icon: History, visible: true },
       { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
       { id: 'cronograma', label: 'Cronograma', icon: Calendar, visible: true },
       { id: 'ia', label: 'IA Operacional', icon: Bot, visible: true },
@@ -89,6 +91,11 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
   const navegar = (tabId) => {
     if (tabId === 'ia') {
       window.location.href = '/ia'
+      return
+    }
+
+    if (tabId === 'timeline') {
+      window.location.href = '/timeline'
       return
     }
 
