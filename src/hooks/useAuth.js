@@ -3,23 +3,107 @@
 import { useEffect, useState } from 'react'
 import { authService } from '@/services/authService'
 
-const DEMO_EMAIL = 'investidor@nc.com'
-const DEMO_PASSWORD = 'nc123'
 const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
 
-const demoUser = {
-  id: 'demo-investidor',
-  email: DEMO_EMAIL,
-  app_metadata: { provider: 'demo' },
-  user_metadata: { nome: 'Investidor NeoCanteiro' },
+const DEMO_ACCOUNTS = [
+  {
+    id: 'demo-investidor',
+    email: 'investidor@nc.com',
+    password: 'nc123',
+    nome: 'Investidor NeoCanteiro',
+    role: 'investidor',
+    enabled: true,
+    sessionHours: null,
+  },
+  {
+    id: 'demo-lucas',
+    email: 'lucas.demo@nc.com',
+    password: 'lucas.demo',
+    nome: 'Lucas — Acesso Demo',
+    role: 'investidor',
+    enabled: true,
+    sessionHours: 72,
+  },
+]
+
+function criarIdentidadeDemo(account) {
+  const user = {
+    id: account.id,
+    email: account.email,
+    app_metadata: { provider: 'demo' },
+    user_metadata: { nome: account.nome },
+  }
+
+  const profile = {
+    id: account.id,
+    nome: account.nome,
+    email: account.email,
+    role: account.role,
+    tipo_usuario: account.role,
+  }
+
+  return { user, profile }
 }
 
-const demoProfile = {
-  id: demoUser.id,
-  nome: 'Investidor NeoCanteiro',
-  email: DEMO_EMAIL,
-  role: 'investidor',
-  tipo_usuario: 'investidor',
+function lerSessaoDemo() {
+  if (typeof window === 'undefined') return null
+
+  const valor = window.localStorage.getItem(DEMO_STORAGE_KEY)
+  if (!valor) return null
+
+  // Compatibilidade com a sessão demo antiga, que armazenava apenas "true".
+  if (valor === 'true') {
+    const account = DEMO_ACCOUNTS.find((item) => item.id === 'demo-investidor' && item.enabled)
+    if (!account) {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY)
+      return null
+    }
+
+    return {
+      account,
+      expiresAt: null,
+      ...criarIdentidadeDemo(account),
+    }
+  }
+
+  try {
+    const sessao = JSON.parse(valor)
+    const account = DEMO_ACCOUNTS.find((item) => item.id === sessao?.accountId)
+
+    if (!account || !account.enabled) {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY)
+      return null
+    }
+
+    if (sessao.expiresAt && Date.now() >= Number(sessao.expiresAt)) {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY)
+      return null
+    }
+
+    return {
+      account,
+      expiresAt: sessao.expiresAt || null,
+      ...criarIdentidadeDemo(account),
+    }
+  } catch {
+    window.localStorage.removeItem(DEMO_STORAGE_KEY)
+    return null
+  }
+}
+
+function salvarSessaoDemo(account) {
+  if (typeof window === 'undefined') return null
+
+  const expiresAt = account.sessionHours
+    ? Date.now() + account.sessionHours * 60 * 60 * 1000
+    : null
+
+  window.localStorage.setItem(
+    DEMO_STORAGE_KEY,
+    JSON.stringify({ accountId: account.id, expiresAt }),
+  )
+
+  return expiresAt
 }
 
 export function useAuth() {
@@ -33,7 +117,6 @@ export function useAuth() {
       const profile = await authService.getUserProfile(userId)
       setUserProfile(profile || null)
     } catch (err) {
-      // O acesso ao sistema não deve depender da leitura da tabela de perfis.
       console.error('Erro ao carregar perfil:', err)
       setUserProfile(null)
     }
@@ -42,21 +125,18 @@ export function useAuth() {
   useEffect(() => {
     let ativo = true
 
-    const existeSessaoDemo = () => {
-      if (typeof window === 'undefined') return false
-      return window.localStorage.getItem(DEMO_STORAGE_KEY) === 'true'
+    const aplicarSessaoDemo = () => {
+      const sessaoDemo = lerSessaoDemo()
+      if (!sessaoDemo || !ativo) return false
+
+      setUser(sessaoDemo.user)
+      setUserProfile(sessaoDemo.profile)
+      return true
     }
 
     const checkUser = async () => {
       try {
-        // O acesso de demonstração precisa funcionar mesmo se o Supabase estiver
-        // pausado, sem usuário cadastrado ou com alguma regra RLS incorreta.
-        if (existeSessaoDemo()) {
-          if (!ativo) return
-          setUser(demoUser)
-          setUserProfile(demoProfile)
-          return
-        }
+        if (aplicarSessaoDemo()) return
 
         const currentUser = await authService.getCurrentUser()
 
@@ -75,18 +155,12 @@ export function useAuth() {
 
     checkUser()
 
-    // O callback permanece síncrono para não bloquear o signInWithPassword.
     const {
       data: { subscription },
     } = authService.onAuthStateChange((event, session) => {
       const sessionUser = session?.user || null
 
-      // Eventos de sessão vazia do Supabase não podem apagar a sessão demo local.
-      if (!sessionUser && existeSessaoDemo()) {
-        setUser(demoUser)
-        setUserProfile(demoProfile)
-        return
-      }
+      if (!sessionUser && aplicarSessaoDemo()) return
 
       setUser(sessionUser)
 
@@ -95,8 +169,38 @@ export function useAuth() {
       }
     })
 
+    // Expira automaticamente acessos temporários, mesmo com a página aberta.
+    const expirationTimer = window.setInterval(() => {
+      const valor = window.localStorage.getItem(DEMO_STORAGE_KEY)
+      if (!valor) return
+
+      const sessaoDemo = lerSessaoDemo()
+      if (!sessaoDemo) {
+        setUser(null)
+        setUserProfile(null)
+      }
+    }, 30000)
+
+    // Mantém o logout sincronizado entre abas abertas no mesmo aparelho.
+    const onStorage = (event) => {
+      if (event.key !== DEMO_STORAGE_KEY) return
+
+      const sessaoDemo = lerSessaoDemo()
+      if (sessaoDemo) {
+        setUser(sessaoDemo.user)
+        setUserProfile(sessaoDemo.profile)
+      } else {
+        setUser(null)
+        setUserProfile(null)
+      }
+    }
+
+    window.addEventListener('storage', onStorage)
+
     return () => {
       ativo = false
+      window.clearInterval(expirationTimer)
+      window.removeEventListener('storage', onStorage)
       subscription?.unsubscribe()
     }
   }, [])
@@ -107,18 +211,25 @@ export function useAuth() {
       setError(null)
 
       const normalizedEmail = email.trim().toLowerCase()
+      const demoAccount = DEMO_ACCOUNTS.find(
+        (account) => account.email === normalizedEmail && account.password === password,
+      )
 
-      // O investidor usa uma sessão demo local. Assim, o acesso público não
-      // quebra quando o projeto do Supabase está pausado ou sem esse usuário.
-      if (normalizedEmail === DEMO_EMAIL && password === DEMO_PASSWORD) {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(DEMO_STORAGE_KEY, 'true')
+      if (demoAccount) {
+        if (!demoAccount.enabled) {
+          throw new Error('Este acesso demonstrativo foi encerrado.')
         }
 
-        setUser(demoUser)
-        setUserProfile(demoProfile)
+        salvarSessaoDemo(demoAccount)
+        const identidade = criarIdentidadeDemo(demoAccount)
 
-        return { user: demoUser, session: { user: demoUser, access_token: 'demo' } }
+        setUser(identidade.user)
+        setUserProfile(identidade.profile)
+
+        return {
+          user: identidade.user,
+          session: { user: identidade.user, access_token: `demo-${demoAccount.id}` },
+        }
       }
 
       const data = await authService.login(normalizedEmail, password)
@@ -165,7 +276,7 @@ export function useAuth() {
       setLoading(true)
       setError(null)
 
-      const sessaoDemo = typeof window !== 'undefined' && window.localStorage.getItem(DEMO_STORAGE_KEY) === 'true'
+      const sessaoDemo = lerSessaoDemo()
 
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(DEMO_STORAGE_KEY)
