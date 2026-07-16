@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { authService } from '@/services/authService'
 
 const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
+const DEMO_CONTROL_URL = '/demo-access.json'
 
 const DEMO_ACCOUNTS = [
   {
@@ -12,8 +13,7 @@ const DEMO_ACCOUNTS = [
     password: 'nc123',
     nome: 'Investidor NeoCanteiro',
     role: 'investidor',
-    enabled: true,
-    sessionHours: null,
+    remoteControl: false,
   },
   {
     id: 'demo-lucas',
@@ -21,8 +21,7 @@ const DEMO_ACCOUNTS = [
     password: 'lucas.demo',
     nome: 'Lucas — Acesso Demo',
     role: 'investidor',
-    enabled: true,
-    sessionHours: 72,
+    remoteControl: true,
   },
 ]
 
@@ -45,65 +44,117 @@ function criarIdentidadeDemo(account) {
   return { user, profile }
 }
 
-function lerSessaoDemo() {
+function lerSessaoDemoLocal() {
   if (typeof window === 'undefined') return null
 
   const valor = window.localStorage.getItem(DEMO_STORAGE_KEY)
   if (!valor) return null
 
-  // Compatibilidade com a sessão demo antiga, que armazenava apenas "true".
+  // Compatibilidade com a sessão antiga do investidor.
   if (valor === 'true') {
-    const account = DEMO_ACCOUNTS.find((item) => item.id === 'demo-investidor' && item.enabled)
-    if (!account) {
-      window.localStorage.removeItem(DEMO_STORAGE_KEY)
-      return null
-    }
-
-    return {
-      account,
-      expiresAt: null,
-      ...criarIdentidadeDemo(account),
-    }
+    return { accountId: 'demo-investidor', tokenVersion: null }
   }
 
   try {
     const sessao = JSON.parse(valor)
-    const account = DEMO_ACCOUNTS.find((item) => item.id === sessao?.accountId)
-
-    if (!account || !account.enabled) {
-      window.localStorage.removeItem(DEMO_STORAGE_KEY)
-      return null
-    }
-
-    if (sessao.expiresAt && Date.now() >= Number(sessao.expiresAt)) {
-      window.localStorage.removeItem(DEMO_STORAGE_KEY)
-      return null
-    }
-
-    return {
-      account,
-      expiresAt: sessao.expiresAt || null,
-      ...criarIdentidadeDemo(account),
-    }
+    if (!sessao?.accountId) throw new Error('Sessão inválida')
+    return sessao
   } catch {
     window.localStorage.removeItem(DEMO_STORAGE_KEY)
     return null
   }
 }
 
-function salvarSessaoDemo(account) {
-  if (typeof window === 'undefined') return null
+function removerSessaoDemoLocal() {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(DEMO_STORAGE_KEY)
+  }
+}
 
-  const expiresAt = account.sessionHours
-    ? Date.now() + account.sessionHours * 60 * 60 * 1000
-    : null
+async function carregarControleDemo() {
+  const resposta = await fetch(`${DEMO_CONTROL_URL}?v=${Date.now()}`, {
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!resposta.ok) {
+    throw new Error('Não foi possível validar o acesso demonstrativo.')
+  }
+
+  return resposta.json()
+}
+
+async function validarContaDemo(account, tokenVersion = null) {
+  if (!account?.remoteControl) {
+    return { enabled: true, tokenVersion: null }
+  }
+
+  const controle = await carregarControleDemo()
+  const registro = controle?.[account.id]
+
+  if (!registro?.enabled) {
+    return { enabled: false, tokenVersion: registro?.tokenVersion ?? null }
+  }
+
+  if (tokenVersion !== null && Number(tokenVersion) !== Number(registro.tokenVersion)) {
+    return { enabled: false, tokenVersion: registro.tokenVersion }
+  }
+
+  return {
+    enabled: true,
+    tokenVersion: Number(registro.tokenVersion || 1),
+  }
+}
+
+async function obterSessaoDemoValida() {
+  const sessaoLocal = lerSessaoDemoLocal()
+  if (!sessaoLocal) return null
+
+  const account = DEMO_ACCOUNTS.find((item) => item.id === sessaoLocal.accountId)
+  if (!account) {
+    removerSessaoDemoLocal()
+    return null
+  }
+
+  try {
+    const controle = await validarContaDemo(account, sessaoLocal.tokenVersion ?? null)
+
+    if (!controle.enabled) {
+      removerSessaoDemoLocal()
+      return null
+    }
+
+    return {
+      account,
+      tokenVersion: controle.tokenVersion,
+      ...criarIdentidadeDemo(account),
+    }
+  } catch {
+    // O acesso controlado falha fechado: sem validar no servidor, não permanece conectado.
+    if (account.remoteControl) {
+      removerSessaoDemoLocal()
+      return null
+    }
+
+    return {
+      account,
+      tokenVersion: null,
+      ...criarIdentidadeDemo(account),
+    }
+  }
+}
+
+function salvarSessaoDemo(account, tokenVersion = null) {
+  if (typeof window === 'undefined') return
 
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ accountId: account.id, expiresAt }),
+    JSON.stringify({
+      accountId: account.id,
+      tokenVersion,
+      createdAt: Date.now(),
+    }),
   )
-
-  return expiresAt
 }
 
 export function useAuth() {
@@ -125,8 +176,8 @@ export function useAuth() {
   useEffect(() => {
     let ativo = true
 
-    const aplicarSessaoDemo = () => {
-      const sessaoDemo = lerSessaoDemo()
+    const aplicarSessaoDemo = async () => {
+      const sessaoDemo = await obterSessaoDemoValida()
       if (!sessaoDemo || !ativo) return false
 
       setUser(sessaoDemo.user)
@@ -136,7 +187,7 @@ export function useAuth() {
 
     const checkUser = async () => {
       try {
-        if (aplicarSessaoDemo()) return
+        if (await aplicarSessaoDemo()) return
 
         const currentUser = await authService.getCurrentUser()
 
@@ -160,7 +211,15 @@ export function useAuth() {
     } = authService.onAuthStateChange((event, session) => {
       const sessionUser = session?.user || null
 
-      if (!sessionUser && aplicarSessaoDemo()) return
+      if (!sessionUser && lerSessaoDemoLocal()) {
+        aplicarSessaoDemo().then((aplicada) => {
+          if (!aplicada && ativo) {
+            setUser(null)
+            setUserProfile(null)
+          }
+        })
+        return
+      }
 
       setUser(sessionUser)
 
@@ -169,23 +228,23 @@ export function useAuth() {
       }
     })
 
-    // Expira automaticamente acessos temporários, mesmo com a página aberta.
-    const expirationTimer = window.setInterval(() => {
-      const valor = window.localStorage.getItem(DEMO_STORAGE_KEY)
-      if (!valor) return
+    // Consulta o controle remoto para revogar o login e a sessão quando solicitado.
+    const revocationTimer = window.setInterval(async () => {
+      const sessaoLocal = lerSessaoDemoLocal()
+      if (!sessaoLocal || sessaoLocal.accountId !== 'demo-lucas') return
 
-      const sessaoDemo = lerSessaoDemo()
-      if (!sessaoDemo) {
+      const sessaoValida = await obterSessaoDemoValida()
+      if (!sessaoValida && ativo) {
         setUser(null)
         setUserProfile(null)
+        setError('Este acesso demonstrativo foi encerrado.')
       }
-    }, 30000)
+    }, 15000)
 
-    // Mantém o logout sincronizado entre abas abertas no mesmo aparelho.
-    const onStorage = (event) => {
+    const onStorage = async (event) => {
       if (event.key !== DEMO_STORAGE_KEY) return
 
-      const sessaoDemo = lerSessaoDemo()
+      const sessaoDemo = await obterSessaoDemoValida()
       if (sessaoDemo) {
         setUser(sessaoDemo.user)
         setUserProfile(sessaoDemo.profile)
@@ -199,7 +258,7 @@ export function useAuth() {
 
     return () => {
       ativo = false
-      window.clearInterval(expirationTimer)
+      window.clearInterval(revocationTimer)
       window.removeEventListener('storage', onStorage)
       subscription?.unsubscribe()
     }
@@ -210,17 +269,20 @@ export function useAuth() {
       setLoading(true)
       setError(null)
 
-      const normalizedEmail = email.trim().toLowerCase()
+      const normalizedEmail = String(email || '').trim().toLowerCase()
+      const normalizedPassword = String(password || '').trim()
       const demoAccount = DEMO_ACCOUNTS.find(
-        (account) => account.email === normalizedEmail && account.password === password,
+        (account) => account.email === normalizedEmail && account.password === normalizedPassword,
       )
 
       if (demoAccount) {
-        if (!demoAccount.enabled) {
+        const controle = await validarContaDemo(demoAccount)
+
+        if (!controle.enabled) {
           throw new Error('Este acesso demonstrativo foi encerrado.')
         }
 
-        salvarSessaoDemo(demoAccount)
+        salvarSessaoDemo(demoAccount, controle.tokenVersion)
         const identidade = criarIdentidadeDemo(demoAccount)
 
         setUser(identidade.user)
@@ -228,11 +290,19 @@ export function useAuth() {
 
         return {
           user: identidade.user,
-          session: { user: identidade.user, access_token: `demo-${demoAccount.id}` },
+          session: {
+            user: identidade.user,
+            access_token: `demo-${demoAccount.id}-v${controle.tokenVersion || 1}`,
+          },
         }
       }
 
-      const data = await authService.login(normalizedEmail, password)
+      // Um e-mail demo correto com senha incorreta não deve cair no Supabase.
+      if (DEMO_ACCOUNTS.some((account) => account.email === normalizedEmail)) {
+        throw new Error('E-mail ou senha do acesso demo estão incorretos.')
+      }
+
+      const data = await authService.login(normalizedEmail, normalizedPassword)
 
       if (!data?.user) {
         throw new Error('Não foi possível iniciar a sessão. Tente novamente.')
@@ -276,11 +346,8 @@ export function useAuth() {
       setLoading(true)
       setError(null)
 
-      const sessaoDemo = lerSessaoDemo()
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(DEMO_STORAGE_KEY)
-      }
+      const sessaoDemo = lerSessaoDemoLocal()
+      removerSessaoDemoLocal()
 
       if (!sessaoDemo) {
         await authService.logout()
