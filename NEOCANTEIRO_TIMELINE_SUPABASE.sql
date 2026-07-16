@@ -32,7 +32,7 @@ create index if not exists obra_timeline_source_idx
 create or replace function public.timeline_safe_date(value text, fallback_value timestamptz default now())
 returns date
 language plpgsql
-immutable
+stable
 set search_path = public
 as $$
 begin
@@ -54,11 +54,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce(
-    (select nullif(trim(coalesce(p.nome, '')), '') from public.profiles p where p.id = auth.uid() limit 1),
-    (select nullif(trim(coalesce(p.full_name, '')), '') from public.profiles p where p.id = auth.uid() limit 1),
-    ''
-  );
+  select coalesce(auth.jwt() ->> 'email', 'Usuário NeoCanteiro');
 $$;
 
 create or replace function public.capture_obra_timeline()
@@ -81,9 +77,7 @@ declare
   module_key text;
   progress_before text;
   progress_after text;
-  return_record record;
 begin
-  return_record := case when tg_op = 'DELETE' then old else new end;
   target_obra_id := coalesce(new_data->>'obra_id', old_data->>'obra_id');
   target_source_id := coalesce(new_data->>'id', old_data->>'id');
 
@@ -94,7 +88,7 @@ begin
       and coalesce(old_data->>'data_termino', '') = coalesce(new_data->>'data_termino', '')
       and coalesce(old_data->>'status', '') = coalesce(new_data->>'status', '')
       and coalesce(old_data->>'status_operacional', '') = coalesce(new_data->>'status_operacional', '') then
-      return return_record;
+      return new;
     end if;
 
     target_type := 'cronograma';
@@ -127,7 +121,7 @@ begin
   elsif tg_table_name = 'workspace_records' then
     module_key := coalesce(new_data->>'module_key', old_data->>'module_key');
     if module_key not in ('diario', 'fotos') then
-      return return_record;
+      if tg_op = 'DELETE' then return old; else return new; end if;
     end if;
 
     payload := coalesce(new_data->'data', '{}'::jsonb);
@@ -145,11 +139,11 @@ begin
       target_description := concat_ws(' — ', payload->>'etapa', payload->>'local', payload->>'observacoes');
     end if;
   else
-    return return_record;
+    if tg_op = 'DELETE' then return old; else return new; end if;
   end if;
 
   if target_obra_id is null or target_obra_id = '' then
-    return return_record;
+    if tg_op = 'DELETE' then return old; else return new; end if;
   end if;
 
   insert into public.obra_timeline (
@@ -176,7 +170,7 @@ begin
     public.timeline_profile_name()
   );
 
-  return return_record;
+  if tg_op = 'DELETE' then return old; else return new; end if;
 end;
 $$;
 
@@ -191,8 +185,11 @@ declare
   target_date date;
   diario_data jsonb;
 begin
-  select d.obra_id::text, coalesce(d.data, current_date), to_jsonb(d)
-    into target_obra_id, target_date, diario_data
+  select
+    to_jsonb(d)->>'obra_id',
+    public.timeline_safe_date(to_jsonb(d)->>'data', now()),
+    to_jsonb(d)
+  into target_obra_id, target_date, diario_data
   from public.diario_obra d
   where d.id = new.diario_id
   limit 1;
@@ -216,11 +213,15 @@ begin
     target_obra_id,
     target_date,
     'foto',
-    coalesce(new.descricao, 'Registro fotográfico'),
+    coalesce(to_jsonb(new)->>'descricao', 'Registro fotográfico'),
     'Foto adicionada ao diário de obra.',
-    jsonb_build_object('url', new.url_foto, 'diario_id', new.diario_id, 'diario', diario_data),
+    jsonb_build_object(
+      'url', to_jsonb(new)->>'url_foto',
+      'diario_id', to_jsonb(new)->>'diario_id',
+      'diario', diario_data
+    ),
     'fotos_diario',
-    new.id::text,
+    to_jsonb(new)->>'id',
     auth.uid(),
     public.timeline_profile_name()
   );
