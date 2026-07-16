@@ -6,8 +6,11 @@ import { Sidebar } from '@/components/dashboard/Sidebar'
 import { BottomNav } from '@/components/dashboard/BottomNav'
 import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
 import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
+import { CORE_MODULE_KEYS } from '@/lib/coreModuleDefinitions'
 import { useAuth } from '@/hooks/useAuth'
 import { useObras } from '@/hooks/useObras'
+
+const WORKSPACE_KEYS = Array.from(new Set([...EDITABLE_MODULE_KEYS, ...CORE_MODULE_KEYS]))
 
 const OBRAS_DEMO = [
   { id: 'demo-1', nome: 'Residencial Aurora', cliente: 'Aurora Empreendimentos', status: 'Em andamento' },
@@ -24,7 +27,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const requested = params.get('module')
-    if (requested && EDITABLE_MODULE_KEYS.includes(requested)) setModuleKey(requested)
+    if (requested && WORKSPACE_KEYS.includes(requested)) setModuleKey(requested)
   }, [])
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export default function WorkspacePage() {
   }
 
   const navigate = (tabId) => {
-    if (EDITABLE_MODULE_KEYS.includes(tabId)) {
+    if (WORKSPACE_KEYS.includes(tabId)) {
       setModuleKey(tabId)
       const nextUrl = `/workspace?module=${tabId}`
       window.history.pushState({}, '', nextUrl)
