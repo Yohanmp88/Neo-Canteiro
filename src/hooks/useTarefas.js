@@ -4,6 +4,36 @@ import { useEffect, useState } from 'react'
 import { tarefaService } from '@/services/tarefaService'
 import { obterTarefasDemoPorObra } from '@/lib/operationalData'
 
+const STORAGE_PREFIX = 'neocanteiro_tarefas_demo_v1'
+
+function storageKey(obraId) {
+  return `${STORAGE_PREFIX}:${obraId}`
+}
+
+function readDemoTasks(obraId) {
+  if (typeof window === 'undefined') return obterTarefasDemoPorObra(obraId)
+
+  const raw = window.localStorage.getItem(storageKey(obraId))
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed
+    } catch {
+      window.localStorage.removeItem(storageKey(obraId))
+    }
+  }
+
+  const seeded = obterTarefasDemoPorObra(obraId)
+  window.localStorage.setItem(storageKey(obraId), JSON.stringify(seeded))
+  return seeded
+}
+
+function writeDemoTasks(obraId, tasks) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(storageKey(obraId), JSON.stringify(tasks))
+  window.dispatchEvent(new CustomEvent('neocanteiro:cronograma-change', { detail: { obraId, tasks } }))
+}
+
 export function useTarefas(obraId) {
   const [tarefas, setTarefas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +53,7 @@ export function useTarefas(obraId) {
         }
 
         if (String(obraId).startsWith('demo')) {
-          if (ativo) setTarefas(obterTarefasDemoPorObra(obraId))
+          if (ativo) setTarefas(readDemoTasks(obraId))
           return
         }
 
@@ -39,10 +69,22 @@ export function useTarefas(obraId) {
       }
     }
 
+    const onStorage = (event) => {
+      if (event.key === storageKey(obraId) && ativo) setTarefas(readDemoTasks(obraId))
+    }
+
+    const onCronogramaChange = (event) => {
+      if (String(event.detail?.obraId) === String(obraId) && ativo) setTarefas(event.detail.tasks || [])
+    }
+
     loadTarefas()
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('neocanteiro:cronograma-change', onCronogramaChange)
 
     return () => {
       ativo = false
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('neocanteiro:cronograma-change', onCronogramaChange)
     }
   }, [obraId])
 
@@ -53,8 +95,13 @@ export function useTarefas(obraId) {
           ...tarefaData,
           id: `tarefa-demo-${Date.now()}`,
           obra_id: obraId,
+          status_operacional: tarefaData.status_operacional || 'Planejado',
         }
-        setTarefas((atuais) => [...atuais, novaTarefa])
+        setTarefas((atuais) => {
+          const next = [...atuais, novaTarefa]
+          writeDemoTasks(obraId, next)
+          return next
+        })
         return novaTarefa
       }
 
@@ -71,11 +118,15 @@ export function useTarefas(obraId) {
     try {
       if (String(obraId).startsWith('demo')) {
         let tarefaAtualizada = null
-        setTarefas((atuais) => atuais.map((tarefa) => {
-          if (tarefa.id !== id) return tarefa
-          tarefaAtualizada = { ...tarefa, ...updates }
-          return tarefaAtualizada
-        }))
+        setTarefas((atuais) => {
+          const next = atuais.map((tarefa) => {
+            if (tarefa.id !== id) return tarefa
+            tarefaAtualizada = { ...tarefa, ...updates }
+            return tarefaAtualizada
+          })
+          writeDemoTasks(obraId, next)
+          return next
+        })
         return tarefaAtualizada
       }
 
@@ -93,12 +144,23 @@ export function useTarefas(obraId) {
       if (!String(obraId).startsWith('demo')) {
         await tarefaService.deletar(id)
       }
-      setTarefas((atuais) => atuais.filter((tarefa) => tarefa.id !== id))
+      setTarefas((atuais) => {
+        const next = atuais.filter((tarefa) => tarefa.id !== id)
+        if (String(obraId).startsWith('demo')) writeDemoTasks(obraId, next)
+        return next
+      })
     } catch (err) {
       setError(err.message)
       throw err
     }
   }
 
-  return { tarefas, loading, error, criar, atualizar, deletar }
+  const resetDemo = () => {
+    if (!String(obraId).startsWith('demo')) return
+    if (typeof window !== 'undefined') window.localStorage.removeItem(storageKey(obraId))
+    const seeded = readDemoTasks(obraId)
+    setTarefas(seeded)
+  }
+
+  return { tarefas, loading, error, criar, atualizar, deletar, resetDemo }
 }
