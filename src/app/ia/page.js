@@ -7,6 +7,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { useObras } from '@/hooks/useObras'
 import { useTarefas } from '@/hooks/useTarefas'
 import { useCompras } from '@/hooks/useCompras'
+import { useDiarios } from '@/hooks/useDiarios'
+import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
+import '@/lib/coreModuleDefinitions'
 
 const OBRA_DEMO = {
   id: 'demo-1',
@@ -102,9 +105,9 @@ const PEDIDOS_DEMO = [
 ]
 
 const PERGUNTAS_CHAVE = [
+  'Diário de hoje: o que foi feito?',
   'Quais serviços estão atrasados?',
   'Quais materiais estão atrasados?',
-  'Quais materiais ainda não foram entregues?',
   'Quais tarefas estão bloqueadas?',
   'Monte um plano de ação para recuperar o prazo',
 ]
@@ -114,6 +117,14 @@ function parseData(valor) {
   const partes = String(valor).slice(0, 10).split('-').map(Number)
   if (partes.length !== 3 || partes.some(Number.isNaN)) return null
   return new Date(partes[0], partes[1] - 1, partes[2], 12, 0, 0, 0)
+}
+
+function dataISO(data) {
+  if (!(data instanceof Date) || Number.isNaN(data.getTime())) return null
+  const ano = data.getFullYear()
+  const mes = String(data.getMonth() + 1).padStart(2, '0')
+  const dia = String(data.getDate()).padStart(2, '0')
+  return `${ano}-${mes}-${dia}`
 }
 
 function formatarData(valor) {
@@ -214,10 +225,7 @@ function listarMateriais(pedidos, tipo) {
 
 function encontrarPedido(pergunta, pedidos) {
   return pedidos.find((pedido) => {
-    const palavras = normalizarTexto(nomeMaterial(pedido))
-      .split(' ')
-      .filter((palavra) => palavra.length > 4)
-
+    const palavras = normalizarTexto(nomeMaterial(pedido)).split(' ').filter((palavra) => palavra.length > 4)
     return palavras.some((palavra) => pergunta.includes(palavra))
   })
 }
@@ -227,18 +235,12 @@ function analisarPedido(pedido) {
 
   const impacto = diasImpactoPedido(pedido)
   const servico = pedido.tarefa_relacionada
-
   let resposta = `Material: ${nomeMaterial(pedido)}\nQuantidade: ${pedido.quantidade || 'não informada'} ${pedido.unidade || ''}\nFornecedor: ${pedido.fornecedor || 'não informado'}\nStatus: ${pedido.status || 'não informado'}\nData necessária: ${formatarData(pedido.data_necessidade)}\nPrevisão atual: ${formatarData(pedido.data_prevista || pedido.data)}\nServiço relacionado: ${servico || 'não cadastrado'}`
 
-  if (servico && impacto > 0) {
-    resposta += `\n\nA previsão atual ocorre ${impacto} dia(s) depois da data necessária e pode atrasar o serviço “${servico}”.`
-  } else if (servico && pedidoAtrasado(pedido)) {
-    resposta += `\n\nO pedido está marcado como atrasado e pode afetar o serviço “${servico}”.`
-  } else if (!servico) {
-    resposta += '\n\nNão consigo determinar qual serviço será afetado porque o pedido não possui atividade vinculada.'
-  } else {
-    resposta += `\n\nCom os dados atuais, não identifiquei atraso em relação à necessidade do serviço “${servico}”.`
-  }
+  if (servico && impacto > 0) resposta += `\n\nA previsão atual ocorre ${impacto} dia(s) depois da data necessária e pode atrasar o serviço “${servico}”.`
+  else if (servico && pedidoAtrasado(pedido)) resposta += `\n\nO pedido está marcado como atrasado e pode afetar o serviço “${servico}”.`
+  else if (!servico) resposta += '\n\nNão consigo determinar qual serviço será afetado porque o pedido não possui atividade vinculada.'
+  else resposta += `\n\nCom os dados atuais, não identifiquei atraso em relação à necessidade do serviço “${servico}”.`
 
   if (pedido.impacto) resposta += `\n\nObservação cadastrada: ${pedido.impacto}`
   return resposta
@@ -251,19 +253,97 @@ function gerarPlanoAcao({ servicosAtrasados, materiaisAtrasados, tarefasBloquead
     const vinculo = pedido.tarefa_relacionada ? `, vinculado a “${pedido.tarefa_relacionada}”` : ''
     acoes.push(`Confirmar a entrega de ${nomeMaterial(pedido)} com ${pedido.fornecedor || 'o fornecedor'}${vinculo}.`)
   })
-
-  tarefasBloqueadas.forEach((tarefa) => {
-    acoes.push(`Resolver o bloqueio de “${tarefa.nome}”: ${tarefa.bloqueio || 'motivo não informado'}.`)
-  })
-
-  servicosAtrasados.forEach((tarefa) => {
-    acoes.push(`Definir recuperação de prazo para “${tarefa.nome}” com ${tarefa.responsavel || tarefa.responsavel_nome || 'o responsável'}.`)
-  })
+  tarefasBloqueadas.forEach((tarefa) => acoes.push(`Resolver o bloqueio de “${tarefa.nome}”: ${tarefa.bloqueio || 'motivo não informado'}.`))
+  servicosAtrasados.forEach((tarefa) => acoes.push(`Definir recuperação de prazo para “${tarefa.nome}” com ${tarefa.responsavel || tarefa.responsavel_nome || 'o responsável'}.`))
 
   if (!acoes.length) return 'Não encontrei ocorrências que exijam um plano de recuperação neste momento.'
 
-  acoes.push('Atualizar o cronograma e os pedidos após cada confirmação de prazo.')
+  acoes.push('Atualizar o cronograma, o diário e os pedidos após cada confirmação de prazo.')
   return `Plano de ação sugerido:\n\n${acoes.map((acao, indice) => `${indice + 1}. ${acao}`).join('\n')}`
+}
+
+function normalizarDiario(diario) {
+  return {
+    ...diario,
+    data: diario.data || diario.data_diario || diario.created_at?.slice(0, 10) || '',
+    clima: diario.clima || diario.condicao_climatica || '',
+    equipe_total: diario.equipe_total ?? diario.quantidade_equipe ?? diario.total_trabalhadores ?? '',
+    responsavel: diario.responsavel || diario.responsavel_nome || diario.nome_responsavel || '',
+    servicos_executados: diario.servicos_executados || diario.atividades || diario.servicos || '',
+    ocorrencias: diario.ocorrencias || diario.observacoes || diario.interferencias || '',
+    visitas: diario.visitas || diario.fiscalizacoes || '',
+    proximas_atividades: diario.proximas_atividades || diario.proximos_servicos || '',
+    status: diario.status || diario.situacao || '',
+  }
+}
+
+function dataPedidaNoTexto(textoOriginal) {
+  const texto = normalizarTexto(textoOriginal)
+  const iso = texto.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`
+
+  const brasileira = texto.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/)
+  if (brasileira) {
+    return `${brasileira[3]}-${String(brasileira[2]).padStart(2, '0')}-${String(brasileira[1]).padStart(2, '0')}`
+  }
+
+  const hoje = new Date()
+  hoje.setHours(12, 0, 0, 0)
+
+  if (texto.includes('ontem')) {
+    hoje.setDate(hoje.getDate() - 1)
+    return dataISO(hoje)
+  }
+
+  if (texto.includes('hoje')) return dataISO(hoje)
+  return null
+}
+
+function formatarBlocoDiario(diario, indice = null) {
+  const cabecalho = indice === null ? '' : `Registro ${indice + 1}\n`
+  const linhas = [
+    diario.status ? `Status: ${diario.status}` : null,
+    diario.clima ? `Clima: ${diario.clima}` : null,
+    diario.equipe_total !== '' && diario.equipe_total !== null && diario.equipe_total !== undefined
+      ? `Equipe presente: ${diario.equipe_total} trabalhador(es)`
+      : null,
+    diario.responsavel ? `Responsável: ${diario.responsavel}` : null,
+    `\nServiços executados:\n${diario.servicos_executados || 'Nenhum serviço informado.'}`,
+    diario.ocorrencias ? `\nOcorrências e interferências:\n${diario.ocorrencias}` : null,
+    diario.visitas ? `\nVisitas e fiscalizações:\n${diario.visitas}` : null,
+    diario.proximas_atividades ? `\nPróximas atividades:\n${diario.proximas_atividades}` : null,
+  ].filter(Boolean)
+
+  return `${cabecalho}${linhas.join('\n')}`
+}
+
+function responderDiario(pergunta, diarios, obra, diarioError) {
+  if (!diarios.length) {
+    if (diarioError) return `Não consegui acessar o diário da obra “${obra.nome}” neste momento.`
+    return `Não há diário de obra cadastrado para “${obra.nome}”.`
+  }
+
+  const texto = normalizarTexto(pergunta)
+  const ordenados = [...diarios].sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')))
+  const querUltimo = contemAlgum(texto, ['ultimo diario', 'diario mais recente', 'ultimo registro', 'mais recente'])
+  const dataSolicitada = dataPedidaNoTexto(pergunta)
+  const hojeISO = dataISO(new Date())
+  const dataAlvo = querUltimo ? ordenados[0]?.data : (dataSolicitada || hojeISO)
+  const registrosDoDia = ordenados.filter((diario) => String(diario.data || '').slice(0, 10) === dataAlvo)
+
+  if (!registrosDoDia.length) {
+    const ultimo = ordenados[0]
+    if (!ultimo) return `Não há diário de obra cadastrado para “${obra.nome}”.`
+
+    return `Não encontrei diário em ${formatarData(dataAlvo)} para a obra “${obra.nome}”.\n\nÚltimo diário disponível — ${formatarData(ultimo.data)}\n\n${formatarBlocoDiario(ultimo)}`
+  }
+
+  const titulo = `Diário da obra “${obra.nome}” — ${formatarData(dataAlvo)}`
+  const conteudo = registrosDoDia.length === 1
+    ? formatarBlocoDiario(registrosDoDia[0])
+    : registrosDoDia.map((diario, indice) => formatarBlocoDiario(diario, indice)).join('\n\n--------------------\n\n')
+
+  return `${titulo}\n\n${conteudo}`
 }
 
 function gerarResposta(pergunta, contexto) {
@@ -272,53 +352,48 @@ function gerarResposta(pergunta, contexto) {
     obra,
     tarefas,
     pedidos,
+    diarios,
     servicosAtrasados,
     materiaisNaoEntregues,
     materiaisAtrasados,
     tarefasBloqueadas,
     comprasError,
+    diarioError,
   } = contexto
 
+  const perguntaDiario = contemAlgum(texto, [
+    'diario', 'o que foi feito', 'feito hoje', 'servicos executados hoje',
+    'trabalhos de hoje', 'atividades de hoje', 'relatorio do dia', 'resumo do dia',
+  ])
   const perguntaMaterial = contemAlgum(texto, [
     'material', 'materiais', 'insumo', 'insumos', 'cimento', 'aco', 'madeira',
     'compra', 'compras', 'pedido', 'pedidos', 'entrega', 'entregue',
     'fornecedor', 'suprimento', 'suprimentos',
   ])
-  const perguntaServico = contemAlgum(texto, [
-    'servico', 'servicos', 'cronograma', 'atividade', 'atividades', 'tarefa', 'tarefas', 'prazo',
-  ])
+  const perguntaServico = contemAlgum(texto, ['servico', 'servicos', 'cronograma', 'atividade', 'atividades', 'tarefa', 'tarefas', 'prazo'])
   const perguntaAtraso = contemAlgum(texto, ['atrasado', 'atrasados', 'atrasada', 'atrasadas', 'vencido', 'vencidos', 'fora do prazo'])
   const perguntaPendencia = contemAlgum(texto, ['nao entregue', 'nao entregues', 'pendente', 'pendentes', 'faltando', 'falta'])
 
+  if (perguntaDiario) return responderDiario(pergunta, diarios, obra, diarioError)
+
   if (perguntaMaterial) {
     if (!pedidos.length) {
-      if (comprasError) {
-        return `Não consegui acessar os pedidos de compra da obra “${obra.nome}”. O cronograma foi carregado, mas a leitura de compras e materiais falhou.`
-      }
-
+      if (comprasError) return `Não consegui acessar os pedidos de compra da obra “${obra.nome}”.`
       return `Não há pedidos de compra cadastrados para a obra “${obra.nome}”.`
     }
 
     const pedido = encontrarPedido(texto, pedidos)
-
-    if (pedido && contemAlgum(texto, ['impacto', 'afeta', 'afetar', 'detalhe', 'situacao', 'status', 'quando', 'qual servico'])) {
-      return analisarPedido(pedido)
-    }
-
+    if (pedido && contemAlgum(texto, ['impacto', 'afeta', 'afetar', 'detalhe', 'situacao', 'status', 'quando', 'qual servico'])) return analisarPedido(pedido)
     if (perguntaAtraso) return listarMateriais(materiaisAtrasados, 'atrasados')
     if (perguntaPendencia) return listarMateriais(materiaisNaoEntregues, 'pendentes')
     if (pedido) return analisarPedido(pedido)
-
     return listarMateriais(materiaisNaoEntregues, 'pendentes')
   }
 
-  if (contemAlgum(texto, ['plano', 'acao', 'recuperar', 'providencia'])) {
-    return gerarPlanoAcao(contexto)
-  }
+  if (contemAlgum(texto, ['plano', 'acao', 'recuperar', 'providencia'])) return gerarPlanoAcao(contexto)
 
   if (contemAlgum(texto, ['bloqueado', 'bloqueados', 'bloqueada', 'bloqueadas', 'impedido', 'impedida'])) {
     if (!tarefasBloqueadas.length) return 'Não encontrei tarefas bloqueadas na obra selecionada.'
-
     return `Encontrei ${tarefasBloqueadas.length} tarefa(s) bloqueada(s):\n\n${tarefasBloqueadas.map((tarefa, indice) => `${indice + 1}. ${tarefa.nome}\nMotivo: ${tarefa.bloqueio || 'não informado'}`).join('\n\n')}`
   }
 
@@ -326,15 +401,11 @@ function gerarResposta(pergunta, contexto) {
 
   if (contemAlgum(texto, ['risco', 'riscos', 'impacto', 'prioridade', 'resumo'])) {
     const riscos = []
-
-    materiaisAtrasados.forEach((pedido) => {
-      riscos.push(`${nomeMaterial(pedido)} pode afetar ${pedido.tarefa_relacionada || 'um serviço ainda não vinculado'}`)
-    })
+    materiaisAtrasados.forEach((pedido) => riscos.push(`${nomeMaterial(pedido)} pode afetar ${pedido.tarefa_relacionada || 'um serviço ainda não vinculado'}`))
     tarefasBloqueadas.forEach((tarefa) => riscos.push(`${tarefa.nome} está bloqueada`))
     servicosAtrasados.forEach((tarefa) => riscos.push(`${tarefa.nome} está fora do prazo`))
 
     if (!riscos.length) return 'Não identifiquei riscos operacionais relevantes na obra selecionada.'
-
     return `Riscos identificados na obra “${obra.nome}”:\n\n${riscos.map((risco, indice) => `${indice + 1}. ${risco}.`).join('\n')}`
   }
 
@@ -347,7 +418,7 @@ function gerarResposta(pergunta, contexto) {
     return `Serviço: ${tarefa.nome}\nInício: ${formatarData(tarefa.data_inicio || tarefa.inicio)}\nTérmino: ${formatarData(tarefa.data_termino || tarefa.termino)}\nProgresso: ${Number(tarefa.progresso || 0)}%\nResponsável: ${tarefa.responsavel || tarefa.responsavel_nome || 'não informado'}\nSituação: ${tarefa.status_operacional || tarefa.status || 'calculada pelo cronograma'}${tarefa.bloqueio ? `\nBloqueio: ${tarefa.bloqueio}` : ''}`
   }
 
-  return `Posso consultar o cronograma e os pedidos da obra “${obra.nome}”. Pergunte sobre serviços atrasados, materiais, entregas, bloqueios ou riscos.`
+  return `Posso consultar o diário, o cronograma e os pedidos da obra “${obra.nome}”. Pergunte “diário”, “o que foi feito hoje”, sobre serviços atrasados, materiais, entregas, bloqueios ou riscos.`
 }
 
 export default function IAOperacionalPage() {
@@ -361,7 +432,7 @@ export default function IAOperacionalPage() {
   const [mensagens, setMensagens] = useState([
     {
       tipo: 'assistente',
-      texto: 'Olá. Selecione a obra e faça uma pergunta sobre cronograma, compras, materiais ou bloqueios.',
+      texto: 'Olá. Selecione a obra e pergunte sobre o diário do dia, cronograma, compras, materiais ou bloqueios.',
     },
   ])
 
@@ -380,12 +451,36 @@ export default function IAOperacionalPage() {
     [obraId, obrasVisiveis]
   )
 
+  const usandoDemo = String(obraAtual?.id || '').startsWith('demo')
   const { tarefas: tarefasBanco = [], loading: tarefasLoading } = useTarefas(obraAtual?.id)
   const { pedidos: pedidosBanco = [], loading: comprasLoading, error: comprasError } = useCompras(obraAtual?.id)
+  const { diarios: diariosBanco = [], loading: diariosLoading, error: diariosError } = useDiarios(usandoDemo ? null : obraAtual?.id)
+  const {
+    records: diariosWorkspaceRaw = [],
+    loading: workspaceLoading,
+    error: workspaceError,
+    source: workspaceSource,
+  } = useWorkspaceRecords('diario', obraAtual?.id, user)
 
-  const usandoDemo = String(obraAtual?.id).startsWith('demo')
   const tarefas = useMemo(() => (tarefasBanco.length ? tarefasBanco : usandoDemo ? TAREFAS_DEMO : []), [tarefasBanco, usandoDemo])
   const pedidos = useMemo(() => (pedidosBanco.length ? pedidosBanco : usandoDemo ? PEDIDOS_DEMO : []), [pedidosBanco, usandoDemo])
+
+  const diarios = useMemo(() => {
+    const diariosWorkspace = diariosWorkspaceRaw.filter((diario) => {
+      if (usandoDemo || workspaceSource === 'supabase') return true
+      return diario.created_by_name && diario.created_by_name !== 'NeoCanteiro Demo'
+    })
+
+    const combinados = [...diariosWorkspace, ...diariosBanco].map(normalizarDiario)
+    const unicos = new Map()
+
+    combinados.forEach((diario) => {
+      const chave = diario.id || `${diario.data}:${diario.servicos_executados}`
+      if (!unicos.has(chave)) unicos.set(chave, diario)
+    })
+
+    return Array.from(unicos.values()).sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')))
+  }, [diariosWorkspaceRaw, diariosBanco, usandoDemo, workspaceSource])
 
   const hoje = useMemo(() => {
     const data = new Date()
@@ -416,7 +511,8 @@ export default function IAOperacionalPage() {
     [materiaisNaoEntregues]
   )
 
-  const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading
+  const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading || diariosLoading || workspaceLoading
+  const diarioError = diariosError || workspaceError
 
   function perguntar(textoPergunta) {
     const texto = String(textoPergunta || '').trim()
@@ -431,11 +527,13 @@ export default function IAOperacionalPage() {
         obra: obraAtual,
         tarefas,
         pedidos,
+        diarios,
         servicosAtrasados,
         materiaisNaoEntregues,
         materiaisAtrasados,
         tarefasBloqueadas,
         comprasError,
+        diarioError,
       })
 
       setMensagens((atuais) => [...atuais, { tipo: 'assistente', texto: resposta }])
@@ -540,7 +638,7 @@ export default function IAOperacionalPage() {
 
             {respondendo && (
               <div className="flex justify-start">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-400 shadow-sm">Consultando cronograma e pedidos da obra...</div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-400 shadow-sm">Consultando diário, cronograma e pedidos da obra...</div>
               </div>
             )}
 
@@ -553,7 +651,7 @@ export default function IAOperacionalPage() {
               <input
                 value={pergunta}
                 onChange={(event) => setPergunta(event.target.value)}
-                placeholder="Ex.: Qual material está atrasado nesta obra?"
+                placeholder="Ex.: Diário de hoje, o que foi feito?"
                 className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
               />
               <button
