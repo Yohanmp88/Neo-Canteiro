@@ -18,14 +18,12 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Handshake,
   UsersRound,
   Truck,
   FolderKanban,
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set([
-  'crm',
   'clientes',
   'diario',
   'fotos',
@@ -48,7 +46,6 @@ const MENU_GROUPS = [
     label: 'Gestão',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: true },
-      { id: 'crm', label: 'CRM Comercial', icon: Handshake, visible: true },
       { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
       { id: 'cronograma', label: 'Cronograma', icon: Calendar, visible: true },
       { id: 'ia', label: 'IA Operacional', icon: Bot, visible: true },
