@@ -25,6 +25,22 @@ import {
   Settings,
 } from 'lucide-react'
 
+const WORKSPACE_TABS = new Set([
+  'crm',
+  'clientes',
+  'materiais',
+  'compras',
+  'fornecedores',
+  'financeiro',
+  'orcamento',
+  'composicoes',
+  'abc',
+  'medicoes',
+  'documentos',
+  'templates',
+  'usuarios',
+])
+
 const ALL_MODULES = [
   { id: 'crm', label: 'CRM Comercial', icon: Handshake, visible: true },
   { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
@@ -69,6 +85,11 @@ export function BottomNav({ activeTab, onTabChange, userProfile }) {
 
     if (tabId === 'more') {
       setMenuOpen(true)
+      return
+    }
+
+    if (WORKSPACE_TABS.has(tabId)) {
+      window.location.href = `/workspace?module=${tabId}`
       return
     }
 
