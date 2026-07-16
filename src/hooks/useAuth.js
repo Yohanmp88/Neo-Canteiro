@@ -13,6 +13,8 @@ const DEMO_ACCOUNTS = [
     password: 'nc123',
     nome: 'Investidor NeoCanteiro',
     role: 'investidor',
+    enabled: true,
+    tokenVersion: 1,
     remoteControl: false,
   },
   {
@@ -21,11 +23,13 @@ const DEMO_ACCOUNTS = [
     password: 'lucas.demo',
     nome: 'Lucas — Acesso Demo',
     role: 'investidor',
+    enabled: true,
+    tokenVersion: 1,
     remoteControl: true,
   },
 ]
 
-function criarIdentidadeDemo(account) {
+function identidadeDemo(account) {
   const user = {
     id: account.id,
     email: account.email,
@@ -44,15 +48,14 @@ function criarIdentidadeDemo(account) {
   return { user, profile }
 }
 
-function lerSessaoDemoLocal() {
+function lerSessaoDemo() {
   if (typeof window === 'undefined') return null
 
   const valor = window.localStorage.getItem(DEMO_STORAGE_KEY)
   if (!valor) return null
 
-  // Compatibilidade com a sessão antiga do investidor.
   if (valor === 'true') {
-    return { accountId: 'demo-investidor', tokenVersion: null }
+    return { accountId: 'demo-investidor', tokenVersion: 1 }
   }
 
   try {
@@ -65,96 +68,61 @@ function lerSessaoDemoLocal() {
   }
 }
 
-function removerSessaoDemoLocal() {
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(DEMO_STORAGE_KEY)
-  }
-}
+function obterContaDaSessao() {
+  const sessao = lerSessaoDemo()
+  if (!sessao) return null
 
-async function carregarControleDemo() {
-  const resposta = await fetch(`${DEMO_CONTROL_URL}?v=${Date.now()}`, {
-    cache: 'no-store',
-    headers: { Accept: 'application/json' },
-  })
+  const account = DEMO_ACCOUNTS.find((item) => item.id === sessao.accountId)
 
-  if (!resposta.ok) {
-    throw new Error('Não foi possível validar o acesso demonstrativo.')
-  }
-
-  return resposta.json()
-}
-
-async function validarContaDemo(account, tokenVersion = null) {
-  if (!account?.remoteControl) {
-    return { enabled: true, tokenVersion: null }
-  }
-
-  const controle = await carregarControleDemo()
-  const registro = controle?.[account.id]
-
-  if (!registro?.enabled) {
-    return { enabled: false, tokenVersion: registro?.tokenVersion ?? null }
-  }
-
-  if (tokenVersion !== null && Number(tokenVersion) !== Number(registro.tokenVersion)) {
-    return { enabled: false, tokenVersion: registro.tokenVersion }
-  }
-
-  return {
-    enabled: true,
-    tokenVersion: Number(registro.tokenVersion || 1),
-  }
-}
-
-async function obterSessaoDemoValida() {
-  const sessaoLocal = lerSessaoDemoLocal()
-  if (!sessaoLocal) return null
-
-  const account = DEMO_ACCOUNTS.find((item) => item.id === sessaoLocal.accountId)
-  if (!account) {
-    removerSessaoDemoLocal()
+  if (
+    !account ||
+    !account.enabled ||
+    Number(sessao.tokenVersion || 1) !== Number(account.tokenVersion || 1)
+  ) {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY)
+    }
     return null
   }
 
-  try {
-    const controle = await validarContaDemo(account, sessaoLocal.tokenVersion ?? null)
-
-    if (!controle.enabled) {
-      removerSessaoDemoLocal()
-      return null
-    }
-
-    return {
-      account,
-      tokenVersion: controle.tokenVersion,
-      ...criarIdentidadeDemo(account),
-    }
-  } catch {
-    // O acesso controlado falha fechado: sem validar no servidor, não permanece conectado.
-    if (account.remoteControl) {
-      removerSessaoDemoLocal()
-      return null
-    }
-
-    return {
-      account,
-      tokenVersion: null,
-      ...criarIdentidadeDemo(account),
-    }
-  }
+  return { account, sessao, ...identidadeDemo(account) }
 }
 
-function salvarSessaoDemo(account, tokenVersion = null) {
+function salvarSessaoDemo(account) {
   if (typeof window === 'undefined') return
 
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
     JSON.stringify({
       accountId: account.id,
-      tokenVersion,
+      tokenVersion: account.tokenVersion || 1,
       createdAt: Date.now(),
     }),
   )
+}
+
+async function acessoRemotoLucasContinuaValido(sessao) {
+  try {
+    const resposta = await fetch(`${DEMO_CONTROL_URL}?v=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    })
+
+    if (!resposta.ok) return true
+
+    const controle = await resposta.json()
+    const registro = controle?.['demo-lucas']
+
+    if (!registro) return true
+
+    return (
+      registro.enabled === true &&
+      Number(registro.tokenVersion || 1) === Number(sessao?.tokenVersion || 1)
+    )
+  } catch {
+    // Uma falha de rede não pode derrubar os demais logins do sistema.
+    return true
+  }
 }
 
 export function useAuth() {
@@ -176,8 +144,8 @@ export function useAuth() {
   useEffect(() => {
     let ativo = true
 
-    const aplicarSessaoDemo = async () => {
-      const sessaoDemo = await obterSessaoDemoValida()
+    const aplicarSessaoDemo = () => {
+      const sessaoDemo = obterContaDaSessao()
       if (!sessaoDemo || !ativo) return false
 
       setUser(sessaoDemo.user)
@@ -187,7 +155,7 @@ export function useAuth() {
 
     const checkUser = async () => {
       try {
-        if (await aplicarSessaoDemo()) return
+        if (aplicarSessaoDemo()) return
 
         const currentUser = await authService.getCurrentUser()
 
@@ -211,15 +179,7 @@ export function useAuth() {
     } = authService.onAuthStateChange((event, session) => {
       const sessionUser = session?.user || null
 
-      if (!sessionUser && lerSessaoDemoLocal()) {
-        aplicarSessaoDemo().then((aplicada) => {
-          if (!aplicada && ativo) {
-            setUser(null)
-            setUserProfile(null)
-          }
-        })
-        return
-      }
+      if (!sessionUser && aplicarSessaoDemo()) return
 
       setUser(sessionUser)
 
@@ -228,27 +188,25 @@ export function useAuth() {
       }
     })
 
-    // Consulta o controle remoto para revogar o login e a sessão quando solicitado.
+    // Somente o acesso do Lucas consulta a revogação remota.
     const revocationTimer = window.setInterval(async () => {
-      const sessaoLocal = lerSessaoDemoLocal()
-      if (!sessaoLocal || sessaoLocal.accountId !== 'demo-lucas') return
+      const sessao = lerSessaoDemo()
+      if (!sessao || sessao.accountId !== 'demo-lucas') return
 
-      const sessaoValida = await obterSessaoDemoValida()
-      if (!sessaoValida && ativo) {
+      const continuaValido = await acessoRemotoLucasContinuaValido(sessao)
+
+      if (!continuaValido && ativo) {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY)
         setUser(null)
         setUserProfile(null)
         setError('Este acesso demonstrativo foi encerrado.')
       }
     }, 15000)
 
-    const onStorage = async (event) => {
+    const onStorage = (event) => {
       if (event.key !== DEMO_STORAGE_KEY) return
 
-      const sessaoDemo = await obterSessaoDemoValida()
-      if (sessaoDemo) {
-        setUser(sessaoDemo.user)
-        setUserProfile(sessaoDemo.profile)
-      } else {
+      if (!aplicarSessaoDemo()) {
         setUser(null)
         setUserProfile(null)
       }
@@ -272,18 +230,20 @@ export function useAuth() {
       const normalizedEmail = String(email || '').trim().toLowerCase()
       const normalizedPassword = String(password || '').trim()
       const demoAccount = DEMO_ACCOUNTS.find(
-        (account) => account.email === normalizedEmail && account.password === normalizedPassword,
+        (account) => account.email === normalizedEmail,
       )
 
       if (demoAccount) {
-        const controle = await validarContaDemo(demoAccount)
+        if (demoAccount.password !== normalizedPassword) {
+          throw new Error('E-mail ou senha do acesso demo estão incorretos.')
+        }
 
-        if (!controle.enabled) {
+        if (!demoAccount.enabled) {
           throw new Error('Este acesso demonstrativo foi encerrado.')
         }
 
-        salvarSessaoDemo(demoAccount, controle.tokenVersion)
-        const identidade = criarIdentidadeDemo(demoAccount)
+        salvarSessaoDemo(demoAccount)
+        const identidade = identidadeDemo(demoAccount)
 
         setUser(identidade.user)
         setUserProfile(identidade.profile)
@@ -292,14 +252,9 @@ export function useAuth() {
           user: identidade.user,
           session: {
             user: identidade.user,
-            access_token: `demo-${demoAccount.id}-v${controle.tokenVersion || 1}`,
+            access_token: `demo-${demoAccount.id}-v${demoAccount.tokenVersion || 1}`,
           },
         }
-      }
-
-      // Um e-mail demo correto com senha incorreta não deve cair no Supabase.
-      if (DEMO_ACCOUNTS.some((account) => account.email === normalizedEmail)) {
-        throw new Error('E-mail ou senha do acesso demo estão incorretos.')
       }
 
       const data = await authService.login(normalizedEmail, normalizedPassword)
@@ -346,8 +301,11 @@ export function useAuth() {
       setLoading(true)
       setError(null)
 
-      const sessaoDemo = lerSessaoDemoLocal()
-      removerSessaoDemoLocal()
+      const sessaoDemo = lerSessaoDemo()
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(DEMO_STORAGE_KEY)
+      }
 
       if (!sessaoDemo) {
         await authService.logout()
