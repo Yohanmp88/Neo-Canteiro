@@ -1,0 +1,145 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ChevronDown, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react'
+import { Sidebar } from '@/components/dashboard/Sidebar'
+import { BottomNav } from '@/components/dashboard/BottomNav'
+import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
+import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
+import { useAuth } from '@/hooks/useAuth'
+import { useObras } from '@/hooks/useObras'
+
+const OBRAS_DEMO = [
+  { id: 'demo-1', nome: 'Residencial Aurora', cliente: 'Aurora Empreendimentos', status: 'Em andamento' },
+  { id: 'demo-2', nome: 'Loja Concept', cliente: 'Concept Store', status: 'Finalização' },
+  { id: 'demo-3', nome: 'Harmonia', cliente: 'Condomínio Harmonia', status: 'Planejamento' },
+]
+
+export default function WorkspacePage() {
+  const { user, userProfile, loading: authLoading, logout } = useAuth()
+  const { obras: obrasRaw = [] } = useObras()
+  const [moduleKey, setModuleKey] = useState('crm')
+  const [obraId, setObraId] = useState('demo-1')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const requested = params.get('module')
+    if (requested && EDITABLE_MODULE_KEYS.includes(requested)) setModuleKey(requested)
+  }, [])
+
+  useEffect(() => {
+    if (!authLoading && !user) window.location.replace('/')
+  }, [authLoading, user])
+
+  const obras = useMemo(() => {
+    const reais = (obrasRaw || []).filter(Boolean)
+    return reais.length ? reais : OBRAS_DEMO
+  }, [obrasRaw])
+
+  useEffect(() => {
+    if (!obras.some((obra) => String(obra.id) === String(obraId))) {
+      setObraId(String(obras[0]?.id || 'demo-1'))
+    }
+  }, [obras, obraId])
+
+  const obraAtual = useMemo(
+    () => obras.find((obra) => String(obra.id) === String(obraId)) || obras[0] || OBRAS_DEMO[0],
+    [obras, obraId],
+  )
+
+  const role = userProfile?.tipo_usuario || userProfile?.role || 'investidor'
+  const isOwnerDemo = user?.email === 'investidor@nc.com'
+  const isLucasDemo = user?.email === 'lucas.demo@nc.com'
+  const isClient = role === 'cliente'
+  const canEdit = Boolean(user) && !isLucasDemo && !isClient && (isOwnerDemo || role !== 'investidor')
+  const canEditModule = moduleKey === 'usuarios' ? (isOwnerDemo || role === 'engenheiro' || role === 'administrador') : canEdit
+
+  const profileForNavigation = {
+    ...userProfile,
+    nome: userProfile?.nome || user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Usuário',
+    tipo_usuario: isLucasDemo ? 'investidor' : role,
+    tipo: isLucasDemo ? 'investidor' : role,
+  }
+
+  const navigate = (tabId) => {
+    if (EDITABLE_MODULE_KEYS.includes(tabId)) {
+      setModuleKey(tabId)
+      const nextUrl = `/workspace?module=${tabId}`
+      window.history.pushState({}, '', nextUrl)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    window.location.href = '/'
+  }
+
+  if (authLoading || !user) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-black text-blue-600">Validando acesso...</div>
+  }
+
+  const definition = getModuleDefinition(moduleKey)
+
+  return (
+    <main className="min-h-screen bg-slate-50 pb-24 text-slate-900 lg:pb-0">
+      <div className="flex min-h-screen w-full">
+        <Sidebar activeTab={moduleKey} onTabChange={navigate} userProfile={profileForNavigation} logout={logout} />
+
+        <div className="flex min-w-0 flex-1 flex-col lg:ml-72">
+          <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 px-4 py-3 backdrop-blur-xl lg:px-8">
+            <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <button type="button" onClick={() => { window.location.href = '/' }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm hover:bg-slate-50 hover:text-blue-600" aria-label="Voltar ao dashboard">
+                  <ArrowLeft size={18} />
+                </button>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-black text-slate-900">{definition?.title || 'NeoCanteiro'}</p>
+                  <p className="truncate text-[9px] font-bold uppercase tracking-wider text-slate-400">Sistema profissional de gestão</p>
+                </div>
+              </div>
+
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="relative hidden sm:block">
+                  <select value={obraId} onChange={(event) => setObraId(event.target.value)} className="max-w-56 appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-xs font-black text-slate-800 outline-none focus:border-blue-500">
+                    {obras.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
+
+                <span className={`hidden items-center gap-1.5 rounded-full px-3 py-2 text-[9px] font-black uppercase ring-1 md:inline-flex ${canEditModule ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+                  {canEditModule ? <ShieldCheck size={13} /> : <LockKeyhole size={13} />}
+                  {canEditModule ? 'Edição liberada' : 'Somente leitura'}
+                </span>
+
+                <button type="button" onClick={logout} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Sair">
+                  <LogOut size={17} />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative mt-3 sm:hidden">
+              <select value={obraId} onChange={(event) => setObraId(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-xs font-black text-slate-800 outline-none focus:border-blue-500">
+                {obras.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+          </header>
+
+          {!canEditModule && (
+            <div className="mx-4 mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 lg:mx-8">
+              <LockKeyhole size={17} className="mt-0.5 shrink-0" />
+              Este usuário pode consultar os dados, mas não pode criar, editar, duplicar ou excluir registros.
+            </div>
+          )}
+
+          <section className="flex-1 px-4 py-5 lg:px-8 lg:py-7">
+            <div className="mx-auto w-full max-w-screen-2xl">
+              <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditModule} />
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <BottomNav activeTab={moduleKey} onTabChange={navigate} userProfile={profileForNavigation} />
+    </main>
+  )
+}
