@@ -22,6 +22,7 @@ import {
   FolderKanban,
   FileCode,
   Settings,
+  History,
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set([
@@ -43,6 +44,7 @@ const WORKSPACE_TABS = new Set([
 ])
 
 const ALL_MODULES = [
+  { id: 'timeline', label: 'Linha do Tempo', icon: History, visible: true },
   { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
   { id: 'diario', label: 'Diário de Obra', icon: FileText, restricted: true },
   { id: 'fotos', label: 'Fotos', icon: Camera, visible: true },
@@ -80,6 +82,11 @@ export function BottomNav({ activeTab, onTabChange, userProfile }) {
 
     if (tabId === 'ia') {
       window.location.href = '/ia'
+      return
+    }
+
+    if (tabId === 'timeline') {
+      window.location.href = '/timeline'
       return
     }
 
