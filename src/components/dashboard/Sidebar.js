@@ -24,6 +24,22 @@ import {
   FolderKanban,
 } from 'lucide-react'
 
+const WORKSPACE_TABS = new Set([
+  'crm',
+  'clientes',
+  'materiais',
+  'compras',
+  'fornecedores',
+  'financeiro',
+  'orcamento',
+  'composicoes',
+  'abc',
+  'medicoes',
+  'documentos',
+  'templates',
+  'usuarios',
+])
+
 const MENU_GROUPS = [
   {
     label: 'Gestão',
@@ -73,6 +89,11 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
   const navegar = (tabId) => {
     if (tabId === 'ia') {
       window.location.href = '/ia'
+      return
+    }
+
+    if (WORKSPACE_TABS.has(tabId)) {
+      window.location.href = `/workspace?module=${tabId}`
       return
     }
 
