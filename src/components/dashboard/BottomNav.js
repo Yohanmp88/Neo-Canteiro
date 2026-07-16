@@ -7,7 +7,6 @@ import {
   Bot,
   Menu,
   X,
-  Handshake,
   UsersRound,
   FileText,
   Camera,
@@ -26,7 +25,6 @@ import {
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set([
-  'crm',
   'clientes',
   'diario',
   'fotos',
@@ -45,7 +43,6 @@ const WORKSPACE_TABS = new Set([
 ])
 
 const ALL_MODULES = [
-  { id: 'crm', label: 'CRM Comercial', icon: Handshake, visible: true },
   { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
   { id: 'diario', label: 'Diário de Obra', icon: FileText, restricted: true },
   { id: 'fotos', label: 'Fotos', icon: Camera, visible: true },
@@ -70,7 +67,7 @@ export function BottomNav({ activeTab, onTabChange, userProfile }) {
 
   const coreTabs = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-    { id: 'crm', label: 'CRM', icon: Handshake },
+    { id: 'clientes', label: 'Clientes', icon: UsersRound },
     { id: 'ia', label: 'IA da Obra', icon: Bot, destaque: true },
     { id: 'cronograma', label: 'Cronograma', icon: Calendar },
     { id: 'more', label: 'Mais', icon: Menu },
