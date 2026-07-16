@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useObras } from '@/hooks/useObras'
 
 const WORKSPACE_KEYS = Array.from(new Set([...EDITABLE_MODULE_KEYS, ...CORE_MODULE_KEYS]))
+  .filter((moduleKey) => moduleKey !== 'crm')
 
 const OBRAS_DEMO = [
   { id: 'demo-1', nome: 'Residencial Aurora', cliente: 'Aurora Empreendimentos', status: 'Em andamento' },
@@ -21,13 +22,21 @@ const OBRAS_DEMO = [
 export default function WorkspacePage() {
   const { user, userProfile, loading: authLoading, logout } = useAuth()
   const { obras: obrasRaw = [] } = useObras()
-  const [moduleKey, setModuleKey] = useState('crm')
+  const [moduleKey, setModuleKey] = useState('clientes')
   const [obraId, setObraId] = useState('demo-1')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const requested = params.get('module')
-    if (requested && WORKSPACE_KEYS.includes(requested)) setModuleKey(requested)
+
+    if (requested && WORKSPACE_KEYS.includes(requested)) {
+      setModuleKey(requested)
+      return
+    }
+
+    if (requested === 'crm') {
+      window.history.replaceState({}, '', '/workspace?module=clientes')
+    }
   }, [])
 
   useEffect(() => {
