@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { tarefaService } from '@/services/tarefaService'
 import { obterTarefasDemoPorObra } from '@/lib/operationalData'
+import { appendTimelineLocal } from '@/lib/timelineLocal'
 
 const STORAGE_PREFIX = 'neocanteiro_tarefas_demo_v1'
 
@@ -32,6 +33,29 @@ function writeDemoTasks(obraId, tasks) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(storageKey(obraId), JSON.stringify(tasks))
   window.dispatchEvent(new CustomEvent('neocanteiro:cronograma-change', { detail: { obraId, tasks } }))
+}
+
+function descricaoAlteracaoCronograma(anterior, atualizado, updates) {
+  const alteracoes = []
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'progresso')) {
+    alteracoes.push(`Progresso: ${Number(anterior?.progresso || 0)}% → ${Number(atualizado?.progresso || 0)}%`)
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'data_inicio')) {
+    alteracoes.push(`Início: ${anterior?.data_inicio || 'não informado'} → ${atualizado?.data_inicio || 'não informado'}`)
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'data_termino')) {
+    alteracoes.push(`Término: ${anterior?.data_termino || 'não informado'} → ${atualizado?.data_termino || 'não informado'}`)
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'status') || Object.prototype.hasOwnProperty.call(updates, 'status_operacional')) {
+    alteracoes.push(`Situação: ${anterior?.status_operacional || anterior?.status || 'não informada'} → ${atualizado?.status_operacional || atualizado?.status || 'não informada'}`)
+  }
+
+  if (!alteracoes.length) alteracoes.push('Os dados do serviço foram atualizados.')
+  return alteracoes.join('\n')
 }
 
 export function useTarefas(obraId) {
@@ -97,10 +121,16 @@ export function useTarefas(obraId) {
           obra_id: obraId,
           status_operacional: tarefaData.status_operacional || 'Planejado',
         }
-        setTarefas((atuais) => {
-          const next = [...atuais, novaTarefa]
-          writeDemoTasks(obraId, next)
-          return next
+        const next = [...tarefas, novaTarefa]
+        writeDemoTasks(obraId, next)
+        setTarefas(next)
+        appendTimelineLocal(obraId, {
+          event_type: 'cronograma',
+          title: 'Serviço adicionado ao cronograma',
+          description: `${novaTarefa.nome || 'Serviço sem nome'}\nProgresso inicial: ${Number(novaTarefa.progresso || 0)}%`,
+          source_table: 'tarefas',
+          source_id: novaTarefa.id,
+          metadata: { action: 'create', after: novaTarefa },
         })
         return novaTarefa
       }
@@ -117,15 +147,20 @@ export function useTarefas(obraId) {
   const atualizar = async (id, updates) => {
     try {
       if (String(obraId).startsWith('demo')) {
-        let tarefaAtualizada = null
-        setTarefas((atuais) => {
-          const next = atuais.map((tarefa) => {
-            if (tarefa.id !== id) return tarefa
-            tarefaAtualizada = { ...tarefa, ...updates }
-            return tarefaAtualizada
-          })
-          writeDemoTasks(obraId, next)
-          return next
+        const anterior = tarefas.find((tarefa) => tarefa.id === id)
+        const tarefaAtualizada = anterior ? { ...anterior, ...updates } : null
+        if (!tarefaAtualizada) return null
+
+        const next = tarefas.map((tarefa) => (tarefa.id === id ? tarefaAtualizada : tarefa))
+        writeDemoTasks(obraId, next)
+        setTarefas(next)
+        appendTimelineLocal(obraId, {
+          event_type: 'cronograma',
+          title: `Cronograma atualizado — ${tarefaAtualizada.nome || 'Serviço'}`,
+          description: descricaoAlteracaoCronograma(anterior, tarefaAtualizada, updates),
+          source_table: 'tarefas',
+          source_id: tarefaAtualizada.id,
+          metadata: { action: 'update', before: anterior, after: tarefaAtualizada, changed_fields: Object.keys(updates) },
         })
         return tarefaAtualizada
       }
@@ -143,11 +178,21 @@ export function useTarefas(obraId) {
     try {
       if (!String(obraId).startsWith('demo')) {
         await tarefaService.deletar(id)
+        setTarefas((atuais) => atuais.filter((tarefa) => tarefa.id !== id))
+        return
       }
-      setTarefas((atuais) => {
-        const next = atuais.filter((tarefa) => tarefa.id !== id)
-        if (String(obraId).startsWith('demo')) writeDemoTasks(obraId, next)
-        return next
+
+      const removida = tarefas.find((tarefa) => tarefa.id === id)
+      const next = tarefas.filter((tarefa) => tarefa.id !== id)
+      writeDemoTasks(obraId, next)
+      setTarefas(next)
+      appendTimelineLocal(obraId, {
+        event_type: 'cronograma',
+        title: 'Serviço removido do cronograma',
+        description: removida?.nome || 'Serviço sem nome',
+        source_table: 'tarefas',
+        source_id: id,
+        metadata: { action: 'delete', before: removida || null },
       })
     } catch (err) {
       setError(err.message)
