@@ -33,6 +33,8 @@ import {
   BarChart3
 } from 'lucide-react'
 
+const WORKSPACE_TABS = new Set(['compras', 'diario', 'fotos', 'materiais', 'equipe', 'financeiro', 'crm', 'clientes'])
+
 export function DashboardView({
   obraAtual,
   tarefas = [],
@@ -55,13 +57,21 @@ export function DashboardView({
     )
   }
 
+  const navigate = (tabId) => {
+    if (WORKSPACE_TABS.has(tabId)) {
+      window.location.href = `/workspace?module=${tabId}`
+      return
+    }
+
+    onNavigate(tabId)
+  }
+
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const totalTarefas = tarefas.length || 0
   const progressoMedio = totalTarefas > 0
     ? Math.round(tarefas.reduce((acc, t) => acc + (Number(t.progresso) || 0), 0) / totalTarefas)
     : 0
 
-  // Os mesmos critérios são usados pela IA da Obra e pelos cards do dashboard.
   const atrasosCronograma = tarefas.filter((tarefa) => tarefaAtrasadaOperacional(tarefa)).length
   const materiaisAtrasados = pedidos.filter((pedido) => pedidoAtrasadoOperacional(pedido)).length
   const ultimoDiario = diarios?.[0] || null
@@ -97,14 +107,14 @@ export function DashboardView({
   return (
     <div className="space-y-3 max-w-[1600px] mx-auto animate-fade-in px-2">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-        <MiniCard title="Progresso" value={`${progressoMedio}%`} detail="Evolução Geral" icon={TrendingUp} onClick={() => onNavigate('cronograma')} />
-        <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => onNavigate('cronograma')} />
-        <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => onNavigate('cronograma')} />
-        <MiniCard title="Atrasos" value={atrasosCronograma} detail="Serviços atrasados" icon={AlertCircle} color={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => onNavigate('cronograma')} />
-        <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => onNavigate('compras')} />
-        <MiniCard title="Registros" value={diarios.length} detail="Diários enviados" icon={FileText} color="blue" onClick={() => onNavigate('diario')} />
-        <MiniCard title="Fotos" value="Galeria" detail="Registros" icon={Camera} color="purple" onClick={() => onNavigate('fotos')} />
-        <button className="flex items-center justify-center p-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors" onClick={() => onNavigate('cronograma')}>
+        <MiniCard title="Progresso" value={`${progressoMedio}%`} detail="Evolução Geral" icon={TrendingUp} onClick={() => navigate('cronograma')} />
+        <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => navigate('cronograma')} />
+        <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => navigate('cronograma')} />
+        <MiniCard title="Atrasos" value={atrasosCronograma} detail="Serviços atrasados" icon={AlertCircle} color={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => navigate('cronograma')} />
+        <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />
+        <MiniCard title="Registros" value={diarios.length} detail="Diários enviados" icon={FileText} color="blue" onClick={() => navigate('diario')} />
+        <MiniCard title="Fotos" value="Galeria" detail="Registros" icon={Camera} color="purple" onClick={() => navigate('fotos')} />
+        <button className="flex items-center justify-center p-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors" onClick={() => navigate('cronograma')}>
           <Layers size={14} className="mr-1.5" />
           <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
         </button>
@@ -142,7 +152,7 @@ export function DashboardView({
           </div>
         </PanelClean>
 
-        <PanelClean className="lg:col-span-4 !p-3 min-h-[220px] cursor-pointer hover:border-blue-300 transition-colors" onClick={() => onNavigate('cronograma')}>
+        <PanelClean className="lg:col-span-4 !p-3 min-h-[220px] cursor-pointer hover:border-blue-300 transition-colors" onClick={() => navigate('cronograma')}>
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Acompanhamento</p>
@@ -179,7 +189,7 @@ export function DashboardView({
 
         <div className="lg:col-span-3 space-y-3">
           <button
-            onClick={() => onNavigate('diario')}
+            onClick={() => navigate('diario')}
             className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
           >
             <div className="flex items-center justify-between">
@@ -197,7 +207,7 @@ export function DashboardView({
           </button>
 
           <button
-            onClick={() => onNavigate('fotos')}
+            onClick={() => navigate('fotos')}
             className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
           >
             <div className="flex items-center justify-between">
