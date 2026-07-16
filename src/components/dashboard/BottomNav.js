@@ -28,6 +28,9 @@ import {
 const WORKSPACE_TABS = new Set([
   'crm',
   'clientes',
+  'diario',
+  'fotos',
+  'equipe',
   'materiais',
   'compras',
   'fornecedores',
