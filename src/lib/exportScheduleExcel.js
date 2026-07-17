@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx'
-
 function cleanText(value) {
   return String(value ?? '').trim()
 }
@@ -44,7 +42,7 @@ function applySheetLayout(sheet, widths) {
   sheet['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft', state: 'frozen' }
 }
 
-function setDateFormats(sheet, range, columns) {
+function setDateFormats(sheet, range, columns, XLSX) {
   if (!range) return
   const decoded = XLSX.utils.decode_range(range)
   for (let row = decoded.s.r + 1; row <= decoded.e.r; row += 1) {
@@ -55,7 +53,8 @@ function setDateFormats(sheet, range, columns) {
   }
 }
 
-export function exportScheduleToExcel({ obra, tarefas = [] }) {
+export async function exportScheduleToExcel({ obra, tarefas = [] }) {
+  const XLSX = await import('xlsx')
   const tasks = Array.isArray(tarefas) ? tarefas : []
   const progress = tasks.length
     ? Math.round(tasks.reduce((total, task) => total + Number(task?.progresso || 0), 0) / tasks.length)
@@ -137,7 +136,7 @@ export function exportScheduleToExcel({ obra, tarefas = [] }) {
   }
 
   applySheetLayout(scheduleSheet, [8, 38, 44, 15, 15, 15, 15, 18, 24, 22, 42])
-  setDateFormats(scheduleSheet, scheduleSheet['!ref'], [3, 4])
+  setDateFormats(scheduleSheet, scheduleSheet['!ref'], [3, 4], XLSX)
 
   const scheduleRange = scheduleSheet['!ref'] ? XLSX.utils.decode_range(scheduleSheet['!ref']) : null
   if (scheduleRange) {
