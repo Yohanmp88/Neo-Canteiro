@@ -67,6 +67,10 @@ export async function requireApiUser(request) {
   }
 }
 
+export function roleCanViewPlanilhas(role) {
+  return ['administrador', 'engenheiro', 'compras', 'financeiro', 'cliente', 'investidor'].includes(normalizeServerRole(role))
+}
+
 export function roleCanEditPlanilhas(role) {
   return ['administrador', 'engenheiro', 'compras', 'financeiro'].includes(normalizeServerRole(role))
 }
