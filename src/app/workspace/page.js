@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChevronDown, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { BottomNav } from '@/components/dashboard/BottomNav'
+import { DiaryWorkspace } from '@/components/platform/DiaryWorkspace'
 import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
 import { PhotoWorkspace } from '@/components/platform/PhotoWorkspace'
 import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
@@ -146,7 +147,9 @@ export default function WorkspacePage() {
 
           <section className="flex-1 px-4 py-5 lg:px-8 lg:py-7">
             <div className="mx-auto w-full max-w-screen-2xl">
-              {moduleKey === 'fotos' ? (
+              {moduleKey === 'diario' ? (
+                <DiaryWorkspace obra={obraAtual} user={user} canEdit={canEditModule} />
+              ) : moduleKey === 'fotos' ? (
                 <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditModule} />
               ) : (
                 <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditModule} />
