@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { exportWorkbookBuffer } from '@/lib/server/excelWorkbook'
-import { canAccessObra, requireApiUser } from '@/lib/server/supabaseAdmin'
+import {
+  canAccessObra,
+  requireApiUser,
+  roleCanViewPlanilhas,
+} from '@/lib/server/supabaseAdmin'
 
 export const runtime = 'nodejs'
 
@@ -18,11 +22,33 @@ function jsonError(message, status = 400) {
   return NextResponse.json({ error: message }, { status })
 }
 
+async function fetchAllRows(admin, versionId) {
+  const rows = []
+  const batchSize = 1000
+
+  for (let from = 0; from < 20000; from += batchSize) {
+    const { data, error } = await admin
+      .from('planilha_linhas')
+      .select('ordem, dados')
+      .eq('versao_id', versionId)
+      .order('ordem', { ascending: true })
+      .range(from, from + batchSize - 1)
+
+    if (error) throw error
+    rows.push(...(data || []))
+    if (!data || data.length < batchSize) break
+  }
+
+  return rows.map((row) => row.dados || {})
+}
+
 export async function GET(request) {
   const auth = await requireApiUser(request)
   if (auth.error) return jsonError(auth.error.message, auth.error.status)
 
   const { admin, profile } = auth
+  if (!roleCanViewPlanilhas(profile.role)) return jsonError('Seu perfil não possui acesso às planilhas da obra.', 403)
+
   const url = new URL(request.url)
   const datasetId = url.searchParams.get('dataset_id')
 
@@ -46,16 +72,14 @@ export async function GET(request) {
 
   if (versionError || !version) return jsonError('Versão ativa não encontrada.', 404)
 
-  const { data: rowData, error: rowsError } = await admin
-    .from('planilha_linhas')
-    .select('ordem, dados')
-    .eq('versao_id', version.id)
-    .order('ordem', { ascending: true })
-
-  if (rowsError) return jsonError(rowsError.message)
+  let rows = []
+  try {
+    rows = await fetchAllRows(admin, version.id)
+  } catch (rowsError) {
+    return jsonError(rowsError.message)
+  }
 
   const headers = Array.isArray(version.colunas) ? version.colunas : []
-  const rows = (rowData || []).map((row) => row.dados || {})
   const buffer = exportWorkbookBuffer(headers, rows, version.aba_nome || dataset.nome)
   const filename = `${safeFilename(dataset.nome)}-v${version.numero_versao}.xlsx`
 
