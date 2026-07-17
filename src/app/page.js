@@ -313,8 +313,7 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
         <button
           type="button"
           onClick={exportarCronograma}
-          disabled={!tarefas.length}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_-18px_rgba(5,150,105,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_-18px_rgba(5,150,105,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-700 active:translate-y-0"
         >
           Exportar Excel
         </button>
