@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 
 export const authService = {
-  // Login com email e senha
+  // Login real com e-mail e senha do Supabase Auth
   async login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -12,31 +12,26 @@ export const authService = {
     return data
   },
 
-  // Registrar novo usuário
-  async signup(email, password, userData) {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+  // Registrar usuário real. O perfil é criado pelo trigger do arquivo
+  // NEOCANTEIRO_AUTH_REAL_SUPABASE.sql.
+  async signup(email, password, userData = {}) {
+    const role = userData.tipo_usuario || userData.role || 'engenheiro'
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          nome: userData.nome || '',
+          empresa: userData.empresa || '',
+          role,
+          tipo_usuario: role,
+        },
+      },
     })
 
-    if (authError) throw new Error(authError.message)
-
-    // Criar registro do usuário na tabela usuarios
-    if (authData.user) {
-      const { error: dbError } = await supabase.from('usuarios').insert([
-        {
-          id: authData.user.id,
-          nome: userData.nome,
-          email,
-          tipo_usuario: userData.tipo_usuario,
-          empresa: userData.empresa,
-        },
-      ])
-
-      if (dbError) throw new Error(dbError.message)
-    }
-
-    return authData
+    if (error) throw new Error(error.message)
+    return data
   },
 
   // Logout
@@ -59,28 +54,30 @@ export const authService = {
     return data.session
   },
 
-  // Obter dados do usuário logado (Perfil)
+  // Obter dados do usuário logado
   async getUserProfile(userId) {
-    // 1. Tentar buscar na nova tabela 'profiles'
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.warn('Não foi possível carregar profiles:', profileError.message)
+    }
 
     if (profile) {
-      // Retorna com mapeamento de 'role' para 'tipo_usuario' para compatibilidade com o resto do código
       return { ...profile, tipo_usuario: profile.role }
     }
 
-    // 2. Fallback para a tabela legada 'usuarios'
+    // Compatibilidade com instalações antigas.
     const { data: usuario } = await supabase
       .from('usuarios')
       .select('*')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
-    return usuario
+    return usuario || null
   },
 
   // Subscribe para mudanças de autenticação
