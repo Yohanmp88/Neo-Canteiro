@@ -127,7 +127,7 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
 
           <label>
             <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Nome exibido para o cliente *</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} required disabled={saving || mode === 'update'} className={inputClass} placeholder="Ex.: Orçamento executivo da obra" />
+            <input value={name} onChange={(event) => setName(event.target.value)} required disabled={busy || mode === 'update'} className={inputClass} placeholder="Ex.: Orçamento executivo da obra" />
           </label>
 
           <label>
@@ -151,7 +151,7 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 md:px-7">
           <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600">Cancelar</button>
-          <button type="submit" disabled={saving || !file} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 disabled:opacity-50">
+          <button type="submit" disabled={busy || !file} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 disabled:opacity-50">
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
             {busy ? 'Importando...' : mode === 'update' ? 'Publicar nova versão' : 'Importar planilha'}
           </button>
