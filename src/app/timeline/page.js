@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { BottomNav } from '@/components/dashboard/BottomNav'
+import { canViewModule, normalizeRole } from '@/lib/accessControl'
 import { useAuth } from '@/hooks/useAuth'
 import { useObras } from '@/hooks/useObras'
 import { useTimeline } from '@/hooks/useTimeline'
@@ -112,9 +113,19 @@ export default function TimelinePage() {
   const [obraId, setObraId] = useState('demo-1')
   const [filter, setFilter] = useState('todos')
 
+  const isDemoUser = user?.app_metadata?.provider === 'demo'
+  const profileReady = Boolean(userProfile) || isDemoUser
+  const role = normalizeRole(userProfile?.tipo_usuario || userProfile?.role || user?.user_metadata?.role)
+  const canAccessTimeline = canViewModule(role, 'timeline')
+
   useEffect(() => {
     if (!authLoading && !user) window.location.replace('/')
   }, [authLoading, user])
+
+  useEffect(() => {
+    if (!user || !profileReady || canAccessTimeline) return
+    window.location.replace('/')
+  }, [user, profileReady, canAccessTimeline])
 
   const obras = useMemo(() => {
     const reais = (obrasRaw || []).filter(Boolean)
@@ -149,21 +160,26 @@ export default function TimelinePage() {
     return Array.from(groups.entries())
   }, [filtered])
 
-  const role = userProfile?.tipo_usuario || userProfile?.role || 'investidor'
   const profileForNavigation = {
     ...userProfile,
     nome: userProfile?.nome || user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Usuário',
+    role,
     tipo_usuario: role,
     tipo: role,
   }
 
   const navigate = (tabId) => {
+    if (!canViewModule(role, tabId)) return
     if (tabId === 'timeline') return
     window.location.href = tabId === 'dashboard' ? '/' : `/?tab=${tabId}`
   }
 
-  if (authLoading || !user) {
+  if (authLoading || !user || !profileReady) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-black text-blue-600">Validando acesso...</div>
+  }
+
+  if (!canAccessTimeline) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-black text-slate-500">Redirecionando para uma área permitida...</div>
   }
 
   return (
