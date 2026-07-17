@@ -7,6 +7,7 @@ import { BottomNav } from '@/components/dashboard/BottomNav'
 import { ClientAccessWorkspace } from '@/components/platform/ClientAccessWorkspace'
 import { DiaryWorkspace } from '@/components/platform/DiaryWorkspace'
 import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
+import { MaterialsWorkspace } from '@/components/platform/MaterialsWorkspace'
 import { PhotoWorkspace } from '@/components/platform/PhotoWorkspace'
 import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
 import { CORE_MODULE_KEYS } from '@/lib/coreModuleDefinitions'
@@ -184,6 +185,8 @@ export default function WorkspacePage() {
                 <ClientAccessWorkspace />
               ) : moduleKey === 'diario' ? (
                 <DiaryWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
+              ) : moduleKey === 'materiais' ? (
+                <MaterialsWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : moduleKey === 'fotos' ? (
                 <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : (
