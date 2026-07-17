@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { canAccessObra, requireApiUser } from '@/lib/server/supabaseAdmin'
+import {
+  canAccessObra,
+  requireApiUser,
+  roleCanViewPlanilhas,
+} from '@/lib/server/supabaseAdmin'
 
 export const runtime = 'nodejs'
 
@@ -7,11 +11,34 @@ function jsonError(message, status = 400) {
   return NextResponse.json({ error: message }, { status })
 }
 
+async function fetchVersionRows(admin, versionId, expectedTotal = 0) {
+  const rows = []
+  const batchSize = 1000
+  const maximum = Math.min(Math.max(Number(expectedTotal || 0), batchSize), 20000)
+
+  for (let from = 0; from < maximum; from += batchSize) {
+    const { data, error } = await admin
+      .from('planilha_linhas')
+      .select('ordem, dados')
+      .eq('versao_id', versionId)
+      .order('ordem', { ascending: true })
+      .range(from, from + batchSize - 1)
+
+    if (error) throw error
+    rows.push(...(data || []))
+    if (!data || data.length < batchSize) break
+  }
+
+  return rows.map((row) => row.dados || {})
+}
+
 export async function GET(request) {
   const auth = await requireApiUser(request)
   if (auth.error) return jsonError(auth.error.message, auth.error.status)
 
   const { admin, profile } = auth
+  if (!roleCanViewPlanilhas(profile.role)) return jsonError('Seu perfil não possui acesso às planilhas da obra.', 403)
+
   const url = new URL(request.url)
   const obraId = url.searchParams.get('obra_id')
   const datasetId = url.searchParams.get('dataset_id')
@@ -42,15 +69,11 @@ export async function GET(request) {
     let rows = []
 
     if (activeVersion?.id) {
-      const { data: rowData, error: rowsError } = await admin
-        .from('planilha_linhas')
-        .select('ordem, dados')
-        .eq('versao_id', activeVersion.id)
-        .order('ordem', { ascending: true })
-        .limit(5000)
-
-      if (rowsError) return jsonError(rowsError.message)
-      rows = (rowData || []).map((row) => row.dados || {})
+      try {
+        rows = await fetchVersionRows(admin, activeVersion.id, activeVersion.total_linhas)
+      } catch (rowsError) {
+        return jsonError(rowsError.message)
+      }
     }
 
     return NextResponse.json({
