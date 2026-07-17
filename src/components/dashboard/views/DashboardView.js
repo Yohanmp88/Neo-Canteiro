@@ -6,10 +6,7 @@ import { useCompras } from '@/hooks/useCompras'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
 import '@/lib/coreModuleDefinitions'
 import { canViewModule, normalizeRole } from '@/lib/accessControl'
-import {
-  pedidoAtrasadoOperacional,
-  tarefaAtrasadaOperacional,
-} from '@/lib/operationalData'
+import { pedidoAtrasadoOperacional, tarefaAtrasadaOperacional } from '@/lib/operationalData'
 
 import {
   AreaChart,
@@ -24,25 +21,47 @@ import {
 import {
   AlertCircle,
   ArrowRight,
+  CalendarDays,
   Camera,
   CheckCircle2,
-  Clock3,
   FileText,
-  Gauge,
   Package,
   ShoppingBag,
+  TrendingUp,
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set(['compras', 'diario', 'fotos', 'materiais', 'equipe', 'financeiro', 'clientes'])
 const SEEN_PREFIX = 'neocanteiro_module_seen_v1'
 
-const TONES = {
-  blue: 'bg-blue-50 text-blue-700 ring-blue-100',
-  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-  amber: 'bg-amber-50 text-amber-700 ring-amber-100',
-  red: 'bg-red-50 text-red-700 ring-red-100',
-  violet: 'bg-violet-50 text-violet-700 ring-violet-100',
-  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
+const CARD_TONES = {
+  blue: {
+    icon: 'bg-blue-50 text-blue-700 ring-blue-100',
+    line: 'bg-blue-600',
+  },
+  indigo: {
+    icon: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+    line: 'bg-indigo-600',
+  },
+  emerald: {
+    icon: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    line: 'bg-emerald-500',
+  },
+  red: {
+    icon: 'bg-red-50 text-red-700 ring-red-100',
+    line: 'bg-red-500',
+  },
+  amber: {
+    icon: 'bg-amber-50 text-amber-700 ring-amber-100',
+    line: 'bg-amber-500',
+  },
+  violet: {
+    icon: 'bg-violet-50 text-violet-700 ring-violet-100',
+    line: 'bg-violet-500',
+  },
+  slate: {
+    icon: 'bg-slate-100 text-slate-700 ring-slate-200',
+    line: 'bg-slate-500',
+  },
 }
 
 function recordTimestamp(record) {
@@ -67,31 +86,38 @@ function formatDate(value, options = { day: '2-digit', month: 'short' }) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR', options)
 }
 
-function CompactKpi({ icon: Icon, label, value, tone = 'blue', onClick }) {
+function MetricCard({ title, value, detail, icon: Icon, tone = 'blue', onClick }) {
+  const visual = CARD_TONES[tone] || CARD_TONES.blue
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-0 items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-left shadow-[0_10px_28px_-25px_rgba(15,23,42,0.7)] transition hover:-translate-y-0.5 hover:border-blue-300"
+      className="group relative flex min-h-[76px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_18px_40px_-28px_rgba(37,99,235,0.3)]"
     >
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ${TONES[tone] || TONES.blue}`}>
-        <Icon size={14} strokeWidth={2.4} />
+      <span className={`absolute inset-y-3 left-0 w-1 rounded-r-full ${visual.line}`} />
+      <span className={`ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${visual.icon}`}>
+        <Icon size={18} strokeWidth={2.3} />
       </span>
+
       <span className="min-w-0 flex-1">
-        <span className="block text-lg font-black leading-none tracking-tight text-slate-950">{value}</span>
-        <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.11em] text-slate-400">{label}</span>
+        <span className="block text-[9px] font-black uppercase tracking-[0.13em] text-slate-400">{title}</span>
+        <span className="mt-1 flex min-w-0 items-end gap-2">
+          <span className="truncate text-[23px] font-black leading-none tracking-tight text-slate-950">{value}</span>
+          <ArrowRight size={13} className="mb-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+        </span>
+        <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">{detail}</span>
       </span>
-      <ArrowRight size={12} className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
     </button>
   )
 }
 
-function SectionHeader({ eyebrow, title, action, onAction }) {
+function PanelHeader({ eyebrow, title, action, onAction }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="truncate text-[8px] font-black uppercase tracking-[0.15em] text-slate-400">{eyebrow}</p>
-        <h3 className="mt-0.5 truncate text-xs font-black tracking-tight text-slate-950">{title}</h3>
+        <p className="truncate text-[8px] font-black uppercase tracking-[0.16em] text-blue-600">{eyebrow}</p>
+        <h3 className="mt-0.5 truncate text-[12px] font-black tracking-tight text-slate-950">{title}</h3>
       </div>
       {action && (
         <button type="button" onClick={onAction} className="inline-flex shrink-0 items-center gap-1 text-[8px] font-black uppercase tracking-wider text-slate-400 transition hover:text-blue-600">
@@ -126,264 +152,202 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
     [fotosWorkspace],
   )
 
-  const totalTarefas = tarefas.length
-  const concluidas = tarefas.filter((item) => Number(item.progresso) === 100).length
-  const emAndamento = tarefas.filter((item) => Number(item.progresso) > 0 && Number(item.progresso) < 100).length
-  const atrasadas = tarefas.filter((item) => tarefaAtrasadaOperacional(item))
-  const materiaisCriticos = pedidos.filter((item) => pedidoAtrasadoOperacional(item))
-  const progressoMedio = totalTarefas
-    ? Math.round(tarefas.reduce((total, item) => total + (Number(item.progresso) || 0), 0) / totalTarefas)
-    : Number(obraAtual?.progresso || 0)
-
-  const prazoFinal = obraAtual?.prazo_final || obraAtual?.previsao_entrega || obraAtual?.previsaoEntrega
-  const diasRestantes = prazoFinal
-    ? Math.ceil((new Date(`${String(prazoFinal).slice(0, 10)}T23:59:59`).getTime() - Date.now()) / 86400000)
-    : null
-  const totalAlertas = atrasadas.length + materiaisCriticos.length
-  const ultimoDiario = diariosVisiveis[0] || null
-  const ultimaFoto = fotosVisiveis[0] || null
-  const ultimaFotoUrl = ultimaFoto?.url || ultimaFoto?.url_foto || ultimaFoto?.data?.url || ultimaFoto?.data?.url_foto || ''
-
-  const diariosNovos = useMemo(
-    () => unreadCount(diariosVisiveis, user, obraAtual?.id, 'diario'),
-    [diariosVisiveis, user, obraAtual?.id, seenVersion],
-  )
-
-  const proximasAtividades = useMemo(() => tarefas
-    .filter((item) => Number(item.progresso) < 100)
-    .sort((a, b) => new Date(a.data_termino || a.termino || '2999-12-31') - new Date(b.data_termino || b.termino || '2999-12-31'))
-    .slice(0, 4), [tarefas])
-
-  const dadosEvolucao = useMemo(() => {
-    const ordered = [...tarefas]
-      .sort((a, b) => new Date(a.data_termino || a.termino || 0) - new Date(b.data_termino || b.termino || 0))
-      .slice(0, 7)
-
-    if (!ordered.length) return [{ name: 'M1', previsto: 0, realizado: 0 }]
-
-    return ordered.map((item, index) => {
-      const sample = ordered.slice(0, index + 1)
-      return {
-        name: `M${index + 1}`,
-        previsto: Math.round(((index + 1) / ordered.length) * 100),
-        realizado: Math.round(sample.reduce((sum, current) => sum + Number(current.progresso || 0), 0) / sample.length),
-      }
-    })
-  }, [tarefas])
-
   if (!obraAtual) {
     return <EmptyState title="Nenhuma obra selecionada" description="Selecione uma obra para visualizar o painel executivo." />
   }
 
   const navigate = (tabId) => {
     if (!canViewModule(activeRole, tabId)) return
+
     if (tabId === 'diario' || tabId === 'fotos') {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(seenKey(user, obraAtual.id, tabId), String(Date.now()))
-        setSeenVersion((current) => current + 1)
-      }
+      window.localStorage.setItem(seenKey(user, obraAtual.id, tabId), String(Date.now()))
+      setSeenVersion((current) => current + 1)
     }
+
     if (WORKSPACE_TABS.has(tabId)) {
       window.location.href = `/workspace?module=${tabId}`
       return
     }
+
     onNavigate(tabId)
   }
 
-  const statusTone = totalAlertas > 0
-    ? 'border-amber-200 bg-amber-50 text-amber-700'
-    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  const totalTarefas = tarefas.length
+  const concluidas = tarefas.filter((item) => Number(item.progresso) === 100).length
+  const atrasadas = tarefas.filter((item) => tarefaAtrasadaOperacional(item))
+  const materiaisCriticos = pedidos.filter((item) => pedidoAtrasadoOperacional(item))
+  const totalAlertas = atrasadas.length + materiaisCriticos.length
+  const progressoMedio = totalTarefas
+    ? Math.round(tarefas.reduce((total, item) => total + (Number(item.progresso) || 0), 0) / totalTarefas)
+    : Number(obraAtual.progresso || 0)
 
-  const riskRows = [
-    ...atrasadas.slice(0, 2).map((item) => ({
-      id: `task-${item.id}`,
-      source: 'Cronograma',
-      sourceClass: 'text-blue-600',
-      item: item.nome,
-      situation: formatDate(item.data_termino || item.termino),
-      impact: 'Atividade atrasada',
-      target: 'cronograma',
-    })),
-    ...materiaisCriticos.slice(0, 2).map((item) => ({
-      id: `material-${item.id}`,
-      source: 'Compras',
-      sourceClass: 'text-amber-600',
-      item: item.item || item.material || item.nome,
-      situation: item.status || 'Atrasado',
-      impact: 'Pode afetar a execução',
-      target: 'compras',
-    })),
-  ].slice(0, 3)
+  const prazoFinal = obraAtual.prazo_final || obraAtual.previsao_entrega || obraAtual.previsaoEntrega
+  const ultimoDiario = diariosVisiveis[0] || null
+  const ultimaFoto = fotosVisiveis[0] || null
+  const ultimaFotoUrl = ultimaFoto?.url || ultimaFoto?.url_foto || ultimaFoto?.data?.url || ultimaFoto?.data?.url_foto || ''
+
+  const diariosNovos = useMemo(
+    () => unreadCount(diariosVisiveis, user, obraAtual.id, 'diario'),
+    [diariosVisiveis, user, obraAtual.id, seenVersion],
+  )
+  const fotosNovas = useMemo(
+    () => unreadCount(fotosVisiveis, user, obraAtual.id, 'fotos'),
+    [fotosVisiveis, user, obraAtual.id, seenVersion],
+  )
+
+  const tarefasOrdenadas = useMemo(() => [...tarefas]
+    .sort((a, b) => new Date(a.data_termino || a.termino || '2999-12-31') - new Date(b.data_termino || b.termino || '2999-12-31')),
+  [tarefas])
+
+  const dadosEvolucao = useMemo(() => {
+    const ordered = tarefasOrdenadas.slice(0, 7)
+    if (!ordered.length) return [{ name: 'S1', previsto: 0, realizado: 0 }]
+
+    return ordered.map((item, index) => {
+      const sample = ordered.slice(0, index + 1)
+      return {
+        name: `S${index + 1}`,
+        previsto: Math.round(((index + 1) / ordered.length) * 100),
+        realizado: Math.round(sample.reduce((sum, current) => sum + Number(current.progresso || 0), 0) / sample.length),
+      }
+    })
+  }, [tarefasOrdenadas])
 
   return (
-    <div className="mx-auto w-full max-w-[1700px] animate-fade-in space-y-3 xl:grid xl:h-[calc(100vh-6.5rem)] xl:min-h-[590px] xl:grid-rows-[68px_minmax(0,1fr)_104px] xl:space-y-0 xl:overflow-hidden">
-      <section className="overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white shadow-[0_14px_35px_-30px_rgba(15,23,42,0.7)]">
-        <div className="flex h-full flex-col gap-3 px-4 py-2.5 xl:flex-row xl:items-center">
-          <div className="min-w-0 xl:w-[270px]">
-            <div className="flex items-center gap-2">
-              <span className={`rounded-full border px-2 py-0.5 text-[7px] font-black uppercase tracking-wider ${statusTone}`}>{obraAtual.status || 'Em andamento'}</span>
-              <span className="truncate text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">{obraAtual.etapa || 'Planejamento'}</span>
-            </div>
-            <h1 className="mt-1 truncate text-sm font-black tracking-tight text-slate-950">{obraAtual.nome}</h1>
-            <p className="truncate text-[9px] font-semibold text-slate-500">{obraAtual.cliente || obraAtual.responsavel || 'Gestão executiva da obra'}</p>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-3 text-[8px] font-black uppercase tracking-wider text-slate-400">
-              <span>Evolução física</span><span className="text-slate-950">{progressoMedio}%</span>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400" style={{ width: `${Math.max(0, Math.min(100, progressoMedio))}%` }} />
-            </div>
-          </div>
-
-          <div className="grid shrink-0 grid-cols-3 gap-2 xl:w-[405px]">
-            {[
-              ['Entrega', formatDate(prazoFinal, { day: '2-digit', month: '2-digit', year: '2-digit' })],
-              ['Prazo', diasRestantes == null ? '—' : diasRestantes >= 0 ? `${diasRestantes} dias` : `${Math.abs(diasRestantes)}d atraso`],
-              ['Alertas', `${totalAlertas} ${totalAlertas === 1 ? 'item' : 'itens'}`],
-            ].map(([label, value], index) => (
-              <div key={label} className={`rounded-lg border px-2.5 py-1.5 ${index === 2 && totalAlertas > 0 ? 'border-red-200 bg-red-50' : 'border-slate-200/80 bg-slate-50/70'}`}>
-                <p className={`text-[7px] font-black uppercase tracking-wider ${index === 2 && totalAlertas > 0 ? 'text-red-500' : 'text-slate-400'}`}>{label}</p>
-                <p className={`mt-0.5 truncate text-[10px] font-black ${index === 2 && totalAlertas > 0 ? 'text-red-700' : 'text-slate-900'}`}>{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="mx-auto w-full max-w-[1700px] animate-fade-in space-y-3 xl:grid xl:h-[calc(100vh-7.5rem)] xl:min-h-[560px] xl:grid-rows-[76px_minmax(0,1fr)_94px] xl:gap-3 xl:space-y-0 xl:overflow-hidden">
+      <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Progresso da obra"
+          value={`${progressoMedio}%`}
+          detail="Evolução física consolidada"
+          icon={TrendingUp}
+          tone="blue"
+          onClick={() => navigate('cronograma')}
+        />
+        <MetricCard
+          title="Previsão de entrega"
+          value={formatDate(prazoFinal)}
+          detail={obraAtual.status || 'Prazo contratual'}
+          icon={CalendarDays}
+          tone="indigo"
+          onClick={() => navigate('cronograma')}
+        />
+        <MetricCard
+          title="Tarefas concluídas"
+          value={`${concluidas}/${totalTarefas}`}
+          detail="Atividades do cronograma"
+          icon={CheckCircle2}
+          tone="emerald"
+          onClick={() => navigate('cronograma')}
+        />
+        <MetricCard
+          title="Alertas operacionais"
+          value={totalAlertas}
+          detail={`${atrasadas.length} serviço(s) · ${materiaisCriticos.length} material(is)`}
+          icon={AlertCircle}
+          tone={totalAlertas ? 'red' : 'slate'}
+          onClick={() => navigate(atrasadas.length ? 'cronograma' : 'compras')}
+        />
       </section>
 
-      <section className="grid min-h-0 grid-cols-1 gap-3 py-3 xl:grid-cols-12">
-        <div className="grid min-h-0 gap-3 xl:col-span-4 xl:grid-rows-[142px_minmax(0,1fr)]">
-          <section className="overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white p-3.5 shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)]">
-            <SectionHeader eyebrow="Visão executiva" title="Status geral da obra" />
-            <div className="mt-2.5 flex items-center gap-3">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full p-[6px]" style={{ background: `conic-gradient(#2563eb ${Math.max(0, Math.min(100, progressoMedio)) * 3.6}deg, #e2e8f0 0deg)` }}>
-                <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-white shadow-inner">
-                  <span className="text-xl font-black tracking-tight text-slate-950">{progressoMedio}%</span>
-                  <span className="text-[7px] font-black uppercase tracking-wider text-slate-400">executado</span>
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[8px] font-black uppercase tracking-[0.13em] text-blue-600">{obraAtual.etapa || 'Etapa atual'}</p>
-                <h2 className="mt-0.5 line-clamp-2 text-xs font-black leading-4 text-slate-950">{obraAtual.nome}</h2>
-                <p className="mt-1 line-clamp-2 text-[9px] font-semibold leading-3.5 text-slate-500">{concluidas} de {totalTarefas} atividades concluídas.</p>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid min-h-0 grid-cols-2 gap-2">
-            <CompactKpi icon={CheckCircle2} label="Concluídas" value={concluidas} tone="emerald" onClick={() => navigate('cronograma')} />
-            <CompactKpi icon={Clock3} label="Em andamento" value={emAndamento} tone="blue" onClick={() => navigate('cronograma')} />
-            <CompactKpi icon={AlertCircle} label="Atrasadas" value={atrasadas.length} tone={atrasadas.length ? 'red' : 'slate'} onClick={() => navigate('cronograma')} />
-            <CompactKpi icon={Package} label="Materiais críticos" value={materiaisCriticos.length} tone={materiaisCriticos.length ? 'amber' : 'slate'} onClick={() => navigate('compras')} />
+      <section className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
+        <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
+          <PanelHeader eyebrow="Performance física" title="Curva S — previsto x realizado" action="Abrir cronograma" onAction={() => navigate('cronograma')} />
+          <div className="mt-2 flex items-center gap-4 text-[8px] font-bold text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />Previsto</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Realizado</span>
           </div>
-        </div>
 
-        <div className="grid min-h-0 gap-3 xl:col-span-5 xl:grid-rows-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
-          <section className="min-h-0 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white p-3.5 shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)]">
-            <SectionHeader eyebrow="Performance física" title="Planejado x realizado" action="Cronograma" onAction={() => navigate('cronograma')} />
-            <div className="mt-1 flex items-center gap-3 text-[8px] font-bold text-slate-500">
-              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />Planejado</span>
-              <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Realizado</span>
-            </div>
-            <div className="h-[calc(100%-38px)] min-h-[120px] w-full">
-              {isMounted && (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dadosEvolucao} margin={{ top: 8, right: 5, left: -24, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} />
-                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} />
-                    <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '9px' }} />
-                    <Area type="monotone" dataKey="previsto" name="Planejado" stroke="#2563eb" strokeWidth={2.2} fill="url(#plannedFill)" />
-                    <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.2} fill="url(#realFill)" />
-                    <defs>
-                      <linearGradient id="plannedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.14}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                      <linearGradient id="realFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.12}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
-                    </defs>
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </section>
+          <div className="mt-1 h-[calc(100%-42px)] min-h-[170px] w-full">
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dadosEvolucao} margin={{ top: 10, right: 8, left: -22, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
+                  <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
+                  <Tooltip contentStyle={{ borderRadius: '11px', border: '1px solid #e2e8f0', fontSize: '10px', boxShadow: '0 14px 35px -24px rgba(15,23,42,.5)' }} />
+                  <Area type="monotone" dataKey="previsto" name="Previsto" stroke="#2563eb" strokeWidth={2.4} fill="url(#plannedFill)" />
+                  <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.4} fill="url(#realFill)" />
+                  <defs>
+                    <linearGradient id="plannedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="realFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.13}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
+                  </defs>
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </section>
 
-          <section className="min-h-0 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white p-3.5 shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)]">
-            <SectionHeader eyebrow="Planejamento imediato" title="Próximas atividades" action="Ver todas" onAction={() => navigate('cronograma')} />
-            <div className="mt-1 divide-y divide-slate-100">
-              {proximasAtividades.map((item) => {
-                const progress = Math.max(0, Math.min(100, Number(item.progresso || 0)))
-                const delayed = tarefaAtrasadaOperacional(item)
-                return (
-                  <button key={item.id} type="button" onClick={() => navigate('cronograma')} className="flex w-full items-center gap-2 py-1.5 text-left">
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${delayed ? 'bg-red-500' : progress > 0 ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                    <span className="min-w-0 flex-1 truncate text-[9px] font-bold text-slate-800">{item.nome}</span>
-                    <span className="shrink-0 text-[8px] font-bold text-slate-400">{formatDate(item.data_termino || item.termino)}</span>
-                    <span className="w-9 shrink-0"><span className="block h-1 overflow-hidden rounded-full bg-slate-100"><span className={`block h-full ${delayed ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${progress}%` }} /></span></span>
-                  </button>
-                )
-              })}
-              {!proximasAtividades.length && <p className="py-4 text-center text-[9px] font-bold text-slate-400">Nenhuma atividade pendente.</p>}
-            </div>
-          </section>
-        </div>
+        <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
+          <PanelHeader eyebrow="Cronograma físico" title="Atividades e avanço da obra" action="Ver completo" onAction={() => navigate('cronograma')} />
 
-        <div className="grid min-h-0 gap-3 xl:col-span-3 xl:grid-rows-[minmax(0,1.05fr)_minmax(0,0.95fr)_64px]">
-          {canViewModule(activeRole, 'diario') && (
-            <section className="min-h-0 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white p-3.5 shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)]">
-              <SectionHeader eyebrow="Último diário" title={ultimoDiario?.data ? formatDate(ultimoDiario.data, { day: '2-digit', month: 'long' }) : 'Sem registro'} action="Abrir" onAction={() => navigate('diario')} />
-              <div className="mt-2 flex gap-2.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-100"><FileText size={14} /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-4 text-[9px] font-semibold leading-4 text-slate-700">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Nenhuma informação registrada.'}</p>
-                  {diariosNovos > 0 && <span className="mt-1.5 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[7px] font-black uppercase text-red-600">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
-                </div>
-              </div>
-            </section>
-          )}
+          <div className="mt-3 grid min-h-0 gap-2.5">
+            {tarefasOrdenadas.slice(0, 5).map((item, index) => {
+              const progress = Math.max(0, Math.min(100, Number(item.progresso || 0)))
+              const delayed = tarefaAtrasadaOperacional(item)
+              const completed = progress === 100
 
-          {canViewModule(activeRole, 'compras') && (
-            <section className="min-h-0 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white p-3.5 shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)]">
-              <SectionHeader eyebrow="Suprimentos" title="Materiais críticos" action="Compras" onAction={() => navigate('compras')} />
-              <div className="mt-1 divide-y divide-slate-100">
-                {(materiaisCriticos.length ? materiaisCriticos : pedidos.filter((item) => String(item.status || '').toLowerCase() !== 'recebido')).slice(0, 4).map((item) => (
-                  <button key={item.id} type="button" onClick={() => navigate('compras')} className="flex w-full items-center gap-2 py-1.5 text-left">
-                    <ShoppingBag size={11} className="shrink-0 text-slate-400" />
-                    <span className="min-w-0 flex-1 truncate text-[9px] font-bold text-slate-700">{item.item || item.material || item.nome}</span>
-                    <span className={`shrink-0 text-[7px] font-black uppercase ${pedidoAtrasadoOperacional(item) ? 'text-red-600' : 'text-blue-600'}`}>{pedidoAtrasadoOperacional(item) ? 'Crítico' : item.status || 'Pendente'}</span>
-                  </button>
-                ))}
-                {!pedidos.length && <p className="py-4 text-center text-[9px] font-bold text-slate-400">Nenhum material cadastrado.</p>}
-              </div>
-            </section>
-          )}
+              return (
+                <button key={item.id || index} type="button" onClick={() => navigate('cronograma')} className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50">
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[9px] font-black ${completed ? 'bg-emerald-50 text-emerald-700' : delayed ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="truncate text-[10px] font-bold text-slate-800">{item.nome}</span>
+                      <span className={`shrink-0 text-[9px] font-black ${completed ? 'text-emerald-600' : delayed ? 'text-red-600' : 'text-slate-500'}`}>{progress}%</span>
+                    </span>
+                    <span className="mt-1 flex items-center gap-2">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className={`block h-full rounded-full ${completed ? 'bg-emerald-500' : delayed ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${progress}%` }} /></span>
+                      <span className="w-14 shrink-0 text-right text-[8px] font-bold text-slate-400">{formatDate(item.data_termino || item.termino)}</span>
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
 
-          {canViewModule(activeRole, 'fotos') && (
-            <button type="button" onClick={() => navigate('fotos')} className="group flex items-center gap-2.5 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white p-2.5 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)] transition hover:border-violet-300">
-              {ultimaFotoUrl ? <img src={ultimaFotoUrl} alt="Última foto da obra" className="h-10 w-14 shrink-0 rounded-lg object-cover ring-1 ring-slate-200" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 ring-1 ring-violet-100"><Camera size={14} /></span>}
-              <span className="min-w-0 flex-1"><span className="block text-[7px] font-black uppercase tracking-[0.13em] text-slate-400">Acervo fotográfico</span><span className="mt-0.5 block text-xs font-black text-slate-950">{fotosVisiveis.length} foto{fotosVisiveis.length === 1 ? '' : 's'}</span></span>
-              <ArrowRight size={13} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
-            </button>
-          )}
-        </div>
+            {!tarefasOrdenadas.length && <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-xs font-bold text-slate-400">Nenhuma atividade cadastrada no cronograma.</p>}
+          </div>
+        </section>
       </section>
 
-      <section className={`overflow-hidden rounded-[1.15rem] border bg-white shadow-[0_14px_34px_-29px_rgba(15,23,42,0.7)] ${totalAlertas ? 'border-red-200' : 'border-emerald-200'}`}>
-        <div className={`flex items-center justify-between border-b px-3.5 py-2 ${totalAlertas ? 'border-red-100 bg-red-50/70' : 'border-emerald-100 bg-emerald-50/70'}`}>
-          <div className="flex min-w-0 items-center gap-2">
-            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${totalAlertas ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}><Gauge size={14} /></span>
-            <div className="min-w-0"><p className={`text-[7px] font-black uppercase tracking-[0.14em] ${totalAlertas ? 'text-red-600' : 'text-emerald-600'}`}>Inteligência operacional</p><h3 className="truncate text-[10px] font-black text-slate-950">{totalAlertas ? 'Itens que podem impactar o cronograma' : 'Nenhum risco crítico identificado'}</h3></div>
-          </div>
-          <span className={`shrink-0 text-[8px] font-black uppercase ${totalAlertas ? 'text-red-600' : 'text-emerald-600'}`}>{totalAlertas} {totalAlertas === 1 ? 'alerta' : 'alertas'}</span>
-        </div>
+      <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+        {canViewModule(activeRole, 'compras') && (
+          <button type="button" onClick={() => navigate('compras')} className="group flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-amber-300">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100"><Package size={18} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Materiais e compras</span>
+              <span className="mt-1 block text-lg font-black leading-none text-slate-950">{materiaisCriticos.length} crítico{materiaisCriticos.length === 1 ? '' : 's'}</span>
+              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">{materiaisCriticos[0]?.item || materiaisCriticos[0]?.material || materiaisCriticos[0]?.nome || 'Suprimentos sem atraso crítico'}</span>
+            </span>
+            <ShoppingBag size={14} className="text-slate-300 transition group-hover:text-amber-600" />
+          </button>
+        )}
 
-        {riskRows.length ? (
-          <div className="overflow-hidden">
-            <table className="min-w-full text-left">
-              <thead className="bg-slate-50/70"><tr>{['Origem', 'Item crítico', 'Situação', 'Impacto', 'Ação'].map((header) => <th key={header} className="border-b border-slate-100 px-3.5 py-1.5 text-[7px] font-black uppercase tracking-[0.12em] text-slate-400">{header}</th>)}</tr></thead>
-              <tbody>{riskRows.map((row) => <tr key={row.id} className="border-b border-slate-100 last:border-0"><td className={`px-3.5 py-1.5 text-[8px] font-black uppercase ${row.sourceClass}`}>{row.source}</td><td className="max-w-[320px] truncate px-3.5 py-1.5 text-[9px] font-bold text-slate-800">{row.item}</td><td className="whitespace-nowrap px-3.5 py-1.5 text-[8px] font-semibold text-red-600">{row.situation}</td><td className="px-3.5 py-1.5 text-[8px] font-semibold text-slate-500">{row.impact}</td><td className="px-3.5 py-1.5"><button onClick={() => navigate(row.target)} className="text-[7px] font-black uppercase text-blue-600">Abrir</button></td></tr>)}</tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="flex h-[58px] items-center gap-2.5 px-3.5 text-[9px] font-semibold text-slate-600"><CheckCircle2 size={15} className="text-emerald-600" />Cronograma e suprimentos sem alertas críticos.</div>
+        {canViewModule(activeRole, 'diario') && (
+          <button type="button" onClick={() => navigate('diario')} className="group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-blue-300">
+            {diariosNovos > 0 && <span className="absolute right-3 top-2.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[7px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100"><FileText size={18} /></span>
+            <span className="min-w-0 flex-1 pr-5">
+              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Último diário de obra</span>
+              <span className="mt-1 block text-[10px] font-black text-slate-900">{ultimoDiario?.data ? formatDate(ultimoDiario.data, { day: '2-digit', month: 'long' }) : 'Sem registro'}</span>
+              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Nenhuma informação cadastrada'}</span>
+            </span>
+            <ArrowRight size={14} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+          </button>
+        )}
+
+        {canViewModule(activeRole, 'fotos') && (
+          <button type="button" onClick={() => navigate('fotos')} className="group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-violet-300">
+            {fotosNovas > 0 && <span className="absolute right-3 top-2.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[7px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
+            {ultimaFotoUrl ? <img src={ultimaFotoUrl} alt="Última foto da obra" className="h-12 w-16 shrink-0 rounded-xl object-cover ring-1 ring-slate-200" /> : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 ring-1 ring-violet-100"><Camera size={18} /></span>}
+            <span className="min-w-0 flex-1 pr-5">
+              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Acervo fotográfico</span>
+              <span className="mt-1 block text-lg font-black leading-none text-slate-950">{fotosVisiveis.length} foto{fotosVisiveis.length === 1 ? '' : 's'}</span>
+              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">Evolução visual documentada</span>
+            </span>
+            <ArrowRight size={14} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
+          </button>
         )}
       </section>
     </div>
