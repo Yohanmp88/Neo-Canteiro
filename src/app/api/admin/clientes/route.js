@@ -138,7 +138,7 @@ async function findOrInviteClient(admin, { email, nome, empresa, origin }) {
   }
 
   const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origin}/`,
+    redirectTo: `${origin}/definir-senha?tipo=convite`,
     data: {
       nome,
       empresa,
