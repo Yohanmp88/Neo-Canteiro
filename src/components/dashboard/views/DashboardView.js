@@ -39,6 +39,37 @@ import {
 const WORKSPACE_TABS = new Set(['compras', 'diario', 'fotos', 'materiais', 'equipe', 'financeiro', 'crm', 'clientes'])
 const SEEN_PREFIX = 'neocanteiro_module_seen_v1'
 
+const CARD_TONES = {
+  blue: {
+    icon: 'bg-blue-50 text-blue-700 ring-blue-100',
+    accent: 'from-blue-500 via-blue-600 to-indigo-500',
+  },
+  indigo: {
+    icon: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+    accent: 'from-indigo-500 via-indigo-600 to-violet-500',
+  },
+  emerald: {
+    icon: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    accent: 'from-emerald-400 via-emerald-500 to-teal-500',
+  },
+  red: {
+    icon: 'bg-red-50 text-red-700 ring-red-100',
+    accent: 'from-red-400 via-red-500 to-rose-500',
+  },
+  orange: {
+    icon: 'bg-orange-50 text-orange-700 ring-orange-100',
+    accent: 'from-orange-400 via-orange-500 to-amber-500',
+  },
+  slate: {
+    icon: 'bg-slate-100 text-slate-700 ring-slate-200',
+    accent: 'from-slate-500 via-slate-600 to-slate-700',
+  },
+  purple: {
+    icon: 'bg-purple-50 text-purple-700 ring-purple-100',
+    accent: 'from-purple-400 via-purple-500 to-fuchsia-500',
+  },
+}
+
 function recordTimestamp(record) {
   const value = record?.updated_at || record?.created_at || (record?.data ? `${record.data}T23:59:59` : '')
   const time = new Date(value).getTime()
@@ -53,6 +84,41 @@ function unreadCount(records, user, obraId, moduleKey) {
   if (typeof window === 'undefined') return 0
   const lastSeen = Number(window.localStorage.getItem(seenKey(user, obraId, moduleKey)) || 0)
   return records.filter((record) => recordTimestamp(record) > lastSeen).length
+}
+
+function PremiumMetricCard({ title, value, detail, icon: Icon, tone = 'blue', notification = 0, onClick }) {
+  const visual = CARD_TONES[tone] || CARD_TONES.blue
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative min-h-[94px] overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white p-3.5 text-left shadow-[0_16px_45px_-34px_rgba(15,23,42,0.65)] transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_20px_48px_-30px_rgba(37,99,235,0.35)] active:translate-y-0"
+    >
+      <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${visual.accent}`} />
+
+      {notification > 0 && (
+        <span className="absolute right-3 top-3 flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-lg shadow-red-600/20">
+          {notification > 99 ? '99+' : notification}
+        </span>
+      )}
+
+      <div className="flex h-full items-center gap-3.5">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${visual.icon}`}>
+          <Icon size={18} strokeWidth={2.3} />
+        </div>
+
+        <div className="min-w-0 flex-1 pr-3">
+          <p className="truncate text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">{title}</p>
+          <div className="mt-1 flex items-end gap-2">
+            <p className="truncate text-[24px] font-black leading-none tracking-tight text-slate-950">{value}</p>
+            <ArrowRight size={14} className="mb-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500" />
+          </div>
+          {detail && <p className="mt-1 truncate text-[10px] font-bold text-slate-500">{detail}</p>}
+        </div>
+      </div>
+    </button>
+  )
 }
 
 export function DashboardView({
@@ -154,72 +220,75 @@ export function DashboardView({
     { name: 'S7', previsto: 100, realizado: 95 },
   ]
 
-  const MiniCard = ({ title, value, detail, icon: Icon, color = 'blue', notification = 0, onClick }) => (
-    <button
-      onClick={onClick}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200/60 bg-white p-2.5 text-left transition-all hover:border-blue-400 hover:shadow-sm active:scale-95"
-    >
-      {notification > 0 && (
-        <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[8px] font-black text-white shadow-sm">
-          {notification > 99 ? '99+' : notification}
-        </span>
-      )}
-      <div className="mb-1 flex items-center gap-1.5 pr-5">
-        <div className={`rounded bg-${color}-50 p-1 text-${color}-600`}>
-          <Icon size={12} />
-        </div>
-        <p className="truncate text-[8px] font-black uppercase tracking-wider text-slate-400">{title}</p>
-      </div>
-      <div>
-        <h4 className="text-base font-black leading-none text-slate-900">{value}</h4>
-        {detail && <p className="mt-0.5 truncate text-[7px] font-bold text-slate-500">{detail}</p>}
-      </div>
-    </button>
-  )
+  const prazoEntrega = obraAtual.prazo_final
+    ? new Date(`${String(obraAtual.prazo_final).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    : '—'
 
   return (
-    <div className="mx-auto max-w-[1600px] animate-fade-in space-y-3 px-2">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-8">
-        <MiniCard title="Progresso" value={`${progressoMedio}%`} detail="Evolução Geral" icon={TrendingUp} onClick={() => navigate('cronograma')} />
-        <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => navigate('cronograma')} />
-        <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => navigate('cronograma')} />
-        <MiniCard title="Atrasos" value={atrasosCronograma} detail="Serviços atrasados" icon={AlertCircle} color={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => navigate('cronograma')} />
-        {canViewModule(activeRole, 'compras') && <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />}
-        {canViewModule(activeRole, 'diario') && <MiniCard title="Diários" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} color="blue" notification={diariosNovos} onClick={() => navigate('diario')} />}
-        {canViewModule(activeRole, 'fotos') && <MiniCard title="Fotos" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} color="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />}
+    <div className="mx-auto w-full max-w-[1600px] animate-fade-in space-y-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <PremiumMetricCard title="Progresso da obra" value={`${progressoMedio}%`} detail="Evolução física geral" icon={TrendingUp} onClick={() => navigate('cronograma')} />
+        <PremiumMetricCard title="Previsão de entrega" value={prazoEntrega} detail="Prazo final contratado" icon={Calendar} tone="indigo" onClick={() => navigate('cronograma')} />
+        <PremiumMetricCard title="Tarefas concluídas" value={`${concluidas}/${totalTarefas}`} detail="Atividades do cronograma" icon={CheckCircle2} tone="emerald" onClick={() => navigate('cronograma')} />
+        <PremiumMetricCard title="Serviços atrasados" value={atrasosCronograma} detail={atrasosCronograma === 1 ? 'Atividade exige atenção' : 'Atividades exigem atenção'} icon={AlertCircle} tone={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => navigate('cronograma')} />
+        {canViewModule(activeRole, 'compras') && <PremiumMetricCard title="Materiais em atraso" value={materiaisAtrasados} detail="Suprimentos com impacto" icon={ShoppingBag} tone={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />}
+        {canViewModule(activeRole, 'diario') && <PremiumMetricCard title="Diários de obra" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'} cadastrado${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} notification={diariosNovos} onClick={() => navigate('diario')} />}
+        {canViewModule(activeRole, 'fotos') && <PremiumMetricCard title="Fotos da obra" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'} cadastrada${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} tone="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />}
         {canViewModule(activeRole, 'timeline') && (
-          <button className="flex items-center justify-center rounded-xl bg-slate-900 p-2 text-white transition-colors hover:bg-slate-800" onClick={() => navigate('timeline')}>
-            <Layers size={14} className="mr-1.5" />
-            <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
+          <button
+            type="button"
+            onClick={() => navigate('timeline')}
+            className="group relative min-h-[94px] overflow-hidden rounded-[1.35rem] border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-3.5 text-left text-white shadow-[0_18px_42px_-28px_rgba(15,23,42,0.9)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_50px_-28px_rgba(37,99,235,0.45)]"
+          >
+            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-blue-500/15 blur-2xl" />
+            <div className="relative flex h-full items-center gap-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+                <Layers size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.13em] text-blue-200">Linha do tempo</p>
+                <div className="mt-1 flex items-end gap-2">
+                  <p className="text-xl font-black leading-none tracking-tight">Abrir histórico</p>
+                  <ArrowRight size={14} className="mb-0.5 text-blue-300 transition group-hover:translate-x-0.5" />
+                </div>
+                <p className="mt-1 text-[10px] font-bold text-slate-300">Evolução cronológica completa</p>
+              </div>
+            </div>
           </button>
         )}
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        <PanelClean className="min-h-[220px] !p-3 lg:col-span-5">
-          <div className="mb-2 flex items-center justify-between">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <PanelClean className="min-h-[245px] !rounded-[1.6rem] !border-slate-200/80 !p-5 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.65)] xl:col-span-5">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Análise de Performance</p>
-              <h3 className="flex items-center gap-1.5 text-xs font-black text-slate-900">
-                <Target size={12} className="text-blue-600" />
-                Curva S - Previsto vs Realizado
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-blue-600">Análise de performance</p>
+              <h3 className="mt-1 flex items-center gap-2 text-sm font-black text-slate-950">
+                <Target size={16} className="text-blue-600" />
+                Curva S — Previsto x realizado
               </h3>
             </div>
             <StatusBadge status={obraAtual.status} />
           </div>
-          <div className="h-[150px] w-full">
+
+          <div className="mt-3 flex items-center gap-4 text-[10px] font-bold text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-600" />Previsto</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Realizado</span>
+          </div>
+
+          <div className="mt-2 h-[164px] w-full">
             {isMounted && (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dadosEvolucao}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" hide />
-                  <YAxis hide />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '9px', padding: '4px' }} />
-                  <Area type="monotone" dataKey="previsto" stroke="#2563eb" strokeWidth={2} fill="url(#colorPrevisto)" />
-                  <Area type="monotone" dataKey="realizado" stroke="#10b981" strokeWidth={2} fill="url(#colorRealizado)" />
+                <AreaChart data={dadosEvolucao} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                  <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '11px', padding: '8px 10px', boxShadow: '0 12px 32px -18px rgba(15,23,42,.45)' }} />
+                  <Area type="monotone" dataKey="previsto" name="Previsto" stroke="#2563eb" strokeWidth={2.5} fill="url(#colorPrevisto)" />
+                  <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.5} fill="url(#colorRealizado)" />
                   <defs>
-                    <linearGradient id="colorPrevisto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                    <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorPrevisto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.16}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorRealizado" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.14}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
                   </defs>
                 </AreaChart>
               </ResponsiveContainer>
@@ -227,40 +296,65 @@ export function DashboardView({
           </div>
         </PanelClean>
 
-        <PanelClean className="min-h-[220px] cursor-pointer !p-3 transition-colors hover:border-blue-300 lg:col-span-4" onClick={() => navigate('cronograma')}>
-          <div className="mb-3 flex items-center justify-between">
+        <PanelClean className="min-h-[245px] cursor-pointer !rounded-[1.6rem] !border-slate-200/80 !p-5 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.65)] transition hover:border-blue-300 hover:shadow-[0_22px_48px_-34px_rgba(37,99,235,0.28)] xl:col-span-4" onClick={() => navigate('cronograma')}>
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Acompanhamento</p>
-              <h3 className="flex items-center gap-1.5 text-xs font-black text-slate-900"><BarChart3 size={12} className="text-indigo-600" />Cronograma Físico</h3>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-indigo-600">Acompanhamento executivo</p>
+              <h3 className="mt-1 flex items-center gap-2 text-sm font-black text-slate-950"><BarChart3 size={16} className="text-indigo-600" />Cronograma físico</h3>
             </div>
-            <div className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[8px] font-black text-blue-600">LIVE</div>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase text-blue-700 ring-1 ring-blue-100">Ao vivo</span>
           </div>
 
-          <div className="space-y-2.5">
-            {tarefas.slice(0, 4).map((tarefa, index) => (
-              <div key={tarefa.id || index} className="space-y-1">
-                <div className="flex items-center justify-between text-[9px] font-bold"><span className="max-w-[120px] truncate text-slate-700">{tarefa.nome}</span><span className="text-slate-400">{tarefa.progresso}%</span></div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"><div className={`h-full transition-all duration-700 ${Number(tarefa.progresso) === 100 ? 'bg-emerald-500' : tarefaAtrasadaOperacional(tarefa) ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${tarefa.progresso}%` }} /></div>
-              </div>
-            ))}
-            {tarefas.length > 4 && <p className="mt-1 text-center text-[8px] font-bold uppercase tracking-tighter text-slate-400">+ {tarefas.length - 4} atividades ativas</p>}
+          <div className="mt-5 space-y-3.5">
+            {tarefas.slice(0, 5).map((tarefa, index) => {
+              const progress = Math.max(0, Math.min(100, Number(tarefa.progresso || 0)))
+              const delayed = tarefaAtrasadaOperacional(tarefa)
+              const completed = progress === 100
+
+              return (
+                <div key={tarefa.id || index} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-[11px] font-bold">
+                    <span className="min-w-0 flex-1 truncate text-slate-700">{tarefa.nome}</span>
+                    <span className={delayed ? 'text-red-600' : completed ? 'text-emerald-600' : 'text-slate-500'}>{progress}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full transition-all duration-700 ${completed ? 'bg-emerald-500' : delayed ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+
+            {!tarefas.length && <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-xs font-bold text-slate-400">Nenhuma atividade cadastrada no cronograma.</p>}
+            {tarefas.length > 5 && <p className="pt-0.5 text-center text-[9px] font-black uppercase tracking-wider text-slate-400">+ {tarefas.length - 5} atividades no cronograma</p>}
           </div>
         </PanelClean>
 
-        <div className="space-y-3 lg:col-span-3">
-          {canViewModule(activeRole, 'diario') && <button onClick={() => navigate('diario')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
-            {diariosNovos > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[8px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
-            <div className="flex items-center justify-between"><div className="rounded-lg bg-slate-900 p-1.5 text-white"><FileText size={14} /></div><ArrowRight size={12} className="text-slate-300 group-hover:text-blue-500" /></div>
-            <div><p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Último diário</p><h4 className="line-clamp-2 text-[10px] font-bold leading-tight text-slate-900">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Sem relatos registrados.'}</h4></div>
-          </button>}
+        <div className="grid gap-4 sm:grid-cols-2 xl:col-span-3 xl:grid-cols-1">
+          {canViewModule(activeRole, 'diario') && (
+            <button onClick={() => navigate('diario')} className="group relative min-h-[114px] overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white p-4 text-left shadow-[0_18px_48px_-38px_rgba(15,23,42,0.65)] transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_20px_44px_-32px_rgba(37,99,235,0.3)]">
+              {diariosNovos > 0 && <span className="absolute right-4 top-4 rounded-full bg-red-600 px-2 py-1 text-[9px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
+              <div className="flex items-center justify-between">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white"><FileText size={16} /></div>
+                <ArrowRight size={15} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+              </div>
+              <p className="mt-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Último diário</p>
+              <h4 className="mt-1 line-clamp-2 text-[12px] font-bold leading-4 text-slate-900">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Sem relatos registrados.'}</h4>
+            </button>
+          )}
 
-          {canViewModule(activeRole, 'fotos') && <button onClick={() => navigate('fotos')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
-            {fotosNovas > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[8px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
-            <div className="flex items-center justify-between"><div className="rounded-lg bg-purple-50 p-1.5 text-purple-600"><Camera size={14} /></div>{ultimaFoto?.url ? <img src={ultimaFoto.url} alt="Última foto da obra" className="h-7 w-10 rounded-md object-cover ring-1 ring-slate-200" /> : <ArrowRight size={12} className="text-slate-300 group-hover:text-purple-500" />}</div>
-            <div><p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Fotos da Obra</p><h4 className="text-[10px] font-bold leading-tight text-slate-900">{fotosVisiveis.length ? `${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'} cadastrada${fotosVisiveis.length === 1 ? '' : 's'}` : 'Nenhuma foto cadastrada'}</h4></div>
-          </button>}
+          {canViewModule(activeRole, 'fotos') && (
+            <button onClick={() => navigate('fotos')} className="group relative min-h-[114px] overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white p-4 text-left shadow-[0_18px_48px_-38px_rgba(15,23,42,0.65)] transition hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-[0_20px_44px_-32px_rgba(147,51,234,0.25)]">
+              {fotosNovas > 0 && <span className="absolute right-4 top-4 z-10 rounded-full bg-red-600 px-2 py-1 text-[9px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-700 ring-1 ring-purple-100"><Camera size={16} /></div>
+                {ultimaFoto?.url ? <img src={ultimaFoto.url} alt="Última foto da obra" className="h-12 w-16 rounded-xl object-cover ring-1 ring-slate-200" /> : <ArrowRight size={15} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-purple-600" />}
+              </div>
+              <p className="mt-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Acervo fotográfico</p>
+              <h4 className="mt-1 text-[12px] font-bold leading-4 text-slate-900">{fotosVisiveis.length ? `${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'} cadastrada${fotosVisiveis.length === 1 ? '' : 's'}` : 'Nenhuma foto cadastrada'}</h4>
+            </button>
+          )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }
