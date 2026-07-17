@@ -1,0 +1,22 @@
+name: Corrigir importação de planilhas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-spreadsheet-busy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/fix-spreadsheet-busy.cjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/platform/SpreadsheetWorkspace.js
+          git commit -m "Corrige bloqueio durante a importação de planilhas"
+          git push
