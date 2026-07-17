@@ -23,6 +23,7 @@ import {
   FolderKanban,
   History,
 } from 'lucide-react'
+import { canViewModule, getRoleLabel, normalizeRole } from '@/lib/accessControl'
 
 const WORKSPACE_TABS = new Set([
   'clientes',
@@ -46,49 +47,50 @@ const MENU_GROUPS = [
   {
     label: 'Gestão',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: true },
-      { id: 'timeline', label: 'Linha do Tempo', icon: History, visible: true },
-      { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
-      { id: 'cronograma', label: 'Cronograma', icon: Calendar, visible: true },
-      { id: 'ia', label: 'IA Operacional', icon: Bot, visible: true },
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'timeline', label: 'Linha do Tempo', icon: History },
+      { id: 'clientes', label: 'Clientes', icon: UsersRound },
+      { id: 'cronograma', label: 'Cronograma', icon: Calendar },
+      { id: 'ia', label: 'IA Operacional', icon: Bot },
     ],
   },
   {
     label: 'Operação da obra',
     items: [
-      { id: 'diario', label: 'Diário de Obra', icon: FileText, restricted: true },
-      { id: 'fotos', label: 'Fotos', icon: Camera, visible: true },
-      { id: 'equipe', label: 'Equipe', icon: HardHat, restricted: true },
-      { id: 'materiais', label: 'Materiais e Estoque', icon: Package, restricted: true },
-      { id: 'compras', label: 'Gestão de Compras', icon: ShoppingCart, restricted: true },
-      { id: 'fornecedores', label: 'Fornecedores', icon: Truck, restricted: true },
+      { id: 'diario', label: 'Diário de Obra', icon: FileText },
+      { id: 'fotos', label: 'Fotos', icon: Camera },
+      { id: 'equipe', label: 'Equipe', icon: HardHat },
+      { id: 'materiais', label: 'Materiais e Estoque', icon: Package },
+      { id: 'compras', label: 'Gestão de Compras', icon: ShoppingCart },
+      { id: 'fornecedores', label: 'Fornecedores', icon: Truck },
     ],
   },
   {
     label: 'Custos e contratos',
     items: [
-      { id: 'financeiro', label: 'Financeiro', icon: DollarSign, restricted: true },
-      { id: 'orcamento', label: 'Orçamento', icon: ClipboardList, restricted: true },
-      { id: 'composicoes', label: 'Composições', icon: Layers, restricted: true },
-      { id: 'abc', label: 'Curva ABC', icon: TrendingUp, restricted: true },
-      { id: 'medicoes', label: 'Medições', icon: Ruler, visible: true },
+      { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
+      { id: 'orcamento', label: 'Orçamento', icon: ClipboardList },
+      { id: 'composicoes', label: 'Composições', icon: Layers },
+      { id: 'abc', label: 'Curva ABC', icon: TrendingUp },
+      { id: 'medicoes', label: 'Medições', icon: Ruler },
     ],
   },
   {
     label: 'Administração',
     items: [
-      { id: 'documentos', label: 'Documentos', icon: FolderKanban, visible: true },
-      { id: 'templates', label: 'Templates', icon: FileCode, visible: true },
-      { id: 'usuarios', label: 'Usuários e Permissões', icon: Settings, restricted: true },
+      { id: 'documentos', label: 'Documentos', icon: FolderKanban },
+      { id: 'templates', label: 'Templates', icon: FileCode },
+      { id: 'usuarios', label: 'Usuários e Permissões', icon: Settings },
     ],
   },
 ]
 
 export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
-  const tipoUsuario = userProfile?.tipo_usuario || userProfile?.tipo
-  const isClient = tipoUsuario === 'cliente'
+  const tipoUsuario = normalizeRole(userProfile?.tipo_usuario || userProfile?.role || userProfile?.tipo)
 
   const navegar = (tabId) => {
+    if (!canViewModule(tipoUsuario, tabId)) return
+
     if (tabId === 'ia') {
       window.location.href = '/ia'
       return
@@ -123,7 +125,7 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
 
       <nav className="custom-scrollbar flex-1 space-y-5 overflow-y-auto px-3 pb-8 pt-2">
         {MENU_GROUPS.map((group) => {
-          const visibleItems = group.items.filter((item) => !item.restricted || !isClient)
+          const visibleItems = group.items.filter((item) => canViewModule(tipoUsuario, item.id))
           if (!visibleItems.length) return null
 
           return (
@@ -167,7 +169,7 @@ export function Sidebar({ activeTab, onTabChange, userProfile, logout }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-black text-slate-900">{userProfile?.nome || 'Usuário NeoCanteiro'}</p>
-              <p className="truncate text-[10px] font-bold uppercase tracking-tight text-slate-400">{tipoUsuario || 'Membro'}</p>
+              <p className="truncate text-[10px] font-bold uppercase tracking-tight text-slate-400">{getRoleLabel(tipoUsuario)}</p>
             </div>
           </div>
 
