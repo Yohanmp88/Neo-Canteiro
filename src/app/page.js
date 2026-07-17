@@ -17,6 +17,7 @@ import { useMateriais } from '@/hooks/useMateriais'
 import { useEquipe } from '@/hooks/useEquipe'
 import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl'
 import { exportScheduleToExcel } from '@/lib/exportScheduleExcel'
+import { ScheduleExcelImport } from '@/components/platform/ScheduleExcelImport'
 
 // --- ESTILOS PREMIUM ---
 const inputClass = 'w-full rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-premium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 shadow-sm'
@@ -174,6 +175,56 @@ export default function Home() {
     } catch (e) { triggerFeedback('error', e.message) }
   }
 
+  async function importarCronogramaExcel(itens = []) {
+    if (!permissaoEditar || !obraAtualId) throw new Error('Seu perfil não permite importar o cronograma.')
+    if (!Array.isArray(itens) || !itens.length) throw new Error('Nenhuma atividade válida foi encontrada.')
+
+    const normalizeName = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+
+    const byId = new Map((tarefasRaw || []).map((item) => [String(item.id), item]))
+    const byName = new Map((tarefasRaw || []).map((item) => [normalizeName(item.nome), item]))
+    let created = 0
+    let updated = 0
+
+    triggerFeedback('saving')
+
+    try {
+      for (const item of itens) {
+        const existing = (item.external_id && byId.get(String(item.external_id))) || byName.get(normalizeName(item.nome))
+        const payload = {
+          nome: String(item.nome || '').trim(),
+          data_inicio: item.data_inicio || null,
+          data_termino: item.data_termino || null,
+          progresso: Math.max(0, Math.min(100, Number(item.progresso || 0))),
+        }
+
+        if (existing?.id) {
+          const saved = await atualizarTarefaHook(existing.id, payload)
+          const current = saved || { ...existing, ...payload }
+          byId.set(String(existing.id), current)
+          byName.set(normalizeName(current.nome), current)
+          updated += 1
+        } else {
+          const saved = await adicionarTarefaHook({ obra_id: obraAtualId, ...payload })
+          if (saved?.id) byId.set(String(saved.id), saved)
+          byName.set(normalizeName(payload.nome), saved || payload)
+          created += 1
+        }
+      }
+
+      triggerFeedback('saved')
+      return { created, updated, total: itens.length }
+    } catch (error) {
+      triggerFeedback('error', error.message)
+      throw error
+    }
+  }
+
   // Equipe
   async function adicionarMembro() {
     if (!permissaoEditar || !novoMembro.nome.trim() || !obraAtualId || String(obraAtualId).startsWith('demo')) return
@@ -260,7 +311,7 @@ export default function Home() {
           <section className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-5">
             <div className="animate-fade-in">
               {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={setTela} />}
-              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} obraAtual={obraAtualSegura} />}
+              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
               {tela === 'equipe' && canViewModule(role, 'equipe') && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
               {tela === 'diario' && canViewModule(role, 'diario') && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
               {tela === 'fotos' && canViewModule(role, 'fotos') && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
@@ -295,7 +346,7 @@ function LoginScreen({ login }) {
   )
 }
 
-function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, obraAtual }) {
+function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, importarCronogramaExcel, obraAtual }) {
   const total = tarefas.length || 0
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const atrasadas = tarefas.filter(t => (t.progresso < 100 && (t.termino || t.data_termino) && new Date(t.termino || t.data_termino) < new Date())).length
@@ -310,13 +361,16 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
           <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">Cronograma físico</h2>
           <p className="mt-1 text-xs font-semibold text-slate-500">Exporte o cronograma completo para abrir, analisar ou compartilhar no Excel.</p>
         </div>
-        <button
-          type="button"
-          onClick={exportarCronograma}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_-18px_rgba(5,150,105,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-700 active:translate-y-0"
-        >
-          Exportar Excel
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <ScheduleExcelImport canEdit={permissaoEditar} onImport={importarCronogramaExcel} />
+          <button
+            type="button"
+            onClick={exportarCronograma}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_-18px_rgba(5,150,105,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-700 active:translate-y-0"
+          >
+            Exportar Excel
+          </button>
+        </div>
       </div>
       {/* Indicadores do Cronograma */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
