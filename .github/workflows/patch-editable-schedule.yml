@@ -20,3 +20,4 @@ jobs:
           git add src/components/dashboard/Schedule.js
           git commit -m "Permite editar atividade datas e progresso do cronograma"
           git push
+      - run: echo "Edição do cronograma concluída"
