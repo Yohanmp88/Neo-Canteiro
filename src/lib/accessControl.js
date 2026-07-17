@@ -1,4 +1,5 @@
 const ALL_ACCESS = '*'
+const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
 
 const ALL_MODULES_EXCEPT_USERS = [
   'dashboard', 'timeline', 'clientes', 'cronograma', 'ia', 'diario', 'fotos',
@@ -47,7 +48,7 @@ const ROLE_RULES = {
   },
   investidor: {
     view: ALL_MODULES_EXCEPT_USERS,
-    edit: ['obras'],
+    edit: [],
   },
 }
 
@@ -81,12 +82,33 @@ function hasPermission(rule, moduleKey) {
   return Array.isArray(rule) && rule.includes(moduleKey)
 }
 
+function isEditableInvestorDemoSession() {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const value = window.localStorage.getItem(DEMO_STORAGE_KEY)
+    if (!value) return false
+    if (value === 'true') return true
+
+    const session = JSON.parse(value)
+    return session?.accountId === 'demo-investidor'
+  } catch {
+    return false
+  }
+}
+
 export function canViewModule(role, moduleKey) {
   return hasPermission(ROLE_RULES[normalizeRole(role)]?.view, moduleKey)
 }
 
 export function canEditModule(role, moduleKey) {
-  return hasPermission(ROLE_RULES[normalizeRole(role)]?.edit, moduleKey)
+  const normalized = normalizeRole(role)
+
+  if (normalized === 'investidor' && moduleKey === 'obras') {
+    return isEditableInvestorDemoSession()
+  }
+
+  return hasPermission(ROLE_RULES[normalized]?.edit, moduleKey)
 }
 
 export function canEditModuleForSession(role, moduleKey, { isDemo = false } = {}) {
@@ -96,7 +118,7 @@ export function canEditModuleForSession(role, moduleKey, { isDemo = false } = {}
     return isDemo
   }
 
-  return canEditModule(normalized, moduleKey)
+  return hasPermission(ROLE_RULES[normalized]?.edit, moduleKey)
 }
 
 export function getAllowedModules(role) {
