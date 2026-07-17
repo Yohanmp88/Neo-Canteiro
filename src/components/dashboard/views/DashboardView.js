@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PanelClean, StatusBadge } from '@/components/ui/Cards'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useCompras } from '@/hooks/useCompras'
+import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
+import '@/lib/coreModuleDefinitions'
 import {
   pedidoAtrasadoOperacional,
   tarefaAtrasadaOperacional,
@@ -30,23 +32,71 @@ import {
   ShoppingBag,
   ArrowRight,
   Target,
-  BarChart3
+  BarChart3,
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set(['compras', 'diario', 'fotos', 'materiais', 'equipe', 'financeiro', 'crm', 'clientes'])
+const SEEN_PREFIX = 'neocanteiro_module_seen_v1'
+
+function recordTimestamp(record) {
+  const value = record?.updated_at || record?.created_at || (record?.data ? `${record.data}T23:59:59` : '')
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
+function seenKey(user, obraId, moduleKey) {
+  return `${SEEN_PREFIX}:${user?.id || user?.email || 'usuario'}:${obraId || 'obra'}:${moduleKey}`
+}
+
+function unreadCount(records, user, obraId, moduleKey) {
+  if (typeof window === 'undefined') return 0
+  const lastSeen = Number(window.localStorage.getItem(seenKey(user, obraId, moduleKey)) || 0)
+  return records.filter((record) => recordTimestamp(record) > lastSeen).length
+}
 
 export function DashboardView({
   obraAtual,
   tarefas = [],
   diarios = [],
-  onNavigate
+  user,
+  onNavigate,
 }) {
   const [isMounted, setIsMounted] = useState(false)
+  const [seenVersion, setSeenVersion] = useState(0)
   const { pedidos = [] } = useCompras(obraAtual?.id)
+  const { records: diariosWorkspace = [] } = useWorkspaceRecords('diario', obraAtual?.id, user)
+  const { records: fotosWorkspace = [] } = useWorkspaceRecords('fotos', obraAtual?.id, user)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  const diariosVisiveis = useMemo(() => {
+    const unique = new Map()
+
+    ;[...diariosWorkspace, ...(diarios || [])].forEach((record) => {
+      const key = record?.id
+        ? String(record.id)
+        : `${record?.data || ''}:${record?.servicos_executados || record?.atividades || ''}`
+      if (!unique.has(key)) unique.set(key, record)
+    })
+
+    return Array.from(unique.values()).sort((a, b) => recordTimestamp(b) - recordTimestamp(a))
+  }, [diariosWorkspace, diarios])
+
+  const fotosVisiveis = useMemo(
+    () => [...fotosWorkspace].sort((a, b) => recordTimestamp(b) - recordTimestamp(a)),
+    [fotosWorkspace],
+  )
+
+  const diariosNovos = useMemo(
+    () => unreadCount(diariosVisiveis, user, obraAtual?.id, 'diario'),
+    [diariosVisiveis, user, obraAtual?.id, seenVersion],
+  )
+  const fotosNovas = useMemo(
+    () => unreadCount(fotosVisiveis, user, obraAtual?.id, 'fotos'),
+    [fotosVisiveis, user, obraAtual?.id, seenVersion],
+  )
 
   if (!obraAtual) {
     return (
@@ -57,7 +107,20 @@ export function DashboardView({
     )
   }
 
+  const markSeen = (moduleKey) => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(seenKey(user, obraAtual?.id, moduleKey), String(Date.now()))
+    setSeenVersion((current) => current + 1)
+  }
+
   const navigate = (tabId) => {
+    if (tabId === 'diario' || tabId === 'fotos') markSeen(tabId)
+
+    if (tabId === 'timeline') {
+      window.location.href = '/timeline'
+      return
+    }
+
     if (WORKSPACE_TABS.has(tabId)) {
       window.location.href = `/workspace?module=${tabId}`
       return
@@ -66,15 +129,16 @@ export function DashboardView({
     onNavigate(tabId)
   }
 
-  const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
+  const concluidas = tarefas.filter((tarefa) => Number(tarefa.progresso) === 100).length
   const totalTarefas = tarefas.length || 0
   const progressoMedio = totalTarefas > 0
-    ? Math.round(tarefas.reduce((acc, t) => acc + (Number(t.progresso) || 0), 0) / totalTarefas)
+    ? Math.round(tarefas.reduce((acc, tarefa) => acc + (Number(tarefa.progresso) || 0), 0) / totalTarefas)
     : 0
 
   const atrasosCronograma = tarefas.filter((tarefa) => tarefaAtrasadaOperacional(tarefa)).length
   const materiaisAtrasados = pedidos.filter((pedido) => pedidoAtrasadoOperacional(pedido)).length
-  const ultimoDiario = diarios?.[0] || null
+  const ultimoDiario = diariosVisiveis[0] || null
+  const ultimaFoto = fotosVisiveis[0] || null
 
   const dadosEvolucao = [
     { name: 'S1', previsto: 10, realizado: 8 },
@@ -86,46 +150,51 @@ export function DashboardView({
     { name: 'S7', previsto: 100, realizado: 95 },
   ]
 
-  const MiniCard = ({ title, value, detail, icon: Icon, color = 'blue', onClick }) => (
+  const MiniCard = ({ title, value, detail, icon: Icon, color = 'blue', notification = 0, onClick }) => (
     <button
       onClick={onClick}
       className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200/60 bg-white p-2.5 text-left transition-all hover:border-blue-400 hover:shadow-sm active:scale-95"
     >
-      <div className="flex items-center gap-1.5 mb-1">
+      {notification > 0 && (
+        <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[8px] font-black text-white shadow-sm">
+          {notification > 99 ? '99+' : notification}
+        </span>
+      )}
+      <div className="mb-1 flex items-center gap-1.5 pr-5">
         <div className={`rounded bg-${color}-50 p-1 text-${color}-600`}>
           <Icon size={12} />
         </div>
-        <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 truncate">{title}</p>
+        <p className="truncate text-[8px] font-black uppercase tracking-wider text-slate-400">{title}</p>
       </div>
       <div>
-        <h4 className="text-base font-black text-slate-900 leading-none">{value}</h4>
-        {detail && <p className="text-[7px] font-bold text-slate-500 truncate mt-0.5">{detail}</p>}
+        <h4 className="text-base font-black leading-none text-slate-900">{value}</h4>
+        {detail && <p className="mt-0.5 truncate text-[7px] font-bold text-slate-500">{detail}</p>}
       </div>
     </button>
   )
 
   return (
-    <div className="space-y-3 max-w-[1600px] mx-auto animate-fade-in px-2">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+    <div className="mx-auto max-w-[1600px] animate-fade-in space-y-3 px-2">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-8">
         <MiniCard title="Progresso" value={`${progressoMedio}%`} detail="Evolução Geral" icon={TrendingUp} onClick={() => navigate('cronograma')} />
         <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => navigate('cronograma')} />
         <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => navigate('cronograma')} />
         <MiniCard title="Atrasos" value={atrasosCronograma} detail="Serviços atrasados" icon={AlertCircle} color={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => navigate('cronograma')} />
         <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />
-        <MiniCard title="Registros" value={diarios.length} detail="Diários enviados" icon={FileText} color="blue" onClick={() => navigate('diario')} />
-        <MiniCard title="Fotos" value="Galeria" detail="Registros" icon={Camera} color="purple" onClick={() => navigate('fotos')} />
-        <button className="flex items-center justify-center p-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors" onClick={() => navigate('cronograma')}>
+        <MiniCard title="Diários" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} color="blue" notification={diariosNovos} onClick={() => navigate('diario')} />
+        <MiniCard title="Fotos" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} color="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />
+        <button className="flex items-center justify-center rounded-xl bg-slate-900 p-2 text-white transition-colors hover:bg-slate-800" onClick={() => navigate('timeline')}>
           <Layers size={14} className="mr-1.5" />
           <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <PanelClean className="lg:col-span-5 !p-3 min-h-[220px]">
-          <div className="flex items-center justify-between mb-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+        <PanelClean className="min-h-[220px] !p-3 lg:col-span-5">
+          <div className="mb-2 flex items-center justify-between">
             <div>
               <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Análise de Performance</p>
-              <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+              <h3 className="flex items-center gap-1.5 text-xs font-black text-slate-900">
                 <Target size={12} className="text-blue-600" />
                 Curva S - Previsto vs Realizado
               </h3>
@@ -152,76 +221,37 @@ export function DashboardView({
           </div>
         </PanelClean>
 
-        <PanelClean className="lg:col-span-4 !p-3 min-h-[220px] cursor-pointer hover:border-blue-300 transition-colors" onClick={() => navigate('cronograma')}>
-          <div className="flex items-center justify-between mb-3">
+        <PanelClean className="min-h-[220px] cursor-pointer !p-3 transition-colors hover:border-blue-300 lg:col-span-4" onClick={() => navigate('cronograma')}>
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Acompanhamento</p>
-              <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                <BarChart3 size={12} className="text-indigo-600" />
-                Cronograma Físico
-              </h3>
+              <h3 className="flex items-center gap-1.5 text-xs font-black text-slate-900"><BarChart3 size={12} className="text-indigo-600" />Cronograma Físico</h3>
             </div>
-            <div className="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">LIVE</div>
+            <div className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[8px] font-black text-blue-600">LIVE</div>
           </div>
 
           <div className="space-y-2.5">
-            {tarefas.slice(0, 4).map((t, idx) => (
-              <div key={t.id || idx} className="space-y-1">
-                <div className="flex justify-between items-center text-[9px] font-bold">
-                  <span className="text-slate-700 truncate max-w-[120px]">{t.nome}</span>
-                  <span className="text-slate-400">{t.progresso}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-700 ${Number(t.progresso) === 100 ? 'bg-emerald-500' : tarefaAtrasadaOperacional(t) ? 'bg-red-500' : 'bg-blue-600'}`}
-                    style={{ width: `${t.progresso}%` }}
-                  />
-                </div>
+            {tarefas.slice(0, 4).map((tarefa, index) => (
+              <div key={tarefa.id || index} className="space-y-1">
+                <div className="flex items-center justify-between text-[9px] font-bold"><span className="max-w-[120px] truncate text-slate-700">{tarefa.nome}</span><span className="text-slate-400">{tarefa.progresso}%</span></div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"><div className={`h-full transition-all duration-700 ${Number(tarefa.progresso) === 100 ? 'bg-emerald-500' : tarefaAtrasadaOperacional(tarefa) ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${tarefa.progresso}%` }} /></div>
               </div>
             ))}
-            {tarefas.length > 4 && (
-              <p className="text-[8px] font-bold text-slate-400 text-center mt-1 uppercase tracking-tighter">
-                + {tarefas.length - 4} atividades ativas
-              </p>
-            )}
+            {tarefas.length > 4 && <p className="mt-1 text-center text-[8px] font-bold uppercase tracking-tighter text-slate-400">+ {tarefas.length - 4} atividades ativas</p>}
           </div>
         </PanelClean>
 
-        <div className="lg:col-span-3 space-y-3">
-          <button
-            onClick={() => navigate('diario')}
-            className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
-          >
-            <div className="flex items-center justify-between">
-              <div className="rounded-lg bg-slate-900 p-1.5 text-white">
-                <FileText size={14} />
-              </div>
-              <ArrowRight size={12} className="text-slate-300 group-hover:text-blue-500" />
-            </div>
-            <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Última Ocorrência</p>
-              <h4 className="text-[10px] font-bold text-slate-900 line-clamp-2 leading-tight">
-                {ultimoDiario?.servicos_executados || 'Sem relatos registrados.'}
-              </h4>
-            </div>
+        <div className="space-y-3 lg:col-span-3">
+          <button onClick={() => navigate('diario')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
+            {diariosNovos > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[8px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
+            <div className="flex items-center justify-between"><div className="rounded-lg bg-slate-900 p-1.5 text-white"><FileText size={14} /></div><ArrowRight size={12} className="text-slate-300 group-hover:text-blue-500" /></div>
+            <div><p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Último diário</p><h4 className="line-clamp-2 text-[10px] font-bold leading-tight text-slate-900">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Sem relatos registrados.'}</h4></div>
           </button>
 
-          <button
-            onClick={() => navigate('fotos')}
-            className="w-full group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm h-[105px]"
-          >
-            <div className="flex items-center justify-between">
-              <div className="rounded-lg bg-purple-50 p-1.5 text-purple-600">
-                <Camera size={14} />
-              </div>
-              <div className="flex -space-x-1.5">
-                {[1, 2, 3].map(i => <div key={i} className="w-4 h-4 rounded-full border border-white bg-slate-100" />)}
-              </div>
-            </div>
-            <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Fotos da Obra</p>
-              <h4 className="text-[10px] font-bold text-slate-900 leading-tight">Canteiro e Registros</h4>
-            </div>
+          <button onClick={() => navigate('fotos')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
+            {fotosNovas > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[8px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
+            <div className="flex items-center justify-between"><div className="rounded-lg bg-purple-50 p-1.5 text-purple-600"><Camera size={14} /></div>{ultimaFoto?.url ? <img src={ultimaFoto.url} alt="Última foto da obra" className="h-7 w-10 rounded-md object-cover ring-1 ring-slate-200" /> : <ArrowRight size={12} className="text-slate-300 group-hover:text-purple-500" />}</div>
+            <div><p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Fotos da Obra</p><h4 className="text-[10px] font-bold leading-tight text-slate-900">{fotosVisiveis.length ? `${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'} cadastrada${fotosVisiveis.length === 1 ? '' : 's'}` : 'Nenhuma foto cadastrada'}</h4></div>
           </button>
         </div>
       </div>
