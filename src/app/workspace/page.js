@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChevronDown, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { BottomNav } from '@/components/dashboard/BottomNav'
+import { ClientAccessWorkspace } from '@/components/platform/ClientAccessWorkspace'
 import { DiaryWorkspace } from '@/components/platform/DiaryWorkspace'
 import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
 import { PhotoWorkspace } from '@/components/platform/PhotoWorkspace'
@@ -87,6 +88,7 @@ export default function WorkspacePage() {
   const isLucasDemo = user?.email === 'lucas.demo@nc.com'
   const canAccessModule = canViewModule(role, moduleKey)
   const canEditCurrentModule = Boolean(user) && profileReady && canAccessModule && !isLucasDemo && canEditModule(role, moduleKey)
+  const isAdminClientAccess = moduleKey === 'clientes' && role === 'administrador' && !isDemoUser
 
   const profileForNavigation = {
     ...userProfile,
@@ -139,12 +141,14 @@ export default function WorkspacePage() {
               </div>
 
               <div className="flex min-w-0 items-center gap-2">
-                <div className="relative hidden sm:block">
-                  <select value={obraId} onChange={(event) => setObraId(event.target.value)} className="max-w-56 appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-xs font-black text-slate-800 outline-none focus:border-blue-500">
-                    {obras.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                </div>
+                {!isAdminClientAccess && (
+                  <div className="relative hidden sm:block">
+                    <select value={obraId} onChange={(event) => setObraId(event.target.value)} className="max-w-56 appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-xs font-black text-slate-800 outline-none focus:border-blue-500">
+                      {obras.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                )}
 
                 <span className={`hidden items-center gap-1.5 rounded-full px-3 py-2 text-[9px] font-black uppercase ring-1 md:inline-flex ${canEditCurrentModule ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
                   {canEditCurrentModule ? <ShieldCheck size={13} /> : <LockKeyhole size={13} />}
@@ -157,12 +161,14 @@ export default function WorkspacePage() {
               </div>
             </div>
 
-            <div className="relative mt-3 sm:hidden">
-              <select value={obraId} onChange={(event) => setObraId(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-xs font-black text-slate-800 outline-none focus:border-blue-500">
-                {obras.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            </div>
+            {!isAdminClientAccess && (
+              <div className="relative mt-3 sm:hidden">
+                <select value={obraId} onChange={(event) => setObraId(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-9 text-xs font-black text-slate-800 outline-none focus:border-blue-500">
+                  {obras.map((obra) => <option key={obra.id} value={obra.id}>{obra.nome}</option>)}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            )}
           </header>
 
           {!canEditCurrentModule && (
@@ -174,7 +180,9 @@ export default function WorkspacePage() {
 
           <section className="flex-1 px-4 py-5 lg:px-8 lg:py-7">
             <div className="mx-auto w-full max-w-screen-2xl">
-              {moduleKey === 'diario' ? (
+              {isAdminClientAccess ? (
+                <ClientAccessWorkspace />
+              ) : moduleKey === 'diario' ? (
                 <DiaryWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : moduleKey === 'fotos' ? (
                 <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
