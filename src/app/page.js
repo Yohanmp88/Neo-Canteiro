@@ -16,6 +16,7 @@ import { useDiarios } from '@/hooks/useDiarios'
 import { useMateriais } from '@/hooks/useMateriais'
 import { useEquipe } from '@/hooks/useEquipe'
 import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl'
+import { exportScheduleToExcel } from '@/lib/exportScheduleExcel'
 
 // --- ESTILOS PREMIUM ---
 const inputClass = 'w-full rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-premium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 shadow-sm'
@@ -299,9 +300,25 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const atrasadas = tarefas.filter(t => (t.progresso < 100 && (t.termino || t.data_termino) && new Date(t.termino || t.data_termino) < new Date())).length
   const progressoGlobal = total > 0 ? Math.round(tarefas.reduce((a, t) => a + Number(t.progresso), 0) / total) : 0
+  const exportarCronograma = () => exportScheduleToExcel({ obra: obraAtual, tarefas })
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-blue-600">Planejamento da obra</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">Cronograma físico</h2>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Exporte o cronograma completo para abrir, analisar ou compartilhar no Excel.</p>
+        </div>
+        <button
+          type="button"
+          onClick={exportarCronograma}
+          disabled={!tarefas.length}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_-18px_rgba(5,150,105,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Exportar Excel
+        </button>
+      </div>
       {/* Indicadores do Cronograma */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
