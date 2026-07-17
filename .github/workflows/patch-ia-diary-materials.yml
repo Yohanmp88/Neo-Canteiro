@@ -1,0 +1,27 @@
+name: Atualizar IA do diário
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-ia-diary-materials.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Atualizar leitura do diário pela IA
+        run: node scripts/patch-ia-diary-materials.cjs
+
+      - name: Publicar correção
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/ia/page.js
+          git commit -m "Inclui materiais recebidos nas respostas da IA"
+          git push
