@@ -23,13 +23,11 @@ function applyTheme(theme) {
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState('light')
-  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const initial = resolveInitialTheme()
     setTheme(initial)
     applyTheme(initial)
-    setReady(true)
   }, [])
 
   const toggleTheme = () => {
