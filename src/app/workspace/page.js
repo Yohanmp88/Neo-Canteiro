@@ -9,6 +9,7 @@ import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
 import { PhotoWorkspace } from '@/components/platform/PhotoWorkspace'
 import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
 import { CORE_MODULE_KEYS } from '@/lib/coreModuleDefinitions'
+import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl'
 import { useAuth } from '@/hooks/useAuth'
 import { useObras } from '@/hooks/useObras'
 
@@ -21,11 +22,19 @@ const OBRAS_DEMO = [
   { id: 'demo-3', nome: 'Harmonia', cliente: 'Condomínio Harmonia', status: 'Planejamento' },
 ]
 
+function firstWorkspaceModule(role) {
+  return WORKSPACE_KEYS.find((moduleKey) => canViewModule(role, moduleKey)) || null
+}
+
 export default function WorkspacePage() {
   const { user, userProfile, loading: authLoading, logout } = useAuth()
   const { obras: obrasRaw = [] } = useObras()
   const [moduleKey, setModuleKey] = useState('clientes')
   const [obraId, setObraId] = useState('demo-1')
+
+  const isDemoUser = user?.app_metadata?.provider === 'demo'
+  const profileReady = Boolean(userProfile) || isDemoUser
+  const role = normalizeRole(userProfile?.tipo_usuario || userProfile?.role || user?.user_metadata?.role)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -45,6 +54,20 @@ export default function WorkspacePage() {
     if (!authLoading && !user) window.location.replace('/')
   }, [authLoading, user])
 
+  useEffect(() => {
+    if (!user || !profileReady) return
+    if (canViewModule(role, moduleKey)) return
+
+    const fallback = firstWorkspaceModule(role)
+    if (!fallback) {
+      window.location.replace('/')
+      return
+    }
+
+    setModuleKey(fallback)
+    window.history.replaceState({}, '', `/workspace?module=${fallback}`)
+  }, [user, profileReady, role, moduleKey])
+
   const obras = useMemo(() => {
     const reais = (obrasRaw || []).filter(Boolean)
     return reais.length ? reais : OBRAS_DEMO
@@ -61,21 +84,21 @@ export default function WorkspacePage() {
     [obras, obraId],
   )
 
-  const role = userProfile?.tipo_usuario || userProfile?.role || 'investidor'
-  const isOwnerDemo = user?.email === 'investidor@nc.com'
   const isLucasDemo = user?.email === 'lucas.demo@nc.com'
-  const isClient = role === 'cliente'
-  const canEdit = Boolean(user) && !isLucasDemo && !isClient && (isOwnerDemo || role !== 'investidor')
-  const canEditModule = moduleKey === 'usuarios' ? (isOwnerDemo || role === 'engenheiro' || role === 'administrador') : canEdit
+  const canAccessModule = canViewModule(role, moduleKey)
+  const canEditCurrentModule = Boolean(user) && profileReady && canAccessModule && !isLucasDemo && canEditModule(role, moduleKey)
 
   const profileForNavigation = {
     ...userProfile,
     nome: userProfile?.nome || user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Usuário',
-    tipo_usuario: isLucasDemo ? 'investidor' : role,
-    tipo: isLucasDemo ? 'investidor' : role,
+    role,
+    tipo_usuario: role,
+    tipo: role,
   }
 
   const navigate = (tabId) => {
+    if (!canViewModule(role, tabId)) return
+
     if (WORKSPACE_KEYS.includes(tabId)) {
       setModuleKey(tabId)
       const nextUrl = `/workspace?module=${tabId}`
@@ -87,8 +110,12 @@ export default function WorkspacePage() {
     window.location.href = '/'
   }
 
-  if (authLoading || !user) {
+  if (authLoading || !user || !profileReady) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-black text-blue-600">Validando acesso...</div>
+  }
+
+  if (!canAccessModule) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-black text-slate-500">Redirecionando para uma área permitida...</div>
   }
 
   const definition = getModuleDefinition(moduleKey)
@@ -119,9 +146,9 @@ export default function WorkspacePage() {
                   <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
 
-                <span className={`hidden items-center gap-1.5 rounded-full px-3 py-2 text-[9px] font-black uppercase ring-1 md:inline-flex ${canEditModule ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
-                  {canEditModule ? <ShieldCheck size={13} /> : <LockKeyhole size={13} />}
-                  {canEditModule ? 'Edição liberada' : 'Somente leitura'}
+                <span className={`hidden items-center gap-1.5 rounded-full px-3 py-2 text-[9px] font-black uppercase ring-1 md:inline-flex ${canEditCurrentModule ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+                  {canEditCurrentModule ? <ShieldCheck size={13} /> : <LockKeyhole size={13} />}
+                  {canEditCurrentModule ? 'Edição liberada' : 'Somente leitura'}
                 </span>
 
                 <button type="button" onClick={logout} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Sair">
@@ -138,21 +165,21 @@ export default function WorkspacePage() {
             </div>
           </header>
 
-          {!canEditModule && (
+          {!canEditCurrentModule && (
             <div className="mx-4 mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 lg:mx-8">
               <LockKeyhole size={17} className="mt-0.5 shrink-0" />
-              Este usuário pode consultar os dados, mas não pode criar, editar, duplicar ou excluir registros.
+              Seu login permite consultar este módulo, mas não permite criar, editar, duplicar ou excluir registros.
             </div>
           )}
 
           <section className="flex-1 px-4 py-5 lg:px-8 lg:py-7">
             <div className="mx-auto w-full max-w-screen-2xl">
               {moduleKey === 'diario' ? (
-                <DiaryWorkspace obra={obraAtual} user={user} canEdit={canEditModule} />
+                <DiaryWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : moduleKey === 'fotos' ? (
-                <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditModule} />
+                <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : (
-                <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditModule} />
+                <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               )}
             </div>
           </section>
