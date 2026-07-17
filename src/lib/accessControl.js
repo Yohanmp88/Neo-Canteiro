@@ -1,44 +1,53 @@
 const ALL_ACCESS = '*'
 
+const ALL_MODULES_EXCEPT_USERS = [
+  'dashboard', 'timeline', 'clientes', 'cronograma', 'ia', 'diario', 'fotos',
+  'equipe', 'materiais', 'compras', 'fornecedores', 'financeiro', 'orcamento',
+  'composicoes', 'abc', 'medicoes', 'documentos', 'templates', 'obras',
+]
+
+const OPERATIONAL_MODULES = [
+  'dashboard', 'cronograma', 'diario', 'fotos', 'equipe', 'materiais', 'compras',
+]
+
+const PURCHASES_FINANCE_MODULES = [
+  'dashboard', 'materiais', 'compras', 'fornecedores', 'documentos', 'financeiro',
+  'orcamento', 'composicoes', 'abc', 'medicoes',
+]
+
+const CLIENT_MODULES = [
+  'dashboard', 'cronograma', 'ia', 'diario', 'fotos', 'medicoes', 'documentos',
+  'financeiro', 'orcamento', 'abc',
+]
+
 const ROLE_RULES = {
   administrador: {
     view: ALL_ACCESS,
     edit: ALL_ACCESS,
   },
   engenheiro: {
-    view: [
-      'dashboard', 'timeline', 'clientes', 'cronograma', 'ia', 'diario', 'fotos',
-      'equipe', 'materiais', 'compras', 'fornecedores', 'financeiro', 'orcamento',
-      'composicoes', 'abc', 'medicoes', 'documentos', 'templates',
-    ],
-    edit: [
-      'cronograma', 'clientes', 'diario', 'fotos', 'equipe', 'materiais', 'compras',
-      'fornecedores', 'financeiro', 'orcamento', 'composicoes', 'abc', 'medicoes',
-      'documentos', 'templates',
-    ],
+    view: ALL_MODULES_EXCEPT_USERS,
+    edit: ALL_MODULES_EXCEPT_USERS,
   },
   estagiario: {
-    view: [
-      'dashboard', 'timeline', 'cronograma', 'ia', 'diario', 'fotos', 'equipe',
-      'materiais', 'compras', 'fornecedores', 'medicoes', 'documentos',
-    ],
-    edit: ['cronograma', 'diario', 'fotos', 'equipe', 'materiais', 'compras'],
+    view: OPERATIONAL_MODULES,
+    edit: OPERATIONAL_MODULES.filter((moduleKey) => moduleKey !== 'dashboard'),
   },
   compras: {
-    view: ['dashboard', 'timeline', 'cronograma', 'ia', 'materiais', 'compras', 'fornecedores', 'documentos'],
-    edit: ['materiais', 'compras', 'fornecedores'],
+    view: PURCHASES_FINANCE_MODULES,
+    edit: PURCHASES_FINANCE_MODULES.filter((moduleKey) => moduleKey !== 'dashboard'),
   },
   financeiro: {
-    view: ['dashboard', 'timeline', 'cronograma', 'ia', 'financeiro', 'orcamento', 'composicoes', 'abc', 'medicoes', 'documentos'],
-    edit: ['financeiro', 'orcamento', 'composicoes', 'abc', 'medicoes'],
+    view: PURCHASES_FINANCE_MODULES,
+    edit: PURCHASES_FINANCE_MODULES.filter((moduleKey) => moduleKey !== 'dashboard'),
   },
   cliente: {
-    view: ['dashboard', 'timeline', 'cronograma', 'ia', 'diario', 'fotos', 'medicoes', 'documentos'],
+    view: CLIENT_MODULES,
     edit: [],
   },
   investidor: {
-    view: ['dashboard', 'timeline', 'cronograma', 'ia', 'diario', 'fotos', 'financeiro', 'orcamento', 'abc', 'medicoes', 'documentos'],
-    edit: [],
+    view: ALL_MODULES_EXCEPT_USERS,
+    edit: ['obras'],
   },
 }
 
@@ -78,6 +87,16 @@ export function canViewModule(role, moduleKey) {
 
 export function canEditModule(role, moduleKey) {
   return hasPermission(ROLE_RULES[normalizeRole(role)]?.edit, moduleKey)
+}
+
+export function canEditModuleForSession(role, moduleKey, { isDemo = false } = {}) {
+  const normalized = normalizeRole(role)
+
+  if (normalized === 'investidor' && moduleKey === 'obras') {
+    return isDemo
+  }
+
+  return canEditModule(normalized, moduleKey)
 }
 
 export function getAllowedModules(role) {
