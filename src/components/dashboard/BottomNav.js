@@ -24,6 +24,7 @@ import {
   Settings,
   History,
 } from 'lucide-react'
+import { canViewModule, normalizeRole } from '@/lib/accessControl'
 
 const WORKSPACE_TABS = new Set([
   'clientes',
@@ -44,41 +45,42 @@ const WORKSPACE_TABS = new Set([
 ])
 
 const ALL_MODULES = [
-  { id: 'timeline', label: 'Linha do Tempo', icon: History, visible: true },
-  { id: 'clientes', label: 'Clientes', icon: UsersRound, visible: true },
-  { id: 'diario', label: 'Diário de Obra', icon: FileText, restricted: true },
-  { id: 'fotos', label: 'Fotos', icon: Camera, visible: true },
-  { id: 'equipe', label: 'Equipe', icon: HardHat, restricted: true },
-  { id: 'materiais', label: 'Materiais', icon: Package, restricted: true },
-  { id: 'compras', label: 'Compras', icon: ShoppingCart, restricted: true },
-  { id: 'fornecedores', label: 'Fornecedores', icon: Truck, restricted: true },
-  { id: 'financeiro', label: 'Financeiro', icon: DollarSign, restricted: true },
-  { id: 'orcamento', label: 'Orçamento', icon: ClipboardList, restricted: true },
-  { id: 'composicoes', label: 'Composições', icon: Layers, restricted: true },
-  { id: 'abc', label: 'Curva ABC', icon: TrendingUp, restricted: true },
-  { id: 'medicoes', label: 'Medições', icon: Ruler, visible: true },
-  { id: 'documentos', label: 'Documentos', icon: FolderKanban, visible: true },
-  { id: 'templates', label: 'Templates', icon: FileCode, visible: true },
-  { id: 'usuarios', label: 'Usuários', icon: Settings, restricted: true },
+  { id: 'timeline', label: 'Linha do Tempo', icon: History },
+  { id: 'clientes', label: 'Clientes', icon: UsersRound },
+  { id: 'diario', label: 'Diário de Obra', icon: FileText },
+  { id: 'fotos', label: 'Fotos', icon: Camera },
+  { id: 'equipe', label: 'Equipe', icon: HardHat },
+  { id: 'materiais', label: 'Materiais', icon: Package },
+  { id: 'compras', label: 'Compras', icon: ShoppingCart },
+  { id: 'fornecedores', label: 'Fornecedores', icon: Truck },
+  { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
+  { id: 'orcamento', label: 'Orçamento', icon: ClipboardList },
+  { id: 'composicoes', label: 'Composições', icon: Layers },
+  { id: 'abc', label: 'Curva ABC', icon: TrendingUp },
+  { id: 'medicoes', label: 'Medições', icon: Ruler },
+  { id: 'documentos', label: 'Documentos', icon: FolderKanban },
+  { id: 'templates', label: 'Templates', icon: FileCode },
+  { id: 'usuarios', label: 'Usuários', icon: Settings },
 ]
 
 export function BottomNav({ activeTab, onTabChange, userProfile }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const tipoUsuario = userProfile?.tipo_usuario || userProfile?.tipo
-  const isClient = tipoUsuario === 'cliente'
+  const tipoUsuario = normalizeRole(userProfile?.tipo_usuario || userProfile?.role || userProfile?.tipo)
 
   const coreTabs = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
     { id: 'clientes', label: 'Clientes', icon: UsersRound },
     { id: 'ia', label: 'IA da Obra', icon: Bot, destaque: true },
     { id: 'cronograma', label: 'Cronograma', icon: Calendar },
-    { id: 'more', label: 'Mais', icon: Menu },
-  ]
+    { id: 'more', label: 'Mais', icon: Menu, always: true },
+  ].filter((item) => item.always || canViewModule(tipoUsuario, item.id))
 
-  const modules = ALL_MODULES.filter((item) => !item.restricted || !isClient)
+  const modules = ALL_MODULES.filter((item) => canViewModule(tipoUsuario, item.id))
 
   function navegar(tabId) {
     setMenuOpen(false)
+
+    if (tabId !== 'more' && !canViewModule(tipoUsuario, tabId)) return
 
     if (tabId === 'ia') {
       window.location.href = '/ia'
@@ -111,7 +113,7 @@ export function BottomNav({ activeTab, onTabChange, userProfile }) {
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-600">NeoCanteiro</p>
-                <h2 className="mt-1 text-lg font-black text-slate-900">Todos os módulos</h2>
+                <h2 className="mt-1 text-lg font-black text-slate-900">Módulos disponíveis</h2>
               </div>
               <button type="button" onClick={() => setMenuOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900" aria-label="Fechar menu">
                 <X size={20} />
