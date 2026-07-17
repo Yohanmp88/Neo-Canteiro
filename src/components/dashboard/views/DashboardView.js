@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useCompras } from '@/hooks/useCompras'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
 import '@/lib/coreModuleDefinitions'
+import { canViewModule, normalizeRole } from '@/lib/accessControl'
 import {
   pedidoAtrasadoOperacional,
   tarefaAtrasadaOperacional,
@@ -59,10 +60,12 @@ export function DashboardView({
   tarefas = [],
   diarios = [],
   user,
+  role,
   onNavigate,
 }) {
   const [isMounted, setIsMounted] = useState(false)
   const [seenVersion, setSeenVersion] = useState(0)
+  const activeRole = normalizeRole(role)
   const { pedidos = [] } = useCompras(obraAtual?.id)
   const { records: diariosWorkspace = [] } = useWorkspaceRecords('diario', obraAtual?.id, user)
   const { records: fotosWorkspace = [] } = useWorkspaceRecords('fotos', obraAtual?.id, user)
@@ -114,6 +117,7 @@ export function DashboardView({
   }
 
   const navigate = (tabId) => {
+    if (!canViewModule(activeRole, tabId)) return
     if (tabId === 'diario' || tabId === 'fotos') markSeen(tabId)
 
     if (tabId === 'timeline') {
@@ -180,9 +184,9 @@ export function DashboardView({
         <MiniCard title="Entrega" value={obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '---'} detail="Prazo Final" icon={Calendar} color="indigo" onClick={() => navigate('cronograma')} />
         <MiniCard title="Concluídas" value={`${concluidas}/${totalTarefas}`} detail="Tarefas Totais" icon={CheckCircle2} color="emerald" onClick={() => navigate('cronograma')} />
         <MiniCard title="Atrasos" value={atrasosCronograma} detail="Serviços atrasados" icon={AlertCircle} color={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => navigate('cronograma')} />
-        <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />
-        <MiniCard title="Diários" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} color="blue" notification={diariosNovos} onClick={() => navigate('diario')} />
-        <MiniCard title="Fotos" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} color="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />
+        {canViewModule(activeRole, 'compras') && <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />}
+        {canViewModule(activeRole, 'diario') && <MiniCard title="Diários" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} color="blue" notification={diariosNovos} onClick={() => navigate('diario')} />}
+        {canViewModule(activeRole, 'fotos') && <MiniCard title="Fotos" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} color="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />}
         <button className="flex items-center justify-center rounded-xl bg-slate-900 p-2 text-white transition-colors hover:bg-slate-800" onClick={() => navigate('timeline')}>
           <Layers size={14} className="mr-1.5" />
           <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
@@ -242,17 +246,17 @@ export function DashboardView({
         </PanelClean>
 
         <div className="space-y-3 lg:col-span-3">
-          <button onClick={() => navigate('diario')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
+          {canViewModule(activeRole, 'diario') && <button onClick={() => navigate('diario')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
             {diariosNovos > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[8px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
             <div className="flex items-center justify-between"><div className="rounded-lg bg-slate-900 p-1.5 text-white"><FileText size={14} /></div><ArrowRight size={12} className="text-slate-300 group-hover:text-blue-500" /></div>
             <div><p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Último diário</p><h4 className="line-clamp-2 text-[10px] font-bold leading-tight text-slate-900">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Sem relatos registrados.'}</h4></div>
-          </button>
+          </button>}
 
-          <button onClick={() => navigate('fotos')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
+          {canViewModule(activeRole, 'fotos') && <button onClick={() => navigate('fotos')} className="group relative flex h-[105px] w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-3 text-left transition-all hover:border-blue-400 hover:shadow-sm">
             {fotosNovas > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[8px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
             <div className="flex items-center justify-between"><div className="rounded-lg bg-purple-50 p-1.5 text-purple-600"><Camera size={14} /></div>{ultimaFoto?.url ? <img src={ultimaFoto.url} alt="Última foto da obra" className="h-7 w-10 rounded-md object-cover ring-1 ring-slate-200" /> : <ArrowRight size={12} className="text-slate-300 group-hover:text-purple-500" />}</div>
             <div><p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-slate-400">Fotos da Obra</p><h4 className="text-[10px] font-bold leading-tight text-slate-900">{fotosVisiveis.length ? `${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'} cadastrada${fotosVisiveis.length === 1 ? '' : 's'}` : 'Nenhuma foto cadastrada'}</h4></div>
-          </button>
+          </button>}
         </div>
       </div>
     </div>

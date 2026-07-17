@@ -15,6 +15,7 @@ import { useTarefas } from '@/hooks/useTarefas'
 import { useDiarios } from '@/hooks/useDiarios'
 import { useMateriais } from '@/hooks/useMateriais'
 import { useEquipe } from '@/hooks/useEquipe'
+import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl'
 
 // --- ESTILOS PREMIUM ---
 const inputClass = 'w-full rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-premium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 shadow-sm'
@@ -53,8 +54,6 @@ export default function Home() {
   const { obras: obrasRaw = [], loading: obrasLoading, criar: criarObraHook } = useObras()
 
   // --- ESTADOS DE CONTROLE E NAVEGAÇÃO ---
-  const [perfilAtivo, setPerfilAtivo] = useState(null)
-  const [inicializandoPerfil, setInicializandoPerfil] = useState(true)
   const [tela, setTela] = useState('dashboard')
   const [obraId, setObraId] = useState(null)
 
@@ -97,22 +96,25 @@ export default function Home() {
     return equipeRaw.length > 0 ? equipeRaw : (obrasRaw.length === 0 ? EQUIPE_DEMO.filter(m => m.obraId === 'demo-1') : [])
   }, [equipeRaw, obraAtualId, obrasRaw.length])
 
-  const permissaoEditar = ['engenheiro', 'estagiario'].includes(perfilAtivo)
-  const permissaoAdmin = perfilAtivo === 'engenheiro'
-  const ehCliente = perfilAtivo === 'cliente'
+  const isDemoUser = user?.app_metadata?.provider === 'demo'
+  const profileReady = Boolean(userProfile) || isDemoUser
+  const role = normalizeRole(userProfile?.tipo_usuario || userProfile?.role || user?.user_metadata?.role)
+  const permissaoEditar = canEditModule(role, tela)
+  const permissaoAdmin = canEditModule(role, 'obras')
+  const ehCliente = role === 'cliente'
+  const profileForNavigation = {
+    ...userProfile,
+    nome: userProfile?.nome || user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Usuário',
+    role,
+    tipo_usuario: role,
+    tipo: role,
+  }
 
-  // --- EFEITOS DE INICIALIZAÇÃO ---
+  // Cada login entra diretamente na experiência autorizada pelo perfil do banco.
   useEffect(() => {
-    const init = async () => {
-      try {
-        if (!user) { setPerfilAtivo(null); return }
-        // Para investidor/demo, forçar sempre a escolha do perfil ao iniciar
-        // Não carregamos automaticamente do localStorage para garantir a tela de escolha
-        setPerfilAtivo(null)
-      } catch (e) { console.error(e) } finally { setInicializandoPerfil(false) }
-    }
-    if (!authLoading) init()
-  }, [user, authLoading])
+    if (!user || !profileReady) return
+    if (!canViewModule(role, tela)) setTela('dashboard')
+  }, [user, profileReady, role, tela])
 
   // Sincronizar Diário
   useEffect(() => {
@@ -128,10 +130,6 @@ export default function Home() {
     if (feedbackTimerRef.current) window.clearTimeout(feedbackTimerRef.current)
     if (status === 'saved') feedbackTimerRef.current = window.setTimeout(() => setSaveStatus(null), 2500)
   }, [])
-
-  const trocarPerfil = () => {
-    setPerfilAtivo(null)
-  }
 
   // Obras
   async function criarNovaObra() {
@@ -210,7 +208,7 @@ export default function Home() {
 
   // Diário
   async function salvarDiario(updates) {
-    if (!obraAtualId || String(obraAtualId).startsWith('demo')) return
+    if (!canEditModule(role, 'diario') || !obraAtualId || String(obraAtualId).startsWith('demo')) return
     const next = { ...diarioLocal, ...updates }
     setDiarioLocal(next)
     try {
@@ -225,7 +223,7 @@ export default function Home() {
   // Fotos
   async function adicionarFotos(event) {
     const files = Array.from(event.target.files || [])
-    if (!files.length || !obraAtualId || String(obraAtualId).startsWith('demo')) return
+    if (!canEditModule(role, 'fotos') || !files.length || !obraAtualId || String(obraAtualId).startsWith('demo')) return
     try {
       triggerFeedback('saving')
       let diarioId = diarioLocal?.id
@@ -246,18 +244,17 @@ export default function Home() {
   }
 
   // --- RENDERIZAÇÃO ---
-  if (authLoading || (user && inicializandoPerfil)) return <Loading text="Processando acesso..." />
+  if (authLoading || (user && !profileReady)) return <Loading text="Processando acesso..." />
   if (!user) return <LoginScreen login={authLogin} />
-  if (!perfilAtivo) return <PerfilChoiceScreen onSelect={t => setPerfilAtivo(t)} logout={authLogout} />
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20 lg:pb-0">
       {saveStatus && <Toast status={saveStatus} msg={errorMsg} />}
       <div className="flex min-h-screen w-full">
-        <Sidebar activeTab={tela} onTabChange={setTela} userProfile={userProfile} logout={authLogout} />
+        <Sidebar activeTab={tela} onTabChange={setTela} userProfile={profileForNavigation} logout={authLogout} />
 
         <div className="flex-1 flex flex-col min-w-0 lg:ml-72">
-          <Header userProfile={{ ...userProfile, nome: userProfile?.nome || user.email?.split('@')[0], tipo: perfilAtivo }} obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} />
+          <Header userProfile={{ ...userProfile, nome: userProfile?.nome || user.email?.split('@')[0], tipo: role }} obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} />
 
           <section className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 custom-scrollbar">
             <div className="mb-4 animate-fade-in">
@@ -268,43 +265,24 @@ export default function Home() {
             </div>
 
             <div className="animate-fade-in">
-              {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} isClient={ehCliente} onNavigate={setTela} />}
+              {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={setTela} />}
               {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} obraAtual={obraAtualSegura} />}
-              {tela === 'equipe' && !ehCliente && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
-              {tela === 'diario' && !ehCliente && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
-              {tela === 'fotos' && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
-              {tela === 'usuarios' && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
-              {tela === 'compras' && <TelaCompras compras={COMPRAS_DEMO} materiais={materiais} />}
+              {tela === 'equipe' && canViewModule(role, 'equipe') && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
+              {tela === 'diario' && canViewModule(role, 'diario') && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
+              {tela === 'fotos' && canViewModule(role, 'fotos') && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
+              {tela === 'usuarios' && canViewModule(role, 'usuarios') && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
+              {tela === 'compras' && canViewModule(role, 'compras') && <TelaCompras compras={COMPRAS_DEMO} materiais={materiais} />}
               {['materiais', 'financeiro', 'orcamento', 'ia'].includes(tela) && <ModulePlaceholder tela={tela} setTela={setTela} />}
             </div>
           </section>
         </div>
       </div>
-      <BottomNav activeTab={tela} onTabChange={setTela} />
+      <BottomNav activeTab={tela} onTabChange={setTela} userProfile={profileForNavigation} />
     </main>
   )
 }
 
 // --- SUB-COMPONENTES ---
-
-function PerfilChoiceScreen({ onSelect, logout }) {
-  const perfis = [{ tipo: 'engenheiro', titulo: 'Engenheiro' }, { tipo: 'estagiario', titulo: 'Estagiário' }, { tipo: 'cliente', titulo: 'Cliente' }]
-  return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
-      <div className="w-full max-w-4xl">
-        <h1 className="text-4xl font-black text-slate-900 mb-10 tracking-tight">Como deseja visualizar o sistema?</h1>
-        <div className="grid gap-6 md:grid-cols-3">
-          {perfis.map(p => (
-            <button key={p.tipo} onClick={() => onSelect(p.tipo)} className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm transition-premium hover:-translate-y-2 hover:border-blue-400 hover:shadow-2xl">
-              <h2 className="text-2xl font-black text-slate-900">{p.titulo}</h2>
-            </button>
-          ))}
-        </div>
-        <button onClick={logout} className="mt-12 text-xs font-black uppercase text-slate-400 hover:text-red-600">Sair da Plataforma</button>
-      </div>
-    </main>
-  )
-}
 
 function LoginScreen({ login }) {
   const [e, setE] = useState(''); const [s, setS] = useState(''); const [l, setL] = useState(false)
