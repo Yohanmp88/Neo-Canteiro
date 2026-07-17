@@ -2,7 +2,7 @@ const ALL_ACCESS = '*'
 const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
 
 const ALL_MODULES_EXCEPT_USERS = [
-  'dashboard', 'clientes', 'cronograma', 'ia', 'diario', 'fotos',
+  'dashboard', 'clientes', 'cronograma', 'ia', 'diario', 'fotos', 'planilhas',
   'equipe', 'materiais', 'compras', 'fornecedores', 'financeiro', 'orcamento',
   'composicoes', 'abc', 'medicoes', 'documentos', 'templates', 'obras',
 ]
@@ -12,12 +12,12 @@ const OPERATIONAL_MODULES = [
 ]
 
 const PURCHASES_FINANCE_MODULES = [
-  'dashboard', 'materiais', 'compras', 'fornecedores', 'documentos', 'financeiro',
+  'dashboard', 'materiais', 'compras', 'fornecedores', 'documentos', 'planilhas', 'financeiro',
   'orcamento', 'composicoes', 'abc', 'medicoes',
 ]
 
 const CLIENT_MODULES = [
-  'dashboard', 'cronograma', 'ia', 'diario', 'fotos', 'medicoes', 'documentos',
+  'dashboard', 'cronograma', 'ia', 'diario', 'fotos', 'medicoes', 'documentos', 'planilhas',
   'financeiro', 'orcamento', 'abc',
 ]
 

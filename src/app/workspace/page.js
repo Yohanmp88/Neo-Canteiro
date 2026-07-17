@@ -9,6 +9,8 @@ import { DiaryWorkspace } from '@/components/platform/DiaryWorkspace'
 import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
 import { MaterialsWorkspace } from '@/components/platform/MaterialsWorkspace'
 import { PhotoWorkspace } from '@/components/platform/PhotoWorkspace'
+import { SinapiWorkspace } from '@/components/platform/SinapiWorkspace'
+import { SpreadsheetWorkspace } from '@/components/platform/SpreadsheetWorkspace'
 import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
 import { CORE_MODULE_KEYS } from '@/lib/coreModuleDefinitions'
 import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl'
@@ -189,6 +191,10 @@ export default function WorkspacePage() {
                 <MaterialsWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : moduleKey === 'fotos' ? (
                 <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
+              ) : moduleKey === 'planilhas' ? (
+                <SpreadsheetWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
+              ) : moduleKey === 'composicoes' ? (
+                <SinapiWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : (
                 <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               )}

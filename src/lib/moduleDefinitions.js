@@ -220,6 +220,19 @@ export const MODULE_DEFINITIONS = {
       { id: 'med-1', numero: 'MED-005', periodo: '01/07/2026 a 15/07/2026', contratada: 'Aurora Empreendimentos', valor_bruto: 126000, retencoes: 6300, valor_liquido: 119700, data_envio: '2026-07-16', data_aprovacao: '', aprovado_por: '', status: 'Em conferência', observacoes: 'Medição física vinculada ao cronograma.' },
     ],
   },
+  planilhas: {
+    title: 'Planilhas Excel',
+    singular: 'planilha',
+    description: 'Importação, visualização, atualização e histórico de planilhas Excel por obra.',
+    statusField: 'status',
+    fields: [
+      { key: 'nome', label: 'Nome da planilha', type: 'text', required: true },
+      { key: 'descricao', label: 'Descrição', type: 'textarea', full: true },
+      { key: 'versao', label: 'Versão', type: 'text' },
+      { key: 'status', label: 'Status', type: 'select', options: ['Publicada', 'Em revisão', 'Arquivada'] },
+    ],
+    seed: [],
+  },
   documentos: {
     title: 'Documentos',
     singular: 'documento',

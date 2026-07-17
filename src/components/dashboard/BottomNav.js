@@ -23,6 +23,7 @@ import {
   FileCode,
   Settings,
   History,
+  TableProperties,
 } from 'lucide-react'
 import { canViewModule, normalizeRole } from '@/lib/accessControl'
 
@@ -39,6 +40,7 @@ const WORKSPACE_TABS = new Set([
   'composicoes',
   'abc',
   'medicoes',
+  'planilhas',
   'documentos',
   'templates',
   'usuarios',
@@ -58,6 +60,7 @@ const ALL_MODULES = [
   { id: 'composicoes', label: 'Composições', icon: Layers },
   { id: 'abc', label: 'Curva ABC', icon: TrendingUp },
   { id: 'medicoes', label: 'Medições', icon: Ruler },
+  { id: 'planilhas', label: 'Planilhas Excel', icon: TableProperties },
   { id: 'documentos', label: 'Documentos', icon: FolderKanban },
   { id: 'templates', label: 'Templates', icon: FileCode },
   { id: 'usuarios', label: 'Usuários', icon: Settings },

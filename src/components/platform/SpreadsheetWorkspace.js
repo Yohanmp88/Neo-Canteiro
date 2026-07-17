@@ -38,6 +38,7 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -48,10 +49,12 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
     setName(target?.nome || '')
     setDescription(target?.descricao || '')
     setFile(null)
+    setSubmitting(false)
     setError('')
   }, [open, selectedDataset])
 
   if (!open) return null
+  const busy = saving || submitting
 
   const changeDataset = (id) => {
     setDatasetId(id)
@@ -65,6 +68,7 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
   const submit = async (event) => {
     event.preventDefault()
     setError('')
+    setSubmitting(true)
 
     try {
       validateSpreadsheetFile(file)
@@ -87,6 +91,8 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
       await onImported(payload)
     } catch (submitError) {
       setError(submitError?.message || 'Não foi possível importar a planilha.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -98,7 +104,7 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Importação Excel</p>
             <h2 className="mt-1 text-lg font-black text-slate-900">Publicar planilha no NeoCanteiro</h2>
           </div>
-          <button type="button" onClick={onClose} disabled={saving} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900" aria-label="Fechar"><X size={20} /></button>
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900" aria-label="Fechar"><X size={20} /></button>
         </div>
 
         <div className="max-h-[calc(94vh-150px)] space-y-5 overflow-y-auto px-5 py-5 md:px-7">
@@ -112,7 +118,7 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
           {mode === 'update' && (
             <label>
               <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Planilha que será atualizada</span>
-              <select value={datasetId} onChange={(event) => changeDataset(event.target.value)} required disabled={saving} className={inputClass}>
+              <select value={datasetId} onChange={(event) => changeDataset(event.target.value)} required disabled={busy} className={inputClass}>
                 <option value="">Selecione...</option>
                 {datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.nome}</option>)}
               </select>
@@ -126,11 +132,11 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
 
           <label>
             <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Descrição</span>
-            <textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} disabled={saving} className={inputClass} placeholder="Explique ao cliente o conteúdo desta planilha" />
+            <textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} disabled={busy} className={inputClass} placeholder="Explique ao cliente o conteúdo desta planilha" />
           </label>
 
           <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-7 text-center transition hover:border-blue-300 hover:bg-blue-50/50">
-            <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" disabled={saving} onChange={(event) => { setError(''); setFile(event.target.files?.[0] || null) }} />
+            <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" disabled={busy} onChange={(event) => { setError(''); setFile(event.target.files?.[0] || null) }} />
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20"><Upload size={21} /></div>
             <p className="mt-3 text-sm font-black text-slate-900">{file?.name || 'Selecionar arquivo Excel ou CSV'}</p>
             <p className="mt-1 text-xs font-medium text-slate-500">A primeira tabela legível será transformada no layout da plataforma. Limite de 50 MB.</p>
@@ -144,10 +150,10 @@ function ImportModal({ open, datasets, selectedDataset, user, obra, saving, onCl
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 md:px-7">
-          <button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600">Cancelar</button>
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600">Cancelar</button>
           <button type="submit" disabled={saving || !file} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 disabled:opacity-50">
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            {saving ? 'Importando...' : mode === 'update' ? 'Publicar nova versão' : 'Importar planilha'}
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            {busy ? 'Importando...' : mode === 'update' ? 'Publicar nova versão' : 'Importar planilha'}
           </button>
         </div>
       </form>

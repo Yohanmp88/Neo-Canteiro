@@ -22,6 +22,7 @@ import {
   Truck,
   FolderKanban,
   History,
+  TableProperties,
 } from 'lucide-react'
 import { canViewModule, getRoleLabel, normalizeRole } from '@/lib/accessControl'
 
@@ -38,6 +39,7 @@ const WORKSPACE_TABS = new Set([
   'composicoes',
   'abc',
   'medicoes',
+  'planilhas',
   'documentos',
   'templates',
   'usuarios',
@@ -78,6 +80,7 @@ const MENU_GROUPS = [
   {
     label: 'Administração',
     items: [
+      { id: 'planilhas', label: 'Planilhas Excel', icon: TableProperties },
       { id: 'documentos', label: 'Documentos', icon: FolderKanban },
       { id: 'templates', label: 'Templates', icon: FileCode },
       { id: 'usuarios', label: 'Usuários e Permissões', icon: Settings },
