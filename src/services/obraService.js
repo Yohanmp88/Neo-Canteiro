@@ -1,16 +1,13 @@
 import { supabase } from '@/lib/supabase'
 
 export const obraService = {
-  // Listar todas as obras (ou apenas as do cliente)
-  async listar(userId, tipoUsuario) {
-    let query = supabase.from('obras').select('*')
-
-    // Se for cliente, mostrar apenas suas obras
-    if (tipoUsuario === 'cliente') {
-      query = query.eq('cliente_id', userId)
-    }
-
-    const { data, error } = await query.order('data_criacao', { ascending: false })
+  // A visibilidade das obras é definida pelas políticas RLS do Supabase.
+  // O frontend não aplica filtros por perfil para evitar esconder obras autorizadas.
+  async listar() {
+    const { data, error } = await supabase
+      .from('obras')
+      .select('*')
+      .order('data_criacao', { ascending: false })
 
     if (error) throw new Error(error.message)
     return data
