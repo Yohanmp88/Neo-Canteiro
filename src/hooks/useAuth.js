@@ -6,17 +6,9 @@ import { authService } from '@/services/authService'
 const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
 const DEMO_CONTROL_URL = '/demo-access.json'
 
+// O acesso investidor@nc.com passa pelo Supabase para enxergar obras reais.
+// Mantemos apenas o acesso temporário do Lucas como sessão local demonstrativa.
 const DEMO_ACCOUNTS = [
-  {
-    id: 'demo-investidor',
-    email: 'investidor@nc.com',
-    password: 'nc123',
-    nome: 'Investidor NeoCanteiro',
-    role: 'investidor',
-    enabled: true,
-    tokenVersion: 1,
-    remoteControl: false,
-  },
   {
     id: 'demo-lucas',
     email: 'lucas.demo@nc.com',
@@ -54,13 +46,21 @@ function lerSessaoDemo() {
   const valor = window.localStorage.getItem(DEMO_STORAGE_KEY)
   if (!valor) return null
 
+  // Remove o formato antigo que usava investidor@nc.com como sessão local.
   if (valor === 'true') {
-    return { accountId: 'demo-investidor', tokenVersion: 1 }
+    window.localStorage.removeItem(DEMO_STORAGE_KEY)
+    return null
   }
 
   try {
     const sessao = JSON.parse(valor)
     if (!sessao?.accountId) throw new Error('Sessão inválida')
+
+    if (sessao.accountId === 'demo-investidor') {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY)
+      return null
+    }
+
     return sessao
   } catch {
     window.localStorage.removeItem(DEMO_STORAGE_KEY)
@@ -120,7 +120,6 @@ async function acessoRemotoLucasContinuaValido(sessao) {
       Number(registro.tokenVersion || 1) === Number(sessao?.tokenVersion || 1)
     )
   } catch {
-    // Uma falha de rede não pode derrubar os demais logins do sistema.
     return true
   }
 }
@@ -183,12 +182,13 @@ export function useAuth() {
 
       setUser(sessionUser)
 
-      if (!sessionUser) {
+      if (sessionUser) {
+        carregarPerfilSemBloquear(sessionUser.id)
+      } else {
         setUserProfile(null)
       }
     })
 
-    // Somente o acesso do Lucas consulta a revogação remota.
     const revocationTimer = window.setInterval(async () => {
       const sessao = lerSessaoDemo()
       if (!sessao || sessao.accountId !== 'demo-lucas') return
