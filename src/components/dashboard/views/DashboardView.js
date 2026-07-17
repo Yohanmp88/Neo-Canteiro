@@ -29,7 +29,6 @@ import {
   CheckCircle2,
   FileText,
   Camera,
-  Layers,
   ShoppingBag,
   ArrowRight,
   Target,
@@ -93,7 +92,7 @@ function PremiumMetricCard({ title, value, detail, icon: Icon, tone = 'blue', no
     <button
       type="button"
       onClick={onClick}
-      className="group relative min-h-[94px] overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white p-3.5 text-left shadow-[0_16px_45px_-34px_rgba(15,23,42,0.65)] transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_20px_48px_-30px_rgba(37,99,235,0.35)] active:translate-y-0"
+      className="group relative min-h-[116px] overflow-hidden rounded-[1.45rem] border border-slate-200/80 bg-white p-4 text-left shadow-[0_16px_45px_-34px_rgba(15,23,42,0.65)] transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_20px_48px_-30px_rgba(37,99,235,0.35)] active:translate-y-0"
     >
       <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${visual.accent}`} />
 
@@ -103,20 +102,19 @@ function PremiumMetricCard({ title, value, detail, icon: Icon, tone = 'blue', no
         </span>
       )}
 
-      <div className="flex h-full items-center gap-3.5">
+      <div className="flex items-start gap-3 pr-5">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${visual.icon}`}>
           <Icon size={18} strokeWidth={2.3} />
         </div>
-
-        <div className="min-w-0 flex-1 pr-3">
-          <p className="truncate text-[10px] font-black uppercase tracking-[0.13em] text-slate-400">{title}</p>
-          <div className="mt-1 flex items-end gap-2">
-            <p className="truncate text-[24px] font-black leading-none tracking-tight text-slate-950">{value}</p>
-            <ArrowRight size={14} className="mb-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500" />
-          </div>
-          {detail && <p className="mt-1 truncate text-[10px] font-bold text-slate-500">{detail}</p>}
-        </div>
+        <p className="line-clamp-2 min-h-[32px] pt-0.5 text-[10px] font-black uppercase leading-4 tracking-[0.11em] text-slate-500">{title}</p>
       </div>
+
+      <div className="mt-3 pr-5">
+        <p className="text-[27px] font-black leading-none tracking-tight text-slate-950">{value}</p>
+        {detail && <p className="mt-1.5 line-clamp-2 text-[10px] font-bold leading-4 text-slate-500">{detail}</p>}
+      </div>
+
+      <ArrowRight size={14} className="absolute bottom-4 right-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-500" />
     </button>
   )
 }
@@ -186,11 +184,6 @@ export function DashboardView({
     if (!canViewModule(activeRole, tabId)) return
     if (tabId === 'diario' || tabId === 'fotos') markSeen(tabId)
 
-    if (tabId === 'timeline') {
-      window.location.href = '/timeline'
-      return
-    }
-
     if (WORKSPACE_TABS.has(tabId)) {
       window.location.href = `/workspace?module=${tabId}`
       return
@@ -226,36 +219,14 @@ export function DashboardView({
 
   return (
     <div className="mx-auto w-full max-w-[1600px] animate-fade-in space-y-4">
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PremiumMetricCard title="Progresso da obra" value={`${progressoMedio}%`} detail="Evolução física geral" icon={TrendingUp} onClick={() => navigate('cronograma')} />
         <PremiumMetricCard title="Previsão de entrega" value={prazoEntrega} detail="Prazo final contratado" icon={Calendar} tone="indigo" onClick={() => navigate('cronograma')} />
         <PremiumMetricCard title="Tarefas concluídas" value={`${concluidas}/${totalTarefas}`} detail="Atividades do cronograma" icon={CheckCircle2} tone="emerald" onClick={() => navigate('cronograma')} />
         <PremiumMetricCard title="Serviços atrasados" value={atrasosCronograma} detail={atrasosCronograma === 1 ? 'Atividade exige atenção' : 'Atividades exigem atenção'} icon={AlertCircle} tone={atrasosCronograma > 0 ? 'red' : 'emerald'} onClick={() => navigate('cronograma')} />
-        {canViewModule(activeRole, 'compras') && <PremiumMetricCard title="Materiais em atraso" value={materiaisAtrasados} detail="Suprimentos com impacto" icon={ShoppingBag} tone={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />}
+        {canViewModule(activeRole, 'compras') && <PremiumMetricCard title="Materiais em atraso" value={materiaisAtrasados} detail="Suprimentos com impacto no prazo" icon={ShoppingBag} tone={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />}
         {canViewModule(activeRole, 'diario') && <PremiumMetricCard title="Diários de obra" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'} cadastrado${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} notification={diariosNovos} onClick={() => navigate('diario')} />}
         {canViewModule(activeRole, 'fotos') && <PremiumMetricCard title="Fotos da obra" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'} cadastrada${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} tone="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />}
-        {canViewModule(activeRole, 'timeline') && (
-          <button
-            type="button"
-            onClick={() => navigate('timeline')}
-            className="group relative min-h-[94px] overflow-hidden rounded-[1.35rem] border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-3.5 text-left text-white shadow-[0_18px_42px_-28px_rgba(15,23,42,0.9)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_50px_-28px_rgba(37,99,235,0.45)]"
-          >
-            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-blue-500/15 blur-2xl" />
-            <div className="relative flex h-full items-center gap-3.5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-                <Layers size={18} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.13em] text-blue-200">Linha do tempo</p>
-                <div className="mt-1 flex items-end gap-2">
-                  <p className="text-xl font-black leading-none tracking-tight">Abrir histórico</p>
-                  <ArrowRight size={14} className="mb-0.5 text-blue-300 transition group-hover:translate-x-0.5" />
-                </div>
-                <p className="mt-1 text-[10px] font-bold text-slate-300">Evolução cronológica completa</p>
-              </div>
-            </div>
-          </button>
-        )}
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
