@@ -187,10 +187,12 @@ export function DashboardView({
         {canViewModule(activeRole, 'compras') && <MiniCard title="Suprimentos" value={materiaisAtrasados} detail="Materiais em atraso" icon={ShoppingBag} color={materiaisAtrasados > 0 ? 'orange' : 'slate'} onClick={() => navigate('compras')} />}
         {canViewModule(activeRole, 'diario') && <MiniCard title="Diários" value={diariosVisiveis.length} detail={`${diariosVisiveis.length} registro${diariosVisiveis.length === 1 ? '' : 's'}`} icon={FileText} color="blue" notification={diariosNovos} onClick={() => navigate('diario')} />}
         {canViewModule(activeRole, 'fotos') && <MiniCard title="Fotos" value={fotosVisiveis.length} detail={`${fotosVisiveis.length} foto${fotosVisiveis.length === 1 ? '' : 's'}`} icon={Camera} color="purple" notification={fotosNovas} onClick={() => navigate('fotos')} />}
-        <button className="flex items-center justify-center rounded-xl bg-slate-900 p-2 text-white transition-colors hover:bg-slate-800" onClick={() => navigate('timeline')}>
-          <Layers size={14} className="mr-1.5" />
-          <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
-        </button>
+        {canViewModule(activeRole, 'timeline') && (
+          <button className="flex items-center justify-center rounded-xl bg-slate-900 p-2 text-white transition-colors hover:bg-slate-800" onClick={() => navigate('timeline')}>
+            <Layers size={14} className="mr-1.5" />
+            <span className="text-[8px] font-black uppercase tracking-tighter">Timeline</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
