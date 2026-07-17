@@ -254,16 +254,9 @@ export default function Home() {
         <Sidebar activeTab={tela} onTabChange={setTela} userProfile={profileForNavigation} logout={authLogout} />
 
         <div className="flex-1 flex flex-col min-w-0 lg:ml-72">
-          <Header userProfile={{ ...userProfile, nome: userProfile?.nome || user.email?.split('@')[0], tipo: role }} obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} />
+          <Header obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} canCreateWork={permissaoAdmin} onCreateWork={() => setTela('usuarios')} />
 
-          <section className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 custom-scrollbar">
-            <div className="mb-4 animate-fade-in">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div />
-                {permissaoAdmin && <button onClick={() => setTela('usuarios')} className={buttonPrimaryClass}>Nova Obra</button>}
-              </div>
-            </div>
-
+          <section className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-5">
             <div className="animate-fade-in">
               {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={setTela} />}
               {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} obraAtual={obraAtualSegura} />}
