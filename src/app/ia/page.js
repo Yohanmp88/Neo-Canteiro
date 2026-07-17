@@ -9,6 +9,7 @@ import { useTarefas } from '@/hooks/useTarefas'
 import { useCompras } from '@/hooks/useCompras'
 import { useDiarios } from '@/hooks/useDiarios'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
+import { deliveriesForDate, formatDeliveryQuantity, mergeMaterialDeliveries } from '@/lib/materialDelivery'
 import '@/lib/coreModuleDefinitions'
 
 const OBRA_DEMO = {
@@ -273,6 +274,8 @@ function normalizarDiario(diario) {
     ocorrencias: diario.ocorrencias || diario.observacoes || diario.interferencias || '',
     visitas: diario.visitas || diario.fiscalizacoes || '',
     proximas_atividades: diario.proximas_atividades || diario.proximos_servicos || '',
+    materiais_entregues: Array.isArray(diario.materiais_entregues) ? diario.materiais_entregues : [],
+    materiais_entregues_observacoes: diario.materiais_entregues_observacoes || '',
     status: diario.status || diario.situacao || '',
   }
 }
@@ -299,8 +302,27 @@ function dataPedidaNoTexto(textoOriginal) {
   return null
 }
 
+function formatarMateriaisEntregues(materiais = []) {
+  if (!Array.isArray(materiais) || !materiais.length) return ''
+
+  return materiais.map((material, indice) => {
+    const quantidade = formatDeliveryQuantity(material) || 'não informada'
+    const detalhes = [
+      `${indice + 1}. ${material.item || material.material || 'Material sem identificação'}`,
+      `Quantidade recebida: ${quantidade}`,
+      material.fornecedor ? `Fornecedor: ${material.fornecedor}` : null,
+      material.status ? `Status: ${material.status}` : null,
+      material.recebido_por ? `Recebido por: ${material.recebido_por}` : null,
+      material.observacoes ? `Observações: ${material.observacoes}` : null,
+    ].filter(Boolean)
+
+    return detalhes.join('\n')
+  }).join('\n\n')
+}
+
 function formatarBlocoDiario(diario, indice = null) {
   const cabecalho = indice === null ? '' : `Registro ${indice + 1}\n`
+  const materiais = formatarMateriaisEntregues(diario.materiais_entregues)
   const linhas = [
     diario.status ? `Status: ${diario.status}` : null,
     diario.clima ? `Clima: ${diario.clima}` : null,
@@ -309,6 +331,10 @@ function formatarBlocoDiario(diario, indice = null) {
       : null,
     diario.responsavel ? `Responsável: ${diario.responsavel}` : null,
     `\nServiços executados:\n${diario.servicos_executados || 'Nenhum serviço informado.'}`,
+    `\nMateriais entregues no dia:\n${materiais || 'Nenhum material entregue foi informado.'}`,
+    diario.materiais_entregues_observacoes
+      ? `\nObservações sobre os materiais entregues:\n${diario.materiais_entregues_observacoes}`
+      : null,
     diario.ocorrencias ? `\nOcorrências e interferências:\n${diario.ocorrencias}` : null,
     diario.visitas ? `\nVisitas e fiscalizações:\n${diario.visitas}` : null,
     diario.proximas_atividades ? `\nPróximas atividades:\n${diario.proximas_atividades}` : null,
@@ -461,6 +487,11 @@ export default function IAOperacionalPage() {
     error: workspaceError,
     source: workspaceSource,
   } = useWorkspaceRecords('diario', obraAtual?.id, user)
+  const {
+    records: materiaisWorkspaceRaw = [],
+    loading: materiaisWorkspaceLoading,
+    error: materiaisWorkspaceError,
+  } = useWorkspaceRecords('materiais', obraAtual?.id, user)
 
   const tarefas = useMemo(() => (tarefasBanco.length ? tarefasBanco : usandoDemo ? TAREFAS_DEMO : []), [tarefasBanco, usandoDemo])
   const pedidos = useMemo(() => (pedidosBanco.length ? pedidosBanco : usandoDemo ? PEDIDOS_DEMO : []), [pedidosBanco, usandoDemo])
@@ -471,7 +502,15 @@ export default function IAOperacionalPage() {
       return diario.created_by_name && diario.created_by_name !== 'NeoCanteiro Demo'
     })
 
-    const combinados = [...diariosWorkspace, ...diariosBanco].map(normalizarDiario)
+    const combinados = [...diariosWorkspace, ...diariosBanco]
+      .map(normalizarDiario)
+      .map((diario) => ({
+        ...diario,
+        materiais_entregues: mergeMaterialDeliveries(
+          diario.materiais_entregues || [],
+          deliveriesForDate(materiaisWorkspaceRaw, diario.data),
+        ),
+      }))
     const unicos = new Map()
 
     combinados.forEach((diario) => {
@@ -480,7 +519,7 @@ export default function IAOperacionalPage() {
     })
 
     return Array.from(unicos.values()).sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')))
-  }, [diariosWorkspaceRaw, diariosBanco, usandoDemo, workspaceSource])
+  }, [diariosWorkspaceRaw, diariosBanco, materiaisWorkspaceRaw, usandoDemo, workspaceSource])
 
   const hoje = useMemo(() => {
     const data = new Date()
@@ -511,8 +550,8 @@ export default function IAOperacionalPage() {
     [materiaisNaoEntregues]
   )
 
-  const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading || diariosLoading || workspaceLoading
-  const diarioError = diariosError || workspaceError
+  const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading || diariosLoading || workspaceLoading || materiaisWorkspaceLoading
+  const diarioError = diariosError || workspaceError || materiaisWorkspaceError
 
   function perguntar(textoPergunta) {
     const texto = String(textoPergunta || '').trim()
