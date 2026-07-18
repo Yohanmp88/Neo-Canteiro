@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useCompras } from '@/hooks/useCompras'
+import { useSCurve } from '@/hooks/useSCurve'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
 import '@/lib/coreModuleDefinitions'
 import { canViewModule, normalizeRole } from '@/lib/accessControl'
@@ -141,6 +142,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const { pedidos = [] } = useCompras(obraAtual?.id)
   const { records: diariosWorkspace = [] } = useWorkspaceRecords('diario', obraAtual?.id, user)
   const { records: fotosWorkspace = [] } = useWorkspaceRecords('fotos', obraAtual?.id, user)
+  const { data: dadosEvolucao, summary: curvaSResumo, loading: curvaSLoading } = useSCurve(obraAtual?.id, tarefas, user, activeRole)
 
   useEffect(() => setIsMounted(true), [])
 
@@ -183,9 +185,12 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const atrasadas = tarefas.filter((item) => tarefaAtrasadaOperacional(item))
   const materiaisCriticos = pedidos.filter((item) => pedidoAtrasadoOperacional(item))
   const totalAlertas = atrasadas.length + materiaisCriticos.length
-  const progressoMedio = totalTarefas
+  const progressoMedioSimples = totalTarefas
     ? Math.round(tarefas.reduce((total, item) => total + (Number(item.progresso) || 0), 0) / totalTarefas)
     : Number(obraAtual.progresso || 0)
+  const progressoMedio = curvaSResumo.tarefasConsideradas
+    ? Math.round(curvaSResumo.realizadoHoje)
+    : progressoMedioSimples
 
   const prazoFinalCronograma = tarefas.reduce((ultimo, tarefa) => {
     const data = String(tarefa.data_termino || tarefa.termino || '').slice(0, 10)
@@ -231,20 +236,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
     .slice(0, 5)
   const faseAtual = tarefasHoje[0]?.etapa || tarefasHoje[0]?.fase || tarefasHoje[0]?.categoria || obraAtual.etapa || 'Execução da obra'
   const tituloCronograma = tarefasHoje.length ? `Fase atual — ${faseAtual}` : `Próximas atividades — ${faseAtual}`
-
-  const dadosEvolucao = useMemo(() => {
-    const ordered = tarefasOrdenadas.slice(0, 7)
-    if (!ordered.length) return [{ name: 'S1', previsto: 0, realizado: 0 }]
-
-    return ordered.map((item, index) => {
-      const sample = ordered.slice(0, index + 1)
-      return {
-        name: `S${index + 1}`,
-        previsto: Math.round(((index + 1) / ordered.length) * 100),
-        realizado: Math.round(sample.reduce((sum, current) => sum + Number(current.progresso || 0), 0) / sample.length),
-      }
-    })
-  }, [tarefasOrdenadas])
+  const desvioCurva = Number(curvaSResumo.desvio || 0)
 
   return (
     <div className="mx-auto w-full max-w-[1700px] animate-fade-in space-y-3 xl:grid xl:h-[calc(100vh-7.5rem)] xl:min-h-[560px] xl:grid-rows-[76px_minmax(0,1fr)_94px] xl:gap-3 xl:space-y-0 xl:overflow-hidden">
@@ -286,21 +278,30 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
       <section className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
         <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
           <PanelHeader eyebrow="Performance física" title="Curva S — previsto x realizado" action="Abrir cronograma" onAction={() => navigate('cronograma')} />
-          <div className="mt-2 flex items-center gap-4 text-[8px] font-bold text-slate-500">
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />Previsto</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Realizado</span>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[8px] font-bold text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />Previsto hoje: {curvaSResumo.previstoHoje}%</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Realizado: {curvaSResumo.realizadoHoje}%</span>
+            <span className={`font-black ${desvioCurva >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{desvioCurva >= 0 ? '+' : ''}{desvioCurva} p.p.</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3 text-[7px] font-semibold text-slate-400">
+            <span className="truncate">Controle semanal · {curvaSResumo.metodoPesoLabel}</span>
+            <span className="shrink-0">Histórico desde {formatDate(curvaSResumo.historicoDesde)}</span>
           </div>
 
-          <div className="mt-1 h-[calc(100%-42px)] min-h-[170px] w-full">
+          <div className="mt-1 h-[calc(100%-56px)] min-h-[160px] w-full">
             {isMounted && (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={dadosEvolucao} margin={{ top: 10, right: 8, left: -22, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={28} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} />
                   <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
-                  <Tooltip contentStyle={{ borderRadius: '11px', border: '1px solid #e2e8f0', fontSize: '10px', boxShadow: '0 14px 35px -24px rgba(15,23,42,.5)' }} />
-                  <Area type="monotone" dataKey="previsto" name="Previsto" stroke="#2563eb" strokeWidth={2.4} fill="url(#plannedFill)" />
-                  <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.4} fill="url(#realFill)" />
+                  <Tooltip
+                    formatter={(value, name) => value === null || value === undefined ? ['Sem registro', name] : [`${value}%`, name]}
+                    labelFormatter={(label) => `Data: ${label}`}
+                    contentStyle={{ borderRadius: '11px', border: '1px solid #e2e8f0', fontSize: '10px', boxShadow: '0 14px 35px -24px rgba(15,23,42,.5)' }}
+                  />
+                  <Area type="monotone" dataKey="previsto" name="Previsto" stroke="#2563eb" strokeWidth={2.4} fill="url(#plannedFill)" isAnimationActive={!curvaSLoading} />
+                  <Area type="stepAfter" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.4} fill="url(#realFill)" connectNulls={false} isAnimationActive={!curvaSLoading} />
                   <defs>
                     <linearGradient id="plannedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
                     <linearGradient id="realFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.13}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
