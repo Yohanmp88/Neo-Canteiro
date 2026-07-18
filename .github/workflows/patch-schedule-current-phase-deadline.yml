@@ -1,0 +1,22 @@
+name: Atualizar cronograma atual e prazo
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-schedule-current-phase-deadline.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/patch-schedule-current-phase-deadline.cjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/page.js src/components/dashboard/views/DashboardView.js src/app/globals.css
+          git commit -m "Mostra fase atual e permite editar prazo da obra"
+          git push
