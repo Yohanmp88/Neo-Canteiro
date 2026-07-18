@@ -80,6 +80,25 @@ input, select, textarea, button {
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
 }
 
+/* Mantém a coluna de exclusão do cronograma visível mesmo em tabelas largas. */
+table:has(button[aria-label^="Excluir atividade"]) th:last-child,
+table:has(button[aria-label^="Excluir atividade"]) td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 12;
+  background: #ffffff;
+  box-shadow: -10px 0 20px -18px rgba(15, 23, 42, 0.7);
+}
+
+table:has(button[aria-label^="Excluir atividade"]) th:last-child {
+  z-index: 14;
+  background: #f8fafc;
+}
+
+table:has(button[aria-label^="Excluir atividade"]) tr:hover td:last-child {
+  background: #f8fafc;
+}
+
 .dark,
 .dark body {
   color: #e2e8f0;
@@ -165,6 +184,16 @@ input, select, textarea, button {
 
 .dark [class*="shadow-"] {
   --tw-shadow-color: rgba(0, 0, 0, 0.48);
+}
+
+.dark table:has(button[aria-label^="Excluir atividade"]) th:last-child,
+.dark table:has(button[aria-label^="Excluir atividade"]) td:last-child {
+  background: #0f172a;
+}
+
+.dark table:has(button[aria-label^="Excluir atividade"]) th:last-child,
+.dark table:has(button[aria-label^="Excluir atividade"]) tr:hover td:last-child {
+  background: #020617;
 }
 
 .dark ::-webkit-scrollbar-thumb {
