@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   Flag,
+  Trash2,
 } from 'lucide-react'
 import {
   normalizarTextoOperacional,
@@ -334,7 +335,7 @@ export function GraficoCronograma({ tarefas }) {
   )
 }
 
-export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
+export function CronogramaVisual({ tarefas, atualizarTarefa, excluirTarefa, podeEditar }) {
   if (!tarefas || !tarefas.length) return null
 
   return (
@@ -348,6 +349,7 @@ export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
               <th className="px-4 py-2 text-center">Término</th>
               <th className="px-4 py-2 text-center">Progresso</th>
               <th className="px-4 py-2">Status Visual</th>
+              <th className="w-20 px-4 py-2 text-center">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -460,7 +462,7 @@ export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
                     )}
                   </td>
 
-                  <td className="rounded-r-2xl border-y border-r border-slate-200/60 bg-white p-4 shadow-sm transition-colors group-hover:bg-slate-50">
+                  <td className="border-y border-slate-200/60 bg-white p-4 shadow-sm transition-colors group-hover:bg-slate-50">
                     <div className="flex items-center gap-3">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                         <div
@@ -470,6 +472,25 @@ export function CronogramaVisual({ tarefas, atualizarTarefa, podeEditar }) {
                       </div>
                       {atrasada && <AlertCircle size={14} className="text-red-500" />}
                     </div>
+                  </td>
+
+                  <td className="rounded-r-2xl border-y border-r border-slate-200/60 bg-white p-3 text-center shadow-sm transition-colors group-hover:bg-slate-50">
+                    {podeEditar && excluirTarefa ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const confirmado = window.confirm(`Excluir definitivamente a atividade “${tarefa.nome}”?`)
+                          if (confirmado) excluirTarefa(tarefa.id)
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:border-red-200 hover:bg-red-100 focus:outline-none focus:ring-4 focus:ring-red-500/10"
+                        title="Excluir atividade"
+                        aria-label={`Excluir atividade ${tarefa.nome}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    ) : (
+                      <span className="text-[9px] font-bold text-slate-300">—</span>
+                    )}
                   </td>
                 </tr>
               )

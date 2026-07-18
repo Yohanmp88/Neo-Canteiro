@@ -85,7 +85,7 @@ export default function Home() {
   const obraAtualId = obraAtualSegura?.id
 
   // --- HOOKS DE DADOS (SUPABASE) ---
-  const { tarefas: tarefasRaw = [], criar: adicionarTarefaHook, atualizar: atualizarTarefaHook } = useTarefas(obraAtualId)
+  const { tarefas: tarefasRaw = [], criar: adicionarTarefaHook, atualizar: atualizarTarefaHook, deletar: deletarTarefaHook } = useTarefas(obraAtualId)
   const { materiais: materiaisRaw = [] } = useMateriais(obraAtualId)
   const { diarios = [], criar: criarDiarioHook, atualizar: atualizarDiarioHook } = useDiarios(obraAtualId)
   const { equipe: equipeRaw = [], criar: adicionarMembroHook, atualizar: atualizarMembroHook } = useEquipe(obraAtualId)
@@ -171,6 +171,15 @@ export default function Home() {
     try {
       triggerFeedback('saving')
       await atualizarTarefaHook(id, { [dbField]: valor })
+      triggerFeedback('saved')
+    } catch (e) { triggerFeedback('error', e.message) }
+  }
+
+  async function excluirTarefa(id) {
+    if (!permissaoEditar || !id) return
+    try {
+      triggerFeedback('saving')
+      await deletarTarefaHook(id)
       triggerFeedback('saved')
     } catch (e) { triggerFeedback('error', e.message) }
   }
@@ -311,7 +320,7 @@ export default function Home() {
           <section className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-5">
             <div className="animate-fade-in">
               {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={setTela} />}
-              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
+              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
               {tela === 'equipe' && canViewModule(role, 'equipe') && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
               {tela === 'diario' && canViewModule(role, 'diario') && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
               {tela === 'fotos' && canViewModule(role, 'fotos') && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
@@ -346,7 +355,7 @@ function LoginScreen({ login }) {
   )
 }
 
-function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, importarCronogramaExcel, obraAtual }) {
+function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, excluirTarefa, importarCronogramaExcel, obraAtual }) {
   const total = tarefas.length || 0
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const atrasadas = tarefas.filter(t => (t.progresso < 100 && (t.termino || t.data_termino) && new Date(t.termino || t.data_termino) < new Date())).length
@@ -437,7 +446,7 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
         <div className="mb-6">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Detalhamento de Atividades</h3>
         </div>
-        <CronogramaVisual tarefas={tarefas} atualizarTarefa={atualizarTarefa} podeEditar={permissaoEditar} />
+        <CronogramaVisual tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} podeEditar={permissaoEditar} />
       </PanelClean>
     </div>
   )
