@@ -53,7 +53,7 @@ const formatarMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'cu
 
 export default function Home() {
   const { user, userProfile, login: authLogin, logout: authLogout, loading: authLoading } = useAuth()
-  const { obras: obrasRaw = [], loading: obrasLoading, criar: criarObraHook } = useObras()
+  const { obras: obrasRaw = [], loading: obrasLoading, criar: criarObraHook, atualizar: atualizarObraHook } = useObras()
 
   // --- ESTADOS DE CONTROLE E NAVEGAÇÃO ---
   const [tela, setTela] = useState('dashboard')
@@ -180,6 +180,15 @@ export default function Home() {
     try {
       triggerFeedback('saving')
       await deletarTarefaHook(id)
+      triggerFeedback('saved')
+    } catch (e) { triggerFeedback('error', e.message) }
+  }
+
+  async function atualizarPrazoEntrega(valor) {
+    if (!permissaoEditar || !obraAtualId || String(obraAtualId).startsWith('demo')) return
+    try {
+      triggerFeedback('saving')
+      await atualizarObraHook(obraAtualId, { prazo_final: valor || null })
       triggerFeedback('saved')
     } catch (e) { triggerFeedback('error', e.message) }
   }
@@ -320,7 +329,7 @@ export default function Home() {
           <section className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-5">
             <div className="animate-fade-in">
               {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={setTela} />}
-              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
+              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} atualizarPrazoEntrega={atualizarPrazoEntrega} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
               {tela === 'equipe' && canViewModule(role, 'equipe') && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
               {tela === 'diario' && canViewModule(role, 'diario') && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
               {tela === 'fotos' && canViewModule(role, 'fotos') && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
@@ -355,11 +364,19 @@ function LoginScreen({ login }) {
   )
 }
 
-function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, excluirTarefa, importarCronogramaExcel, obraAtual }) {
+function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, excluirTarefa, atualizarPrazoEntrega, importarCronogramaExcel, obraAtual }) {
   const total = tarefas.length || 0
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const atrasadas = tarefas.filter(t => (t.progresso < 100 && (t.termino || t.data_termino) && new Date(t.termino || t.data_termino) < new Date())).length
   const progressoGlobal = total > 0 ? Math.round(tarefas.reduce((a, t) => a + Number(t.progresso), 0) / total) : 0
+  const prazoFinalCronograma = tarefas.reduce((ultimo, tarefa) => {
+    const data = String(tarefa.termino || tarefa.data_termino || '').slice(0, 10)
+    return data && (!ultimo || data > ultimo) ? data : ultimo
+  }, '')
+  const prazoEntregaAtual = obraAtual.prazo_final || prazoFinalCronograma || ''
+  const formatarPrazo = (valor) => valor
+    ? new Date(`${String(valor).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR')
+    : 'Não definido'
   const exportarCronograma = () => exportScheduleToExcel({ obra: obraAtual, tarefas })
 
   return (
@@ -388,12 +405,28 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
           <h4 className="text-2xl font-black text-slate-900">{concluidas}/{total}</h4>
           <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Tarefas Finalizadas</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm">
-          <p className={eyebrowClass + " mb-1"}>Prazo Final</p>
-          <h4 className="text-2xl font-black text-slate-900">
-            {obraAtual.prazo_final ? new Date(obraAtual.prazo_final).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '---'}
-          </h4>
-          <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">{obraAtual.prazo || 'Data Estimada'}</p>
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm">
+          <p className={eyebrowClass + " mb-2"}>Prazo de entrega da obra</p>
+          {permissaoEditar ? (
+            <input
+              key={`${obraAtual.id}:${prazoEntregaAtual}`}
+              type="date"
+              defaultValue={prazoEntregaAtual}
+              onChange={(event) => atualizarPrazoEntrega(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+              aria-label="Editar prazo de entrega da obra"
+            />
+          ) : (
+            <h4 className="text-2xl font-black text-slate-900">{formatarPrazo(prazoEntregaAtual)}</h4>
+          )}
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[9px] font-bold text-slate-500">Fim automático: {formatarPrazo(prazoFinalCronograma)}</p>
+            {permissaoEditar && prazoFinalCronograma && prazoFinalCronograma !== obraAtual.prazo_final && (
+              <button type="button" onClick={() => atualizarPrazoEntrega(prazoFinalCronograma)} className="shrink-0 text-[8px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-700">
+                Usar data
+              </button>
+            )}
+          </div>
         </div>
         <div className={`p-6 rounded-3xl border shadow-sm ${atrasadas > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-slate-200/60'}`}>
           <p className={atrasadas > 0 ? "text-[10px] font-black uppercase tracking-widest text-red-400 mb-1" : eyebrowClass + " mb-1"}>Pontos Críticos</p>

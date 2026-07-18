@@ -86,6 +86,12 @@ function formatDate(value, options = { day: '2-digit', month: 'short' }) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR', options)
 }
 
+function parseScheduleDate(value) {
+  if (!value) return null
+  const date = new Date(`${String(value).slice(0, 10)}T12:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
 function MetricCard({ title, value, detail, icon: Icon, tone = 'blue', onClick }) {
   const visual = CARD_TONES[tone] || CARD_TONES.blue
 
@@ -181,7 +187,11 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
     ? Math.round(tarefas.reduce((total, item) => total + (Number(item.progresso) || 0), 0) / totalTarefas)
     : Number(obraAtual.progresso || 0)
 
-  const prazoFinal = obraAtual.prazo_final || obraAtual.previsao_entrega || obraAtual.previsaoEntrega
+  const prazoFinalCronograma = tarefas.reduce((ultimo, tarefa) => {
+    const data = String(tarefa.data_termino || tarefa.termino || '').slice(0, 10)
+    return data && (!ultimo || data > ultimo) ? data : ultimo
+  }, '')
+  const prazoFinal = obraAtual.prazo_final || obraAtual.previsao_entrega || obraAtual.previsaoEntrega || prazoFinalCronograma
   const ultimoDiario = diariosVisiveis[0] || null
   const ultimaFoto = fotosVisiveis[0] || null
   const ultimaFotoUrl = ultimaFoto?.url || ultimaFoto?.url_foto || ultimaFoto?.data?.url || ultimaFoto?.data?.url_foto || ''
@@ -198,6 +208,29 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const tarefasOrdenadas = useMemo(() => [...tarefas]
     .sort((a, b) => new Date(a.data_termino || a.termino || '2999-12-31') - new Date(b.data_termino || b.termino || '2999-12-31')),
   [tarefas])
+
+  const hoje = new Date()
+  hoje.setHours(12, 0, 0, 0)
+  const estaEmExecucaoHoje = (tarefa) => {
+    const inicio = parseScheduleDate(tarefa.data_inicio || tarefa.inicio)
+    const termino = parseScheduleDate(tarefa.data_termino || tarefa.termino)
+    const progresso = Number(tarefa.progresso || 0)
+    return progresso < 100 && inicio && termino && inicio <= hoje && termino >= hoje
+  }
+  const tarefasHoje = tarefasOrdenadas.filter(estaEmExecucaoHoje)
+  const tarefasEmAndamento = tarefasOrdenadas.filter((tarefa) => {
+    const progresso = Number(tarefa.progresso || 0)
+    return progresso > 0 && progresso < 100 && !tarefasHoje.some((atual) => String(atual.id) === String(tarefa.id))
+  })
+  const tarefasFuturas = tarefasOrdenadas.filter((tarefa) => {
+    const inicio = parseScheduleDate(tarefa.data_inicio || tarefa.inicio)
+    return Number(tarefa.progresso || 0) < 100 && inicio && inicio > hoje
+  })
+  const tarefasDestaque = [...tarefasHoje, ...tarefasEmAndamento, ...tarefasFuturas, ...tarefasOrdenadas]
+    .filter((tarefa, index, lista) => lista.findIndex((item) => String(item.id) === String(tarefa.id)) === index)
+    .slice(0, 5)
+  const faseAtual = tarefasHoje[0]?.etapa || tarefasHoje[0]?.fase || tarefasHoje[0]?.categoria || obraAtual.etapa || 'Execução da obra'
+  const tituloCronograma = tarefasHoje.length ? `Fase atual — ${faseAtual}` : `Próximas atividades — ${faseAtual}`
 
   const dadosEvolucao = useMemo(() => {
     const ordered = tarefasOrdenadas.slice(0, 7)
@@ -279,13 +312,14 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
         </section>
 
         <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
-          <PanelHeader eyebrow="Cronograma físico" title="Atividades e avanço da obra" action="Ver completo" onAction={() => navigate('cronograma')} />
+          <PanelHeader eyebrow="Cronograma físico · hoje" title={tituloCronograma} action="Ver completo" onAction={() => navigate('cronograma')} />
 
           <div className="mt-3 grid min-h-0 gap-2.5">
-            {tarefasOrdenadas.slice(0, 5).map((item, index) => {
+            {tarefasDestaque.map((item, index) => {
               const progress = Math.max(0, Math.min(100, Number(item.progresso || 0)))
               const delayed = tarefaAtrasadaOperacional(item)
               const completed = progress === 100
+              const runningToday = estaEmExecucaoHoje(item)
 
               return (
                 <button key={item.id || index} type="button" onClick={() => navigate('cronograma')} className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50">
@@ -294,7 +328,10 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-3">
-                      <span className="truncate text-[10px] font-bold text-slate-800">{item.nome}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-[10px] font-bold text-slate-800">{item.nome}</span>
+                        {runningToday && <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider text-blue-700">Hoje</span>}
+                      </span>
                       <span className={`shrink-0 text-[9px] font-black ${completed ? 'text-emerald-600' : delayed ? 'text-red-600' : 'text-slate-500'}`}>{progress}%</span>
                     </span>
                     <span className="mt-1 flex items-center gap-2">
@@ -306,7 +343,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
               )
             })}
 
-            {!tarefasOrdenadas.length && <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-xs font-bold text-slate-400">Nenhuma atividade cadastrada no cronograma.</p>}
+            {!tarefasDestaque.length && <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-xs font-bold text-slate-400">Nenhuma atividade cadastrada no cronograma.</p>}
           </div>
         </section>
       </section>

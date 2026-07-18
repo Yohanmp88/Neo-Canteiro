@@ -86,7 +86,7 @@ table:has(button[aria-label^="Excluir atividade"]) td:last-child {
   position: sticky;
   right: 0;
   z-index: 12;
-  min-width: 112px;
+  min-width: 72px;
   background: #ffffff;
   box-shadow: -10px 0 20px -18px rgba(15, 23, 42, 0.7);
 }
@@ -100,20 +100,6 @@ table:has(button[aria-label^="Excluir atividade"]) tr:hover td:last-child {
   background: #f8fafc;
 }
 
-button[aria-label^="Excluir atividade"] {
-  width: auto !important;
-  min-width: 82px;
-  padding-inline: 11px;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-button[aria-label^="Excluir atividade"]::after {
-  content: "Excluir";
-}
 
 .dark,
 .dark body {
