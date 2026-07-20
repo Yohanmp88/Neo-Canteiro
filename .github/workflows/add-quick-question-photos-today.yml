@@ -1,0 +1,22 @@
+name: Adicionar pergunta Fotos do dia
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-quick-question-photos-today.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/add-quick-question-photos-today.cjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/platform/AIWorkspace.js
+          git commit -m "Adiciona pergunta pronta Fotos do dia na IA"
+          git push
