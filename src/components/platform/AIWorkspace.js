@@ -20,6 +20,7 @@ import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
 import { formatDeliveryQuantity, isReceivedStatus, materialDeliveryFromRecord } from '@/lib/materialDelivery'
 
 const QUICK_QUESTIONS = [
+  'Fotos do dia',
   'O que foi feito hoje?',
   'O que foi feito ontem?',
   'O que foi feito no dia 17/07?',
