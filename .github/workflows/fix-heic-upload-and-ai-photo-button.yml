@@ -1,0 +1,23 @@
+name: Corrigir upload HEIC e fotos na IA
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-heic-upload-and-ai-photo-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install heic-to@1.5.2 --save-exact
+      - run: node scripts/fix-heic-upload-and-ai-photo-button.cjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src/services/photoUploadService.js src/components/platform/PhotoWorkspace.js src/components/platform/AIWorkspace.js
+          git commit -m "Converte HEIC para JPEG e exibe Fotos do dia na IA"
+          git push
