@@ -41,7 +41,7 @@ export function useObraPhotos(obraId) {
     if (!obraId) {
       setPhotos([])
       setLoading(false)
-      return
+      return []
     }
 
     setLoading(true)
@@ -93,11 +93,13 @@ export function useObraPhotos(obraId) {
       })
     })
 
-    setPhotos(uniquePhotos(collected))
-    if (!collected.length && results.every((result) => result.status === 'rejected' || result.value?.error)) {
+    const nextPhotos = uniquePhotos(collected)
+    setPhotos(nextPhotos)
+    if (!nextPhotos.length && results.every((result) => result.status === 'rejected' || result.value?.error)) {
       setError('Não foi possível consultar os registros fotográficos da obra.')
     }
     setLoading(false)
+    return nextPhotos
   }, [obraId])
 
   useEffect(() => {
