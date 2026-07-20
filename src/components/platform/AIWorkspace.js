@@ -16,7 +16,7 @@ import {
 import { useDiarios } from '@/hooks/useDiarios'
 import { useTimeline } from '@/hooks/useTimeline'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
-import { formatDeliveryQuantity, isReceivedStatus } from '@/lib/materialDelivery'
+import { formatDeliveryQuantity, isReceivedStatus, materialDeliveryFromRecord } from '@/lib/materialDelivery'
 
 const QUICK_QUESTIONS = [
   'O que foi feito hoje?',
@@ -130,8 +130,9 @@ function materialDate(record) {
 }
 
 function materialLabel(record) {
-  const quantity = formatDeliveryQuantity(record)
-  return [quantity, record.item || record.material || record.nome].filter(Boolean).join(' de ')
+  const delivery = materialDeliveryFromRecord(record)
+  const quantity = formatDeliveryQuantity(delivery)
+  return [quantity, delivery.item].filter(Boolean).join(' de ')
 }
 
 function buildDailyAnswer({ date, diaries, materials, photos }) {
@@ -255,6 +256,7 @@ export function AIWorkspace({ obra, user }) {
   ])
   const inputRef = useRef(null)
   const { diarios = [], loading: diariesLoading } = useDiarios(obra?.id)
+  const { records: workspaceDiaries = [], loading: workspaceDiariesLoading } = useWorkspaceRecords('diario', obra?.id, user)
   const { records: materialRecords = [], loading: materialsLoading } = useWorkspaceRecords('materiais', obra?.id, user)
   const { eventos = [], loading: timelineLoading } = useTimeline(obra?.id, user)
 
@@ -271,14 +273,21 @@ export function AIWorkspace({ obra, user }) {
     (photo) => photo.url,
   ), [eventos])
 
-  const loading = diariesLoading || materialsLoading || timelineLoading
+  const allDiaries = useMemo(() => uniqueBy(
+    [...diarios, ...workspaceDiaries]
+      .filter(Boolean)
+      .sort((a, b) => String(b.data || b.created_at || '').localeCompare(String(a.data || a.created_at || ''))),
+    (diary) => String(diary.id || `${dateKey(diary.data || diary.created_at)}:${cleanText(diary.servicos_executados || diary.atividades)}`),
+  ), [diarios, workspaceDiaries])
+
+  const loading = diariesLoading || workspaceDiariesLoading || materialsLoading || timelineLoading
 
   const ask = (value = question) => {
     const text = cleanText(value)
     if (!text || loading) return
 
     const targetDate = resolveQuestionDate(text)
-    const dayDiaries = diarios.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)
+    const dayDiaries = allDiaries.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)
     const dayMaterials = materialRecords.filter((record) => isReceivedStatus(record.recebimento_status || record.status_recebimento) && materialDate(record) === targetDate)
     const dayPhotos = photos.filter((photo) => photo.date === targetDate)
 
@@ -346,7 +355,7 @@ export function AIWorkspace({ obra, user }) {
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Fontes consultadas</p>
           <div className="mt-3 space-y-2 text-xs font-bold text-slate-600">
-            <p className="flex items-center gap-2"><Bot size={15} className="text-blue-600" /> {diarios.length} diário{diarios.length === 1 ? '' : 's'}</p>
+            <p className="flex items-center gap-2"><Bot size={15} className="text-blue-600" /> {allDiaries.length} diário{allDiaries.length === 1 ? '' : 's'}</p>
             <p className="flex items-center gap-2"><PackageCheck size={15} className="text-emerald-600" /> {materialRecords.length} material{materialRecords.length === 1 ? '' : 'is'}</p>
             <p className="flex items-center gap-2"><Camera size={15} className="text-violet-600" /> {photos.length} foto{photos.length === 1 ? '' : 's'}</p>
           </div>
