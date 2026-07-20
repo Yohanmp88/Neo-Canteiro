@@ -12,6 +12,11 @@ const ALLOWED_ROLES = new Set([
   'cliente',
   'investidor',
 ])
+const ALLOWED_MODULES = new Set([
+  'dashboard', 'timeline', 'clientes', 'cronograma', 'ia', 'diario', 'fotos', 'equipe',
+  'materiais', 'compras', 'fornecedores', 'financeiro', 'orcamento', 'composicoes',
+  'abc', 'medicoes', 'planilhas', 'projetos', 'documentos', 'templates', 'obras', 'usuarios',
+])
 
 function jsonError(message, status = 400) {
   return NextResponse.json({ error: message }, { status })
@@ -25,6 +30,33 @@ function normalizeRole(value) {
     .toLowerCase()
 
   return role === 'admin' ? 'administrador' : role
+}
+
+function sanitizeModules(values) {
+  return Array.from(new Set((Array.isArray(values) ? values : [])
+    .map((value) => String(value || '').trim())
+    .filter((moduleKey) => ALLOWED_MODULES.has(moduleKey))))
+}
+
+function normalizeCustomPermissions(value, role) {
+  if (!value || value.enabled !== true) {
+    return { enabled: false, view: [], edit: [] }
+  }
+
+  const view = sanitizeModules(value.view)
+  if (!view.includes('dashboard')) view.unshift('dashboard')
+  const edit = sanitizeModules(value.edit).filter((moduleKey) => view.includes(moduleKey))
+
+  if (role !== 'administrador') {
+    const adminOnly = new Set(['usuarios'])
+    return {
+      enabled: true,
+      view: view.filter((moduleKey) => !adminOnly.has(moduleKey)),
+      edit: edit.filter((moduleKey) => !adminOnly.has(moduleKey)),
+    }
+  }
+
+  return { enabled: true, view, edit }
 }
 
 function getAdminClient() {
@@ -109,6 +141,7 @@ export async function GET(request) {
         role,
         empresa: profile.empresa || metadata.empresa || '',
         status: userStatus(authUser),
+        custom_permissions: metadata.custom_permissions || null,
         created_at: profile.created_at || authUser.created_at || '',
         updated_at: profile.updated_at || authUser.updated_at || '',
         last_sign_in_at: authUser.last_sign_in_at || '',
@@ -124,6 +157,7 @@ export async function GET(request) {
         role: profile.role || 'investidor',
         empresa: profile.empresa || '',
         status: 'Ativo',
+        custom_permissions: null,
         created_at: profile.created_at || '',
         updated_at: profile.updated_at || '',
         last_sign_in_at: '',
@@ -152,8 +186,17 @@ export async function PUT(request) {
 
   if (!userId) return jsonError('Usuário não identificado.')
   if (!ALLOWED_ROLES.has(role)) return jsonError('Perfil de acesso inválido.')
-  if (userId === auth.requester.id && role !== 'administrador') {
-    return jsonError('O administrador conectado não pode remover o próprio acesso administrativo.')
+
+  const customPermissions = normalizeCustomPermissions(body.custom_permissions, role)
+
+  if (userId === auth.requester.id) {
+    if (role !== 'administrador') {
+      return jsonError('O administrador conectado não pode remover o próprio acesso administrativo.')
+    }
+
+    if (customPermissions.enabled && (!customPermissions.view.includes('usuarios') || !customPermissions.edit.includes('usuarios'))) {
+      return jsonError('O administrador conectado deve manter acesso de visualização e edição em Usuários e Permissões.')
+    }
   }
 
   try {
@@ -196,6 +239,7 @@ export async function PUT(request) {
           ...metadata,
           role,
           tipo_usuario: role,
+          custom_permissions: customPermissions,
         },
       })
 
@@ -210,6 +254,7 @@ export async function PUT(request) {
         role,
         empresa: empresa || '',
         status: authUser ? userStatus(authUser) : 'Ativo',
+        custom_permissions: customPermissions,
         created_at: profile?.created_at || authUser?.created_at || '',
         updated_at: now,
         last_sign_in_at: authUser?.last_sign_in_at || '',
