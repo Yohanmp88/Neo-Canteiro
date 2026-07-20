@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { getModuleDefinition } from '@/lib/moduleDefinitions'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
+import { pedidoAtrasadoOperacional } from '@/lib/operationalData'
 
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-50 disabled:text-slate-400'
 
@@ -187,7 +188,7 @@ function ConfirmDelete({ record, open, saving, onClose, onConfirm }) {
   )
 }
 
-export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
+export function EditableWorkspace({ moduleKey, obra, user, canEdit = true, focus = '' }) {
   const definition = getModuleDefinition(moduleKey)
   const {
     records,
@@ -212,6 +213,7 @@ export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
 
   const statusField = definition?.statusField
   const valueField = definition?.valueField
+  const focusLatePurchases = moduleKey === 'compras' && focus === 'atrasados'
 
   const statusOptions = useMemo(() => {
     if (!statusField) return []
@@ -225,7 +227,8 @@ export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
     const result = records.filter((record) => {
       const matchesSearch = !term || definition.fields.some((field) => String(record[field.key] ?? '').toLowerCase().includes(term))
       const matchesStatus = statusFilter === 'todos' || String(record[statusField] || '') === statusFilter
-      return matchesSearch && matchesStatus
+      const matchesFocus = !focusLatePurchases || pedidoAtrasadoOperacional(record)
+      return matchesSearch && matchesStatus && matchesFocus
     })
 
     return [...result].sort((a, b) => {
@@ -237,14 +240,14 @@ export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
       if (sort === 'value_desc' && valueField) return Number(b[valueField] || 0) - Number(a[valueField] || 0)
       return String(b.updated_at || '').localeCompare(String(a.updated_at || ''))
     })
-  }, [records, search, statusFilter, sort, definition, statusField, valueField])
+  }, [records, search, statusFilter, sort, definition, statusField, valueField, focusLatePurchases])
 
   const metrics = useMemo(() => ({
     total: records.length,
-    attention: records.filter((record) => needsAttention(record, statusField)).length,
+    attention: records.filter((record) => moduleKey === 'compras' ? pedidoAtrasadoOperacional(record) : needsAttention(record, statusField)).length,
     completed: records.filter((record) => isCompleted(record, statusField)).length,
     totalValue: valueField ? records.reduce((sum, record) => sum + Number(record[valueField] || 0), 0) : null,
-  }), [records, statusField, valueField])
+  }), [records, statusField, valueField, moduleKey])
 
   if (!definition) return null
 
@@ -370,6 +373,12 @@ export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
           </div>
         )}
 
+        {focusLatePurchases && (
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
+            <AlertTriangle size={17} className="mt-0.5 shrink-0" /> Exibindo somente os pedidos cuja entrega prevista venceu e que ainda não possuem recebimento confirmado.
+          </div>
+        )}
+
         {loading ? (
           <div className="flex min-h-64 items-center justify-center text-sm font-black text-blue-600"><RefreshCw className="mr-2 animate-spin" size={18} /> Carregando registros...</div>
         ) : filtered.length === 0 ? (
@@ -393,7 +402,7 @@ export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((record) => (
-                    <tr key={record.id} className="group hover:bg-slate-50/80">
+                    <tr key={record.id} className={`group ${focusLatePurchases && pedidoAtrasadoOperacional(record) ? 'bg-red-50/80 ring-1 ring-inset ring-red-200' : 'hover:bg-slate-50/80'}`}>
                       {visibleFields.map((field, index) => (
                         <td key={field.key} className={`max-w-56 px-3 py-4 text-sm ${index === 0 ? 'font-black text-slate-900' : 'font-medium text-slate-600'}`}>
                           {field.key === statusField ? (
@@ -418,7 +427,7 @@ export function EditableWorkspace({ moduleKey, obra, user, canEdit = true }) {
 
             <div className="mt-5 space-y-3 lg:hidden">
               {filtered.map((record) => (
-                <article key={record.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <article key={record.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${focusLatePurchases && pedidoAtrasadoOperacional(record) ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200'}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-900">{textValue(record[visibleFields[0]?.key])}</p>

@@ -164,7 +164,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
     return <EmptyState title="Nenhuma obra selecionada" description="Selecione uma obra para visualizar o painel executivo." />
   }
 
-  const navigate = (tabId) => {
+  const navigate = (tabId, options = {}) => {
     if (!canViewModule(activeRole, tabId)) return
 
     if (tabId === 'diario' || tabId === 'fotos') {
@@ -173,11 +173,13 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
     }
 
     if (WORKSPACE_TABS.has(tabId)) {
-      window.location.href = `/workspace?module=${tabId}`
+      const params = new URLSearchParams({ module: tabId, obra: String(obraAtual.id) })
+      if (options.focus) params.set('focus', options.focus)
+      window.location.href = `/workspace?${params.toString()}`
       return
     }
 
-    onNavigate(tabId)
+    onNavigate(tabId, options)
   }
 
   const totalTarefas = tarefas.length
@@ -271,7 +273,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
           detail={`${atrasadas.length} serviço(s) · ${materiaisCriticos.length} material(is)`}
           icon={AlertCircle}
           tone={totalAlertas ? 'red' : 'slate'}
-          onClick={() => navigate(atrasadas.length ? 'cronograma' : 'compras')}
+          onClick={() => navigate(atrasadas.length ? 'cronograma' : 'compras', { focus: 'atrasados' })}
         />
       </section>
 
@@ -351,7 +353,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
 
       <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
         {canViewModule(activeRole, 'compras') && (
-          <button type="button" onClick={() => navigate('compras')} className="group flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-amber-300">
+          <button type="button" onClick={() => navigate('compras', materiaisCriticos.length ? { focus: 'atrasados' } : {})} className="group flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-amber-300">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100"><Package size={18} /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Materiais e compras</span>

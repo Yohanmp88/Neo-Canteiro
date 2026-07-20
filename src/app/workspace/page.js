@@ -9,6 +9,8 @@ import { DiaryWorkspace } from '@/components/platform/DiaryWorkspace'
 import { EditableWorkspace } from '@/components/platform/EditableWorkspace'
 import { MaterialsWorkspace } from '@/components/platform/MaterialsWorkspace'
 import { PhotoWorkspace } from '@/components/platform/PhotoWorkspace'
+import { ProjectsWorkspace } from '@/components/platform/ProjectsWorkspace'
+import { UsersPermissionsWorkspace } from '@/components/platform/UsersPermissionsWorkspace'
 import { SinapiWorkspace } from '@/components/platform/SinapiWorkspace'
 import { SpreadsheetWorkspace } from '@/components/platform/SpreadsheetWorkspace'
 import { EDITABLE_MODULE_KEYS, getModuleDefinition } from '@/lib/moduleDefinitions'
@@ -35,6 +37,7 @@ export default function WorkspacePage() {
   const { obras: obrasRaw = [] } = useObras()
   const [moduleKey, setModuleKey] = useState('clientes')
   const [obraId, setObraId] = useState('demo-1')
+  const [focus, setFocus] = useState('')
 
   const isDemoUser = user?.app_metadata?.provider === 'demo'
   const profileReady = Boolean(userProfile) || isDemoUser
@@ -43,6 +46,11 @@ export default function WorkspacePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const requested = params.get('module')
+    const requestedWork = params.get('obra')
+    const requestedFocus = params.get('focus')
+
+    if (requestedWork) setObraId(requestedWork)
+    setFocus(requestedFocus || '')
 
     if (requested && WORKSPACE_KEYS.includes(requested)) {
       setModuleKey(requested)
@@ -106,6 +114,7 @@ export default function WorkspacePage() {
 
     if (WORKSPACE_KEYS.includes(tabId)) {
       setModuleKey(tabId)
+      setFocus('')
       const nextUrl = `/workspace?module=${tabId}`
       window.history.pushState({}, '', nextUrl)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -191,12 +200,16 @@ export default function WorkspacePage() {
                 <MaterialsWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : moduleKey === 'fotos' ? (
                 <PhotoWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
+              ) : moduleKey === 'projetos' ? (
+                <ProjectsWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
+              ) : moduleKey === 'usuarios' ? (
+                <UsersPermissionsWorkspace />
               ) : moduleKey === 'planilhas' ? (
                 <SpreadsheetWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : moduleKey === 'composicoes' ? (
                 <SinapiWorkspace obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
               ) : (
-                <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditCurrentModule} />
+                <EditableWorkspace moduleKey={moduleKey} obra={obraAtual} user={user} canEdit={canEditCurrentModule} focus={focus} />
               )}
             </div>
           </section>

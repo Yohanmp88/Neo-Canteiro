@@ -19,6 +19,7 @@ import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl
 import { exportScheduleToExcel } from '@/lib/exportScheduleExcel'
 import { ScheduleExcelImport } from '@/components/platform/ScheduleExcelImport'
 import { AIWorkspace } from '@/components/platform/AIWorkspace'
+import { tarefaAtrasadaOperacional } from '@/lib/operationalData'
 
 // --- ESTILOS PREMIUM ---
 const inputClass = 'w-full rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-premium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 shadow-sm'
@@ -59,6 +60,7 @@ export default function Home() {
   // --- ESTADOS DE CONTROLE E NAVEGAÇÃO ---
   const [tela, setTela] = useState('dashboard')
   const [obraId, setObraId] = useState(null)
+  const [navigationFocus, setNavigationFocus] = useState(null)
 
   // --- ESTADOS DE DADOS (LOCAIS/DEMO) ---
   const [semanasDiarias, setSemanasDiarias] = useState(['03/04 a 05/04', '06/04 a 12/04', '13/04 a 19/04', '20/04 a 26/04', '27/04 a 03/05', '04/05 a 05/05'])
@@ -137,6 +139,11 @@ export default function Home() {
     setSaveStatus(status); setErrorMsg(msg)
     if (feedbackTimerRef.current) window.clearTimeout(feedbackTimerRef.current)
     if (status === 'saved') feedbackTimerRef.current = window.setTimeout(() => setSaveStatus(null), 2500)
+  }, [])
+
+  const navigateInternal = useCallback((tabId, options = {}) => {
+    setNavigationFocus(options?.focus || null)
+    setTela(tabId)
   }, [])
 
   // Obras
@@ -327,15 +334,15 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20 lg:pb-0">
       {saveStatus && <Toast status={saveStatus} msg={errorMsg} />}
       <div className="flex min-h-screen w-full">
-        <Sidebar activeTab={tela} onTabChange={setTela} userProfile={profileForNavigation} logout={authLogout} />
+        <Sidebar activeTab={tela} onTabChange={navigateInternal} userProfile={profileForNavigation} logout={authLogout} />
 
         <div className="flex-1 flex flex-col min-w-0 lg:ml-72">
           <Header obras={obrasVisiveis} obraSelecionadaId={obraAtualSegura.id} onObraChange={setObraId} canCreateWork={permissaoAdmin} onCreateWork={() => setTela('usuarios')} />
 
           <section className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 lg:px-8 lg:py-5">
             <div className="animate-fade-in">
-              {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={setTela} />}
-              {tela === 'cronograma' && <TelaCronograma permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} atualizarPrazoEntrega={atualizarPrazoEntrega} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
+              {tela === 'dashboard' && <DashboardView obraAtual={obraAtualSegura} tarefas={tarefas} materiais={materiais} diarios={diarios} user={user} role={role} isClient={ehCliente} onNavigate={navigateInternal} />}
+              {tela === 'cronograma' && <TelaCronograma focus={navigationFocus} permissaoEditar={permissaoEditar} novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} adicionarTarefa={adicionarTarefa} tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} atualizarPrazoEntrega={atualizarPrazoEntrega} importarCronogramaExcel={importarCronogramaExcel} obraAtual={obraAtualSegura} />}
               {tela === 'equipe' && canViewModule(role, 'equipe') && <TelaEquipe obraAtual={obraAtualSegura} equipe={equipeVisivel} semanas={semanasDiarias} novoMembro={novoMembro} setNovoMembro={setNovoMembro} adicionarMembro={adicionarMembro} atualizarEquipe={atualizarEquipe} atualizarSemanaEquipe={atualizarSemanaEquipe} />}
               {tela === 'diario' && canViewModule(role, 'diario') && <TelaDiario obraAtual={obraAtualSegura} diario={diarioLocal} setDiario={salvarDiario} />}
               {tela === 'fotos' && canViewModule(role, 'fotos') && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
@@ -347,7 +354,7 @@ export default function Home() {
           </section>
         </div>
       </div>
-      <BottomNav activeTab={tela} onTabChange={setTela} userProfile={profileForNavigation} />
+      <BottomNav activeTab={tela} onTabChange={navigateInternal} userProfile={profileForNavigation} />
     </main>
   )
 }
@@ -371,11 +378,13 @@ function LoginScreen({ login }) {
   )
 }
 
-function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, excluirTarefa, atualizarPrazoEntrega, importarCronogramaExcel, obraAtual }) {
+function TelaCronograma({ focus, permissaoEditar, novaTarefa, setNovaTarefa, adicionarTarefa, tarefas, atualizarTarefa, excluirTarefa, atualizarPrazoEntrega, importarCronogramaExcel, obraAtual }) {
   const total = tarefas.length || 0
   const concluidas = tarefas.filter(t => Number(t.progresso) === 100).length
   const atrasadas = tarefas.filter(t => (t.progresso < 100 && (t.termino || t.data_termino) && new Date(t.termino || t.data_termino) < new Date())).length
   const progressoGlobal = total > 0 ? Math.round(tarefas.reduce((a, t) => a + Number(t.progresso), 0) / total) : 0
+  const destacarAtrasadas = focus === 'atrasados'
+  const tarefasVisiveis = destacarAtrasadas ? tarefas.filter((tarefa) => tarefaAtrasadaOperacional(tarefa)) : tarefas
   const prazoFinalCronograma = tarefas.reduce((ultimo, tarefa) => {
     const data = String(tarefa.termino || tarefa.data_termino || '').slice(0, 10)
     return data && (!ultimo || data > ultimo) ? data : ultimo
@@ -388,6 +397,11 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
 
   return (
     <div className="space-y-6">
+      {destacarAtrasadas && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          Evidenciando {tarefasVisiveis.length} serviço{tarefasVisiveis.length === 1 ? '' : 's'} com prazo vencido e progresso abaixo de 100%.
+        </div>
+      )}
       <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[9px] font-black uppercase tracking-[0.16em] text-blue-600">Planejamento da obra</p>
@@ -479,14 +493,14 @@ function TelaCronograma({ permissaoEditar, novaTarefa, setNovaTarefa, adicionarT
         <div className="mb-6">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Cronograma Físico (Previsto vs Realizado)</h3>
         </div>
-        <GraficoCronograma tarefas={tarefas} />
+        <GraficoCronograma tarefas={tarefasVisiveis} />
       </PanelClean>
 
       <PanelClean>
         <div className="mb-6">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Detalhamento de Atividades</h3>
         </div>
-        <CronogramaVisual tarefas={tarefas} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} podeEditar={permissaoEditar} />
+        <CronogramaVisual tarefas={tarefasVisiveis} atualizarTarefa={atualizarTarefa} excluirTarefa={excluirTarefa} podeEditar={permissaoEditar} />
       </PanelClean>
     </div>
   )

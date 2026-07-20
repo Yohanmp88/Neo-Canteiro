@@ -21,6 +21,7 @@ import {
   UsersRound,
   Truck,
   FolderKanban,
+  FolderOpen,
   History,
   TableProperties,
 } from 'lucide-react'
@@ -40,6 +41,7 @@ const WORKSPACE_TABS = new Set([
   'abc',
   'medicoes',
   'planilhas',
+  'projetos',
   'documentos',
   'templates',
   'usuarios',
@@ -81,6 +83,7 @@ const MENU_GROUPS = [
     label: 'Administração',
     items: [
       { id: 'planilhas', label: 'Planilhas Excel', icon: TableProperties },
+      { id: 'projetos', label: 'Projetos', icon: FolderOpen },
       { id: 'documentos', label: 'Documentos', icon: FolderKanban },
       { id: 'templates', label: 'Templates', icon: FileCode },
       { id: 'usuarios', label: 'Usuários e Permissões', icon: Settings },
