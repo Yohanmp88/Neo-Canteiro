@@ -1,0 +1,32 @@
+name: Adicionar Fotos do dia na IA correta
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-ia-route-photos-day.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node scripts/patch-ia-route-photos-day.cjs
+      - run: npm run build
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Nenhuma alteração necessária."
+          else
+            git add src/app/ia/page.js
+            git commit -m "Adiciona Fotos do dia na rota correta da IA"
+            git push
+          fi
