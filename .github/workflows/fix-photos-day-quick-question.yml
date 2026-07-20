@@ -1,0 +1,22 @@
+name: Corrigir pergunta Fotos do dia
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-photos-day-quick-question.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/fix-photos-day-quick-question.cjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/platform/AIWorkspace.js
+          git commit -m "Corrige pergunta Fotos do dia na IA"
+          git push
