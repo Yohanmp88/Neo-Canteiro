@@ -3,9 +3,28 @@ import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const ALLOWED_ROLES = new Set([
+  'administrador',
+  'engenheiro',
+  'estagiario',
+  'compras',
+  'financeiro',
+  'cliente',
+  'investidor',
+])
 
 function jsonError(message, status = 400) {
   return NextResponse.json({ error: message }, { status })
+}
+
+function normalizeRole(value) {
+  const role = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+
+  return role === 'admin' ? 'administrador' : role
 }
 
 function getAdminClient() {
@@ -44,12 +63,12 @@ async function requireAdministrator(request) {
 
   if (profileError || !profile) return { error: jsonError('Perfil administrativo não encontrado.', 403) }
 
-  const role = String(profile.role || '').trim().toLowerCase()
-  if (!['administrador', 'admin'].includes(role)) {
-    return { error: jsonError('Somente administradores podem consultar usuários e permissões.', 403) }
+  const role = normalizeRole(profile.role)
+  if (role !== 'administrador') {
+    return { error: jsonError('Somente administradores podem consultar ou editar usuários e permissões.', 403) }
   }
 
-  return { admin }
+  return { admin, requester }
 }
 
 function userStatus(user) {
@@ -120,5 +139,83 @@ export async function GET(request) {
     return NextResponse.json({ usuarios })
   } catch (error) {
     return jsonError(error?.message || 'Não foi possível carregar os usuários.', 400)
+  }
+}
+
+export async function PUT(request) {
+  const auth = await requireAdministrator(request)
+  if (auth.error) return auth.error
+
+  const body = await request.json().catch(() => ({}))
+  const userId = String(body.id || '').trim()
+  const role = normalizeRole(body.role)
+
+  if (!userId) return jsonError('Usuário não identificado.')
+  if (!ALLOWED_ROLES.has(role)) return jsonError('Perfil de acesso inválido.')
+  if (userId === auth.requester.id && role !== 'administrador') {
+    return jsonError('O administrador conectado não pode remover o próprio acesso administrativo.')
+  }
+
+  try {
+    const { data: profile, error: profileError } = await auth.admin
+      .from('profiles')
+      .select('id, nome, email, empresa, created_at, updated_at')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (profileError) throw profileError
+
+    const authResult = await auth.admin.auth.admin.getUserById(userId)
+    const authUser = authResult.data?.user || null
+
+    if (authResult.error && !profile) throw authResult.error
+    if (!authUser && !profile) return jsonError('Usuário não encontrado.', 404)
+
+    const metadata = authUser?.user_metadata || {}
+    const now = new Date().toISOString()
+    const nome = profile?.nome || metadata.nome || authUser?.email?.split('@')[0] || 'Usuário'
+    const email = profile?.email || authUser?.email || ''
+    const empresa = profile?.empresa || metadata.empresa || null
+
+    const { error: saveProfileError } = await auth.admin
+      .from('profiles')
+      .upsert({
+        id: userId,
+        nome,
+        email,
+        empresa,
+        role,
+        updated_at: now,
+      }, { onConflict: 'id' })
+
+    if (saveProfileError) throw saveProfileError
+
+    if (authUser) {
+      const { error: metadataError } = await auth.admin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...metadata,
+          role,
+          tipo_usuario: role,
+        },
+      })
+
+      if (metadataError) throw metadataError
+    }
+
+    return NextResponse.json({
+      usuario: {
+        id: userId,
+        nome,
+        email,
+        role,
+        empresa: empresa || '',
+        status: authUser ? userStatus(authUser) : 'Ativo',
+        created_at: profile?.created_at || authUser?.created_at || '',
+        updated_at: now,
+        last_sign_in_at: authUser?.last_sign_in_at || '',
+      },
+    })
+  } catch (error) {
+    return jsonError(error?.message || 'Não foi possível atualizar as permissões do usuário.', 400)
   }
 }
