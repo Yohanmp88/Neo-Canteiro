@@ -1,0 +1,22 @@
+name: Corrigir fotos da IA da obra
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-ai-photo-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/patch-ai-photo-source.cjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/platform/AIWorkspace.js
+          git commit -m "Lê fotos reais do módulo de fotos na IA"
+          git push
