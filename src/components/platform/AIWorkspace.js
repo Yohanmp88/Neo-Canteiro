@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useDiarios } from '@/hooks/useDiarios'
 import { useTimeline } from '@/hooks/useTimeline'
+import { useObraPhotos } from '@/hooks/useObraPhotos'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
 import { formatDeliveryQuantity, isReceivedStatus, materialDeliveryFromRecord } from '@/lib/materialDelivery'
 
@@ -258,32 +259,10 @@ export function AIWorkspace({ obra, user }) {
   const { diarios = [], loading: diariesLoading } = useDiarios(obra?.id)
   const { records: workspaceDiaries = [], loading: workspaceDiariesLoading } = useWorkspaceRecords('diario', obra?.id, user)
   const { records: materialRecords = [], loading: materialsLoading } = useWorkspaceRecords('materiais', obra?.id, user)
-  const { records: workspacePhotos = [], loading: workspacePhotosLoading } = useWorkspaceRecords('fotos', obra?.id, user)
+  const { photos: unifiedPhotos = [], loading: unifiedPhotosLoading, reload: reloadPhotos } = useObraPhotos(obra?.id)
   const { eventos = [], loading: timelineLoading } = useTimeline(obra?.id, user)
 
-  const photos = useMemo(() => uniqueBy(
-    [
-      ...workspacePhotos
-        .filter((record) => record?.url || record?.url_foto || record?.data?.url || record?.data?.url_foto)
-        .map((record) => ({
-          id: record.id,
-          date: dateKey(record.data || record.data_foto || record.created_at),
-          url: record.url || record.url_foto || record.data?.url || record.data?.url_foto,
-          title: record.descricao || record.titulo || record.etapa || 'Registro fotográfico',
-          description: record.observacoes || record.local || '',
-        })),
-      ...eventos
-        .filter((event) => event.event_type === 'foto' && event.metadata?.url)
-        .map((event) => ({
-          id: event.id,
-          date: dateKey(event.event_date || event.created_at),
-          url: event.metadata.url,
-          title: event.title || 'Registro fotográfico',
-          description: event.description || '',
-        })),
-    ],
-    (photo) => photo.url,
-  ), [workspacePhotos, eventos])
+  const photos = unifiedPhotos
 
   const allDiaries = useMemo(() => uniqueBy(
     [...diarios, ...workspaceDiaries]
@@ -292,16 +271,17 @@ export function AIWorkspace({ obra, user }) {
     (diary) => String(diary.id || `${dateKey(diary.data || diary.created_at)}:${cleanText(diary.servicos_executados || diary.atividades)}`),
   ), [diarios, workspaceDiaries])
 
-  const loading = diariesLoading || workspaceDiariesLoading || materialsLoading || workspacePhotosLoading || timelineLoading
+  const loading = diariesLoading || workspaceDiariesLoading || materialsLoading || unifiedPhotosLoading || timelineLoading
 
-  const ask = (value = question) => {
+  const ask = async (value = question) => {
     const text = cleanText(value)
     if (!text || loading) return
 
     const targetDate = resolveQuestionDate(text)
+    const freshPhotos = await reloadPhotos()
     const dayDiaries = allDiaries.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)
     const dayMaterials = materialRecords.filter((record) => isReceivedStatus(record.recebimento_status || record.status_recebimento) && materialDate(record) === targetDate)
-    const dayPhotos = photos.filter((photo) => photo.date === targetDate)
+    const dayPhotos = freshPhotos.filter((photo) => photo.date === targetDate)
 
     setMessages((current) => [
       ...current,
