@@ -9,6 +9,7 @@ import { useTarefas } from '@/hooks/useTarefas'
 import { useCompras } from '@/hooks/useCompras'
 import { useDiarios } from '@/hooks/useDiarios'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
+import { useObraPhotos } from '@/hooks/useObraPhotos'
 import { deliveriesForDate, formatDeliveryQuantity, mergeMaterialDeliveries } from '@/lib/materialDelivery'
 import '@/lib/coreModuleDefinitions'
 
@@ -106,6 +107,7 @@ const PEDIDOS_DEMO = [
 ]
 
 const PERGUNTAS_CHAVE = [
+  'Fotos do dia',
   'Diário de hoje: o que foi feito?',
   'Quais serviços estão atrasados?',
   'Quais materiais estão atrasados?',
@@ -492,6 +494,11 @@ export default function IAOperacionalPage() {
     loading: materiaisWorkspaceLoading,
     error: materiaisWorkspaceError,
   } = useWorkspaceRecords('materiais', obraAtual?.id, user)
+  const {
+    photos: fotosObra = [],
+    loading: fotosLoading,
+    reload: recarregarFotos,
+  } = useObraPhotos(obraAtual?.id)
 
   const tarefas = useMemo(() => (tarefasBanco.length ? tarefasBanco : usandoDemo ? TAREFAS_DEMO : []), [tarefasBanco, usandoDemo])
   const pedidos = useMemo(() => (pedidosBanco.length ? pedidosBanco : usandoDemo ? PEDIDOS_DEMO : []), [pedidosBanco, usandoDemo])
@@ -550,10 +557,10 @@ export default function IAOperacionalPage() {
     [materiaisNaoEntregues]
   )
 
-  const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading || diariosLoading || workspaceLoading || materiaisWorkspaceLoading
+  const carregando = authLoading || obrasLoading || tarefasLoading || comprasLoading || diariosLoading || workspaceLoading || materiaisWorkspaceLoading || fotosLoading
   const diarioError = diariosError || workspaceError || materiaisWorkspaceError
 
-  function perguntar(textoPergunta) {
+  async function perguntar(textoPergunta) {
     const texto = String(textoPergunta || '').trim()
     if (!texto || respondendo) return
 
@@ -561,23 +568,48 @@ export default function IAOperacionalPage() {
     setPergunta('')
     setRespondendo(true)
 
-    window.setTimeout(() => {
-      const resposta = gerarResposta(texto, {
-        obra: obraAtual,
-        tarefas,
-        pedidos,
-        diarios,
-        servicosAtrasados,
-        materiaisNaoEntregues,
-        materiaisAtrasados,
-        tarefasBloqueadas,
-        comprasError,
-        diarioError,
-      })
+    try {
+      const fotosAtualizadas = await recarregarFotos()
+      const fotosDisponiveis = Array.isArray(fotosAtualizadas) && fotosAtualizadas.length ? fotosAtualizadas : fotosObra
+      const textoNormalizado = normalizarTexto(texto)
+      const perguntaFotos = contemAlgum(textoNormalizado, ['foto', 'fotos', 'registro fotografico', 'registros fotograficos'])
+      const perguntaDiario = contemAlgum(textoNormalizado, [
+        'diario', 'o que foi feito', 'feito hoje', 'servicos executados hoje',
+        'trabalhos de hoje', 'atividades de hoje', 'relatorio do dia', 'resumo do dia',
+      ])
+      const dataAlvo = dataPedidaNoTexto(texto) || dataISO(new Date())
+      const fotosDoDia = fotosDisponiveis.filter((foto) => String(foto.date || '').slice(0, 10) === dataAlvo)
 
-      setMensagens((atuais) => [...atuais, { tipo: 'assistente', texto: resposta }])
+      const resposta = perguntaFotos
+        ? (fotosDoDia.length
+          ? `Encontrei ${fotosDoDia.length} foto${fotosDoDia.length === 1 ? '' : 's'} registrada${fotosDoDia.length === 1 ? '' : 's'} em ${formatarData(dataAlvo)}.`
+          : `Não encontrei fotos registradas em ${formatarData(dataAlvo)} para a obra “${obraAtual.nome}”.`)
+        : gerarResposta(texto, {
+          obra: obraAtual,
+          tarefas,
+          pedidos,
+          diarios,
+          servicosAtrasados,
+          materiaisNaoEntregues,
+          materiaisAtrasados,
+          tarefasBloqueadas,
+          comprasError,
+          diarioError,
+        })
+
+      setMensagens((atuais) => [...atuais, {
+        tipo: 'assistente',
+        texto: resposta,
+        fotos: perguntaFotos || perguntaDiario ? fotosDoDia : [],
+      }])
+    } catch {
+      setMensagens((atuais) => [...atuais, {
+        tipo: 'assistente',
+        texto: 'Não consegui consultar as fotos da obra neste momento.',
+      }])
+    } finally {
       setRespondendo(false)
-    }, 250)
+    }
   }
 
   function enviar(event) {
@@ -670,7 +702,26 @@ export default function IAOperacionalPage() {
             {mensagens.map((mensagem, indice) => (
               <div key={`${mensagem.tipo}-${indice}`} className={`flex ${mensagem.tipo === 'usuario' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[92%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-6 ${mensagem.tipo === 'usuario' ? 'bg-blue-600 text-white' : 'border border-slate-200 bg-white text-slate-700 shadow-sm'}`}>
-                  {mensagem.texto}
+                  <div>{mensagem.texto}</div>
+                  {mensagem.tipo === 'assistente' && mensagem.fotos?.length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {mensagem.fotos.map((foto, fotoIndice) => (
+                        <a
+                          key={foto.id || foto.url || fotoIndice}
+                          href={foto.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
+                        >
+                          <img
+                            src={foto.url}
+                            alt={foto.title || `Foto da obra ${fotoIndice + 1}`}
+                            className="h-44 w-full object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
