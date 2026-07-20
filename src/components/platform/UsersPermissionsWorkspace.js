@@ -6,7 +6,9 @@ import {
   CheckCircle2,
   Clock3,
   Edit3,
+  Eye,
   Loader2,
+  Pencil,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -15,7 +17,13 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { getAllowedModules, getRoleLabel } from '@/lib/accessControl'
+import {
+  ACCESS_MODULES,
+  getDefaultPermissions,
+  getRoleLabel,
+  getUserPermissions,
+  normalizeRole,
+} from '@/lib/accessControl'
 
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10'
 const ROLE_OPTIONS = [
@@ -53,11 +61,15 @@ function formatDateTime(value) {
   return Number.isNaN(date.getTime()) ? 'Não informado' : date.toLocaleString('pt-BR')
 }
 
-function permissionSummary(role) {
-  const modules = getAllowedModules(role)
-  if (modules === '*') return 'Controle total da plataforma'
-  if (!Array.isArray(modules) || !modules.length) return 'Sem módulos liberados'
-  return `${modules.length} módulo${modules.length === 1 ? '' : 's'} liberado${modules.length === 1 ? '' : 's'}`
+function permissionSummary(user) {
+  const permissions = getUserPermissions(user)
+  const personalized = user?.custom_permissions?.enabled === true
+  const viewCount = permissions.view.length
+  const editCount = permissions.edit.length
+
+  if (personalized) return `Personalizado: ${viewCount} módulo${viewCount === 1 ? '' : 's'} · ${editCount} com edição`
+  if (normalizeRole(user) === 'administrador') return 'Controle total da plataforma'
+  return `${viewCount} módulo${viewCount === 1 ? '' : 's'} liberado${viewCount === 1 ? '' : 's'}`
 }
 
 function statusClass(status) {
@@ -68,13 +80,63 @@ function statusClass(status) {
 }
 
 function PermissionsModal({ user, saving, error, onClose, onSave }) {
-  const [role, setRole] = useState(user?.role || 'investidor')
+  const initialRole = normalizeRole(user)
+  const existingCustom = user?.custom_permissions?.enabled === true
+  const initialPermissions = existingCustom ? getUserPermissions(user) : getDefaultPermissions(initialRole)
+  const [role, setRole] = useState(initialRole)
+  const [customEnabled, setCustomEnabled] = useState(existingCustom)
+  const [viewModules, setViewModules] = useState(initialPermissions.view)
+  const [editModules, setEditModules] = useState(initialPermissions.edit)
 
   if (!user) return null
 
+  const changeRole = (nextRole) => {
+    const defaults = getDefaultPermissions(nextRole)
+    setRole(nextRole)
+    setCustomEnabled(false)
+    setViewModules(defaults.view)
+    setEditModules(defaults.edit)
+  }
+
+  const toggleCustom = () => {
+    const next = !customEnabled
+    setCustomEnabled(next)
+    if (next) {
+      const defaults = getDefaultPermissions(role)
+      setViewModules(defaults.view)
+      setEditModules(defaults.edit)
+    }
+  }
+
+  const toggleView = (moduleKey) => {
+    if (moduleKey === 'dashboard') return
+
+    setViewModules((current) => {
+      if (current.includes(moduleKey)) {
+        setEditModules((editable) => editable.filter((item) => item !== moduleKey))
+        return current.filter((item) => item !== moduleKey)
+      }
+      return [...current, moduleKey]
+    })
+  }
+
+  const toggleEdit = (moduleKey) => {
+    if (!viewModules.includes(moduleKey)) return
+    setEditModules((current) => current.includes(moduleKey)
+      ? current.filter((item) => item !== moduleKey)
+      : [...current, moduleKey])
+  }
+
+  const submit = (event) => {
+    event.preventDefault()
+    onSave(role, customEnabled
+      ? { enabled: true, view: viewModules, edit: editModules }
+      : { enabled: false, view: [], edit: [] })
+  }
+
   return (
     <div className="fixed inset-0 z-[95] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm md:items-center md:p-6">
-      <form onSubmit={(event) => { event.preventDefault(); onSave(role) }} className="w-full overflow-hidden rounded-t-[2rem] bg-white shadow-2xl md:max-w-xl md:rounded-[2rem]">
+      <form onSubmit={submit} className="max-h-[95vh] w-full overflow-hidden rounded-t-[2rem] bg-white shadow-2xl md:max-w-4xl md:rounded-[2rem]">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 md:px-7">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Editar permissões</p>
@@ -86,21 +148,97 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
           </button>
         </div>
 
-        <div className="px-5 py-5 md:px-7">
-          <label>
-            <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Perfil de acesso</span>
-            <select value={role} onChange={(event) => setRole(event.target.value)} disabled={saving} className={inputClass}>
-              {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
+        <div className="max-h-[calc(95vh-150px)] overflow-y-auto px-5 py-5 md:px-7">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+            <label>
+              <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Perfil principal</span>
+              <select value={role} onChange={(event) => changeRole(event.target.value)} disabled={saving} className={inputClass}>
+                {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+
+            <button type="button" onClick={toggleCustom} disabled={saving} className={`flex items-center justify-between gap-4 rounded-2xl border p-4 text-left transition ${customEnabled ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-200'}`}>
+              <span>
+                <span className="block text-xs font-black text-slate-900">Personalizar este login</span>
+                <span className="mt-1 block text-[11px] font-medium leading-5 text-slate-500">Libere ou bloqueie módulos além do padrão do perfil.</span>
+              </span>
+              <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${customEnabled ? 'bg-blue-600' : 'bg-slate-200'}`}>
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition ${customEnabled ? 'left-6' : 'left-1'}`} />
+              </span>
+            </button>
+          </div>
 
           <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700 ring-1 ring-blue-100"><ShieldCheck size={18} /></span>
               <div>
-                <p className="text-xs font-black text-blue-950">{getRoleLabel(role)}</p>
-                <p className="mt-1 text-xs font-medium leading-5 text-blue-700">{permissionSummary(role)}. As telas liberadas e o nível de edição seguem as regras existentes deste perfil.</p>
+                <p className="text-xs font-black text-blue-950">{getRoleLabel(role)}{customEnabled ? ' com permissões personalizadas' : ''}</p>
+                <p className="mt-1 text-xs font-medium leading-5 text-blue-700">
+                  {customEnabled
+                    ? `${viewModules.length} módulos para visualizar e ${editModules.length} módulos com permissão de edição.`
+                    : 'As permissões seguem exatamente o padrão atual deste perfil.'}
+                </p>
               </div>
+            </div>
+          </div>
+
+          <section className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+            <div className="grid grid-cols-[minmax(0,1fr)_72px_72px] items-center bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-wider text-slate-500">
+              <span>Módulo</span>
+              <span className="text-center">Visualizar</span>
+              <span className="text-center">Editar</span>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {ACCESS_MODULES.map((module) => {
+                const administratorBlocked = module.administratorOnly && role !== 'administrador'
+                const canView = viewModules.includes(module.id) && !administratorBlocked
+                const canEdit = editModules.includes(module.id) && canView
+                const disabled = saving || !customEnabled || administratorBlocked
+
+                return (
+                  <div key={module.id} className={`grid grid-cols-[minmax(0,1fr)_72px_72px] items-center gap-2 px-4 py-3 ${disabled ? 'bg-slate-50/40' : 'bg-white'}`}>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black text-slate-800">{module.label}</p>
+                      {module.id === 'dashboard' && <p className="mt-0.5 text-[9px] font-medium text-slate-400">Acesso básico obrigatório</p>}
+                      {administratorBlocked && <p className="mt-0.5 text-[9px] font-medium text-amber-600">Disponível somente para administrador</p>}
+                    </div>
+
+                    <label className="flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={canView}
+                        onChange={() => toggleView(module.id)}
+                        disabled={disabled || module.id === 'dashboard'}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-40"
+                        aria-label={`Permitir visualização de ${module.label}`}
+                      />
+                    </label>
+
+                    <label className="flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={canEdit}
+                        onChange={() => toggleEdit(module.id)}
+                        disabled={disabled || !canView}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-40"
+                        aria-label={`Permitir edição de ${module.label}`}
+                      />
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-500"><Eye size={14} /> Visualizar</p>
+              <p className="mt-2 text-xs font-medium leading-5 text-slate-600">O módulo aparece no menu e o usuário pode consultar as informações permitidas da obra.</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-500"><Pencil size={14} /> Editar</p>
+              <p className="mt-2 text-xs font-medium leading-5 text-slate-600">Além de visualizar, o usuário pode criar, alterar ou excluir registros quando o módulo oferecer essas ações.</p>
             </div>
           </div>
 
@@ -113,7 +251,7 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 md:px-7">
           <button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50">Cancelar</button>
-          <button type="submit" disabled={saving || role === user.role} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50">
+          <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
             {saving ? 'Salvando...' : 'Salvar permissões'}
           </button>
@@ -168,7 +306,7 @@ export function UsersPermissionsWorkspace() {
     setEditingUser(user)
   }
 
-  const savePermissions = async (role) => {
+  const savePermissions = async (role, customPermissions) => {
     if (!editingUser) return
 
     setSaving(true)
@@ -178,12 +316,16 @@ export function UsersPermissionsWorkspace() {
     try {
       const payload = await apiRequest('/api/admin/usuarios', {
         method: 'PUT',
-        body: JSON.stringify({ id: editingUser.id, role }),
+        body: JSON.stringify({
+          id: editingUser.id,
+          role,
+          custom_permissions: customPermissions,
+        }),
       })
       const updated = payload.usuario
       setUsers((current) => current.map((user) => String(user.id) === String(updated.id) ? { ...user, ...updated } : user))
       setEditingUser(null)
-      setSuccess(`Permissões de ${updated.nome} atualizadas para ${getRoleLabel(updated.role)}.`)
+      setSuccess(`Permissões de ${updated.nome} atualizadas para ${getRoleLabel(updated.role)}${updated.custom_permissions?.enabled ? ' com acesso personalizado' : ''}.`)
     } catch (saveError) {
       setActionError(saveError?.message || 'Não foi possível atualizar as permissões.')
     } finally {
@@ -210,7 +352,7 @@ export function UsersPermissionsWorkspace() {
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-black uppercase text-emerald-700 ring-1 ring-emerald-200">Supabase Auth</span>
             </div>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 md:text-3xl">Usuários e Permissões</h1>
-            <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">Usuários cadastrados no login do NeoCanteiro e os perfis de acesso definidos no banco.</p>
+            <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">Defina o perfil principal e personalize os módulos liberados para cada login.</p>
           </div>
 
           <button onClick={load} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60">
@@ -274,7 +416,7 @@ export function UsersPermissionsWorkspace() {
                         <p className="mt-1 text-xs font-medium text-slate-500">{user.email}</p>
                       </td>
                       <td className="px-3 py-4"><span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase text-blue-700 ring-1 ring-blue-200"><ShieldCheck size={11} /> {getRoleLabel(user.role)}</span></td>
-                      <td className="px-3 py-4 text-sm font-medium text-slate-600">{permissionSummary(user.role)}</td>
+                      <td className="px-3 py-4 text-sm font-medium text-slate-600">{permissionSummary(user)}</td>
                       <td className="px-3 py-4 text-sm font-medium text-slate-600">{user.empresa || '—'}</td>
                       <td className="px-3 py-4 text-xs font-bold text-slate-500">{formatDateTime(user.last_sign_in_at)}</td>
                       <td className="px-3 py-4 text-right"><span className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-black uppercase ring-1 ${statusClass(user.status)}`}>{user.status}</span></td>
@@ -301,7 +443,7 @@ export function UsersPermissionsWorkspace() {
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <Info label="Perfil" value={getRoleLabel(user.role)} />
-                    <Info label="Permissões" value={permissionSummary(user.role)} />
+                    <Info label="Permissões" value={permissionSummary(user)} />
                     <Info label="Empresa" value={user.empresa || '—'} />
                     <Info label="Último acesso" value={formatDateTime(user.last_sign_in_at)} />
                   </div>
