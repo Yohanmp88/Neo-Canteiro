@@ -24,8 +24,9 @@ replaceRequired(
 const start = source.indexOf('  const photos = useMemo(() => uniqueBy(')
 const endMarker = '  const allDiaries = useMemo(() => uniqueBy('
 const end = source.indexOf(endMarker)
-if (start === -1 || end === -1 || end <= start) throw new Error('Bloco antigo de fotos não encontrado.')
-source = source.slice(0, start) + "  const photos = unifiedPhotos\n\n" + source.slice(end)
+if (start !== -1 && end !== -1 && end > start) {
+  source = source.slice(0, start) + "  const photos = unifiedPhotos\n\n" + source.slice(end)
+}
 
 replaceRequired(
   '  const loading = diariesLoading || workspaceDiariesLoading || materialsLoading || workspacePhotosLoading || timelineLoading',
@@ -40,8 +41,8 @@ replaceRequired(
 )
 
 replaceRequired(
-  "    const targetDate = resolveQuestionDate(text)\n    const dayDiaries = allDiaries.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)",
-  "    const targetDate = resolveQuestionDate(text)\n    await reloadPhotos()\n    const dayDiaries = allDiaries.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)",
+  "    const targetDate = resolveQuestionDate(text)\n    const dayDiaries = allDiaries.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)\n    const dayMaterials = materialRecords.filter((record) => isReceivedStatus(record.recebimento_status || record.status_recebimento) && materialDate(record) === targetDate)\n    const dayPhotos = photos.filter((photo) => photo.date === targetDate)",
+  "    const targetDate = resolveQuestionDate(text)\n    const freshPhotos = await reloadPhotos()\n    const dayDiaries = allDiaries.filter((diary) => dateKey(diary.data || diary.created_at) === targetDate)\n    const dayMaterials = materialRecords.filter((record) => isReceivedStatus(record.recebimento_status || record.status_recebimento) && materialDate(record) === targetDate)\n    const dayPhotos = freshPhotos.filter((photo) => photo.date === targetDate)",
   'recarregamento antes da resposta',
 )
 
