@@ -122,7 +122,7 @@ function PhotoModal({ open, record, user, saving, source, onClose, onSave }) {
           <div className="grid gap-5 lg:grid-cols-[1.05fr_1fr]">
             <div>
               <label className="block cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 transition hover:border-blue-300 hover:bg-blue-50/40">
-                <input type="file" accept="image/*" onChange={chooseFile} disabled={saving} className="sr-only" />
+                <input type="file" accept="image/*,.heic,.heif,image/heic,image/heif" onChange={chooseFile} disabled={saving} className="sr-only" />
                 {preview ? (
                   <div>
                     <img src={preview} alt="Pré-visualização da foto" className="h-72 w-full object-contain bg-slate-100" />

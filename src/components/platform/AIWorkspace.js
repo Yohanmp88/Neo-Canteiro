@@ -332,6 +332,14 @@ export function AIWorkspace({ obra, user }) {
         </div>
 
         <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
+          <button
+            type="button"
+            onClick={() => ask('Fotos do dia')}
+            disabled={loading}
+            className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs font-black text-violet-800 transition hover:bg-violet-100 disabled:opacity-50 lg:hidden"
+          >
+            <Camera size={15} /> Fotos do dia
+          </button>
           <form onSubmit={(event) => { event.preventDefault(); ask() }} className="flex items-end gap-2">
             <textarea
               ref={inputRef}
