@@ -1,5 +1,33 @@
 const ALL_ACCESS = '*'
 const DEMO_STORAGE_KEY = 'neocanteiro_demo_session'
+const CUSTOM_PERMISSIONS_STORAGE_KEY = 'neocanteiro_custom_permissions_v1'
+
+export const ACCESS_MODULES = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'timeline', label: 'Linha do Tempo' },
+  { id: 'clientes', label: 'Clientes' },
+  { id: 'cronograma', label: 'Cronograma' },
+  { id: 'ia', label: 'IA da Obra' },
+  { id: 'diario', label: 'Diário de Obra' },
+  { id: 'fotos', label: 'Fotos' },
+  { id: 'equipe', label: 'Equipe' },
+  { id: 'materiais', label: 'Materiais e Estoque' },
+  { id: 'compras', label: 'Gestão de Compras' },
+  { id: 'fornecedores', label: 'Fornecedores' },
+  { id: 'financeiro', label: 'Financeiro' },
+  { id: 'orcamento', label: 'Orçamento' },
+  { id: 'composicoes', label: 'Composições' },
+  { id: 'abc', label: 'Curva ABC' },
+  { id: 'medicoes', label: 'Medições' },
+  { id: 'planilhas', label: 'Planilhas Excel' },
+  { id: 'projetos', label: 'Projetos' },
+  { id: 'documentos', label: 'Documentos' },
+  { id: 'templates', label: 'Templates' },
+  { id: 'obras', label: 'Cadastrar e administrar obras' },
+  { id: 'usuarios', label: 'Usuários e Permissões', administratorOnly: true },
+]
+
+const ALL_MODULE_KEYS = ACCESS_MODULES.map((module) => module.id)
 
 const ALL_MODULES_EXCEPT_USERS = [
   'dashboard', 'clientes', 'cronograma', 'ia', 'diario', 'fotos', 'planilhas',
@@ -62,8 +90,15 @@ const ROLE_LABELS = {
   investidor: 'Investidor',
 }
 
+function roleValue(value) {
+  if (value && typeof value === 'object') {
+    return value.tipo_usuario || value.role || value.tipo || ''
+  }
+  return value
+}
+
 export function normalizeRole(value) {
-  const role = String(value || '')
+  const role = String(roleValue(value) || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
@@ -75,6 +110,54 @@ export function normalizeRole(value) {
 
 export function getRoleLabel(value) {
   return ROLE_LABELS[normalizeRole(value)] || 'Membro'
+}
+
+function sanitizeModules(values) {
+  const valid = new Set(ALL_MODULE_KEYS)
+  return Array.from(new Set((Array.isArray(values) ? values : []).filter((moduleKey) => valid.has(moduleKey))))
+}
+
+function readStoredCustomPermissions() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const stored = window.sessionStorage.getItem(CUSTOM_PERMISSIONS_STORAGE_KEY)
+    if (!stored) return null
+    return JSON.parse(stored)
+  } catch {
+    return null
+  }
+}
+
+function resolveCustomPermissions(subject) {
+  const custom = subject && typeof subject === 'object'
+    ? subject.custom_permissions || subject.customPermissions
+    : readStoredCustomPermissions()
+
+  if (!custom || custom.enabled !== true) return null
+
+  const view = sanitizeModules(custom.view)
+  if (!view.includes('dashboard')) view.unshift('dashboard')
+  const edit = sanitizeModules(custom.edit).filter((moduleKey) => view.includes(moduleKey))
+
+  return { enabled: true, view, edit }
+}
+
+function expandRule(rule) {
+  return rule === ALL_ACCESS ? [...ALL_MODULE_KEYS] : sanitizeModules(rule)
+}
+
+export function getDefaultPermissions(role) {
+  const normalized = normalizeRole(role)
+  return {
+    enabled: false,
+    view: expandRule(ROLE_RULES[normalized]?.view),
+    edit: expandRule(ROLE_RULES[normalized]?.edit),
+  }
+}
+
+export function getUserPermissions(subject) {
+  return resolveCustomPermissions(subject) || getDefaultPermissions(subject)
 }
 
 function hasPermission(rule, moduleKey) {
@@ -97,12 +180,17 @@ function isEditableInvestorDemoSession() {
   }
 }
 
-export function canViewModule(role, moduleKey) {
-  return hasPermission(ROLE_RULES[normalizeRole(role)]?.view, moduleKey)
+export function canViewModule(subject, moduleKey) {
+  const custom = resolveCustomPermissions(subject)
+  if (custom) return custom.view.includes(moduleKey)
+  return hasPermission(ROLE_RULES[normalizeRole(subject)]?.view, moduleKey)
 }
 
-export function canEditModule(role, moduleKey) {
-  const normalized = normalizeRole(role)
+export function canEditModule(subject, moduleKey) {
+  const normalized = normalizeRole(subject)
+  const custom = resolveCustomPermissions(subject)
+
+  if (custom) return custom.view.includes(moduleKey) && custom.edit.includes(moduleKey)
 
   if (normalized === 'investidor' && moduleKey === 'obras') {
     return isEditableInvestorDemoSession()
@@ -111,8 +199,11 @@ export function canEditModule(role, moduleKey) {
   return hasPermission(ROLE_RULES[normalized]?.edit, moduleKey)
 }
 
-export function canEditModuleForSession(role, moduleKey, { isDemo = false } = {}) {
-  const normalized = normalizeRole(role)
+export function canEditModuleForSession(subject, moduleKey, { isDemo = false } = {}) {
+  const normalized = normalizeRole(subject)
+  const custom = resolveCustomPermissions(subject)
+
+  if (custom) return custom.view.includes(moduleKey) && custom.edit.includes(moduleKey)
 
   if (normalized === 'investidor' && moduleKey === 'obras') {
     return isDemo
@@ -121,14 +212,24 @@ export function canEditModuleForSession(role, moduleKey, { isDemo = false } = {}
   return hasPermission(ROLE_RULES[normalized]?.edit, moduleKey)
 }
 
-export function getAllowedModules(role) {
-  const normalized = normalizeRole(role)
-  const view = ROLE_RULES[normalized]?.view
+export function getAllowedModules(subject) {
+  const custom = resolveCustomPermissions(subject)
+  if (custom) return [...custom.view]
+
+  const view = ROLE_RULES[normalizeRole(subject)]?.view
   return view === ALL_ACCESS ? ALL_ACCESS : [...(view || [])]
 }
 
-export function firstAllowedModule(role, preferred = 'dashboard') {
-  if (canViewModule(role, preferred)) return preferred
-  const allowed = getAllowedModules(role)
+export function getEditableModules(subject) {
+  const custom = resolveCustomPermissions(subject)
+  if (custom) return [...custom.edit]
+
+  const edit = ROLE_RULES[normalizeRole(subject)]?.edit
+  return edit === ALL_ACCESS ? ALL_ACCESS : [...(edit || [])]
+}
+
+export function firstAllowedModule(subject, preferred = 'dashboard') {
+  if (canViewModule(subject, preferred)) return preferred
+  const allowed = getAllowedModules(subject)
   return allowed === ALL_ACCESS ? preferred : allowed[0] || 'dashboard'
 }
