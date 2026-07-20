@@ -5,9 +5,16 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useCompras } from '@/hooks/useCompras'
 import { useSCurve } from '@/hooks/useSCurve'
 import { useWorkspaceRecords } from '@/hooks/useWorkspaceRecords'
+import { supabase } from '@/lib/supabase'
 import '@/lib/coreModuleDefinitions'
 import { canViewModule, normalizeRole } from '@/lib/accessControl'
-import { pedidoAtrasadoOperacional, tarefaAtrasadaOperacional } from '@/lib/operationalData'
+import {
+  normalizarTextoOperacional,
+  pedidoAtrasadoOperacional,
+  statusCanceladoOperacional,
+  statusRecebidoOperacional,
+  tarefaAtrasadaOperacional,
+} from '@/lib/operationalData'
 
 import {
   AreaChart,
@@ -32,6 +39,7 @@ import {
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set(['compras', 'diario', 'fotos', 'materiais', 'equipe', 'financeiro', 'clientes'])
+const PURCHASE_ALERT_ROLES = new Set(['administrador', 'compras', 'financeiro'])
 const SEEN_PREFIX = 'neocanteiro_module_seen_v1'
 
 const CARD_TONES = {
@@ -69,6 +77,16 @@ function recordTimestamp(record) {
   const value = record?.updated_at || record?.created_at || (record?.data ? `${record.data}T23:59:59` : '')
   const time = new Date(value).getTime()
   return Number.isNaN(time) ? 0 : time
+}
+
+function pedidoAtivoOperacional(pedido) {
+  const status = pedido?.status
+  if (statusCanceladoOperacional(status) || statusRecebidoOperacional(status)) return false
+
+  const statusNormalizado = normalizarTextoOperacional(status)
+  if (statusNormalizado.includes('parcial')) return true
+
+  return !Boolean(pedido?.data_entrega || pedido?.data_recebimento || pedido?.recebido_em)
 }
 
 function seenKey(user, obraId, moduleKey) {
@@ -139,12 +157,38 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const [isMounted, setIsMounted] = useState(false)
   const [seenVersion, setSeenVersion] = useState(0)
   const activeRole = normalizeRole(role)
-  const { pedidos = [] } = useCompras(obraAtual?.id)
+  const receivesPurchaseAlerts = PURCHASE_ALERT_ROLES.has(activeRole)
+  const { pedidos = [], reload: reloadCompras } = useCompras(obraAtual?.id, user)
   const { records: diariosWorkspace = [] } = useWorkspaceRecords('diario', obraAtual?.id, user)
   const { records: fotosWorkspace = [] } = useWorkspaceRecords('fotos', obraAtual?.id, user)
   const { data: dadosEvolucao, summary: curvaSResumo, loading: curvaSLoading } = useSCurve(obraAtual?.id, tarefas, user, activeRole)
 
   useEffect(() => setIsMounted(true), [])
+
+  useEffect(() => {
+    const obraId = obraAtual?.id
+    if (!receivesPurchaseAlerts || !obraId || String(obraId).startsWith('demo')) return undefined
+
+    const channel = supabase
+      .channel(`dashboard-compras-${obraId}-${user?.id || 'usuario'}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'workspace_records', filter: 'module_key=eq.compras' },
+        (payload) => {
+          const record = payload.new || payload.old
+          if (String(record?.obra_id || '') === String(obraId)) reloadCompras()
+        },
+      )
+      .subscribe()
+
+    const refreshOnFocus = () => reloadCompras()
+    window.addEventListener('focus', refreshOnFocus)
+
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus)
+      supabase.removeChannel(channel)
+    }
+  }, [receivesPurchaseAlerts, obraAtual?.id, user?.id, reloadCompras])
 
   const diariosVisiveis = useMemo(() => {
     const unique = new Map()
@@ -158,6 +202,13 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const fotosVisiveis = useMemo(
     () => [...fotosWorkspace].sort((a, b) => recordTimestamp(b) - recordTimestamp(a)),
     [fotosWorkspace],
+  )
+
+  const solicitacoesAtivas = useMemo(
+    () => pedidos
+      .filter((pedido) => pedidoAtivoOperacional(pedido))
+      .sort((a, b) => recordTimestamp(b) - recordTimestamp(a)),
+    [pedidos],
   )
 
   if (!obraAtual) {
@@ -187,6 +238,8 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const atrasadas = tarefas.filter((item) => tarefaAtrasadaOperacional(item))
   const materiaisCriticos = pedidos.filter((item) => pedidoAtrasadoOperacional(item))
   const totalAlertas = atrasadas.length + materiaisCriticos.length
+  const ultimaSolicitacaoAtiva = solicitacoesAtivas[0] || null
+  const exibirAlertaSolicitacao = receivesPurchaseAlerts && solicitacoesAtivas.length > 0
   const progressoMedioSimples = totalTarefas
     ? Math.round(tarefas.reduce((total, item) => total + (Number(item.progresso) || 0), 0) / totalTarefas)
     : Number(obraAtual.progresso || 0)
@@ -353,12 +406,25 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
 
       <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
         {canViewModule(activeRole, 'compras') && (
-          <button type="button" onClick={() => navigate('compras', materiaisCriticos.length ? { focus: 'atrasados' } : {})} className="group flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-amber-300">
+          <button
+            type="button"
+            onClick={() => navigate('compras', receivesPurchaseAlerts ? {} : (materiaisCriticos.length ? { focus: 'atrasados' } : {}))}
+            className={`group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition ${exibirAlertaSolicitacao ? 'border-amber-300 bg-amber-50/60 hover:border-amber-400' : 'border-slate-200/80 bg-white hover:border-amber-300'}`}
+          >
+            {exibirAlertaSolicitacao && <span className="absolute right-3 top-2.5 rounded-full bg-amber-600 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-white">Solicitação ativa</span>}
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100"><Package size={18} /></span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Materiais e compras</span>
-              <span className="mt-1 block text-lg font-black leading-none text-slate-950">{materiaisCriticos.length} crítico{materiaisCriticos.length === 1 ? '' : 's'}</span>
-              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">{materiaisCriticos[0]?.item || materiaisCriticos[0]?.material || materiaisCriticos[0]?.nome || 'Suprimentos sem atraso crítico'}</span>
+            <span className={`min-w-0 flex-1 ${exibirAlertaSolicitacao ? 'pr-20' : ''}`}>
+              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">{receivesPurchaseAlerts ? 'Solicitações de compra' : 'Materiais e compras'}</span>
+              <span className="mt-1 block text-lg font-black leading-none text-slate-950">
+                {receivesPurchaseAlerts
+                  ? `${solicitacoesAtivas.length} ativa${solicitacoesAtivas.length === 1 ? '' : 's'}`
+                  : `${materiaisCriticos.length} crítico${materiaisCriticos.length === 1 ? '' : 's'}`}
+              </span>
+              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">
+                {receivesPurchaseAlerts
+                  ? (ultimaSolicitacaoAtiva?.item || ultimaSolicitacaoAtiva?.material || ultimaSolicitacaoAtiva?.nome || 'Nenhuma solicitação ativa')
+                  : (materiaisCriticos[0]?.item || materiaisCriticos[0]?.material || materiaisCriticos[0]?.nome || 'Suprimentos sem atraso crítico')}
+              </span>
             </span>
             <ShoppingBag size={14} className="text-slate-300 transition group-hover:text-amber-600" />
           </button>
