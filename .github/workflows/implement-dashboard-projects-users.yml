@@ -1,0 +1,32 @@
+name: Implementar alertas projetos e usuários
+
+on:
+  push:
+    paths:
+      - '.github/workflows/implement-dashboard-projects-users.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node scripts/implement-dashboard-projects-users.cjs
+      - run: npm run build
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Nenhuma alteração necessária."
+          else
+            git add src/app/page.js src/app/workspace/page.js src/lib/moduleDefinitions.js src/lib/accessControl.js src/components/dashboard/Sidebar.js src/components/dashboard/BottomNav.js src/components/dashboard/views/DashboardView.js src/components/platform/EditableWorkspace.js
+            git commit -m "Direciona alertas e adiciona projetos e usuários reais"
+            git push
+          fi
