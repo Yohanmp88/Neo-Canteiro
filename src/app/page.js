@@ -119,6 +119,11 @@ export default function Home() {
     if (!canViewModule(role, tela)) setTela('dashboard')
   }, [user, profileReady, role, tela])
 
+  // A Gestão de Compras profissional usa os registros reais do workspace.
+  useEffect(() => {
+    if (tela === 'compras') window.location.replace('/workspace?module=compras')
+  }, [tela])
+
   // Sincronizar Diário
   useEffect(() => {
     if (diarios?.[0]) {
