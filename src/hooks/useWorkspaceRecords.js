@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getModuleDefinition, normalizeModuleRecord } from '@/lib/moduleDefinitions'
+import { pedidoAtrasadoOperacional } from '@/lib/operationalData'
 
 const STORAGE_PREFIX = 'neocanteiro_workspace_v1'
+const DERIVED_STATUS_FLAG = '__status_operacional_derivado'
+const ORIGINAL_STATUS_FIELD = '__status_original'
 
 function criarId(moduleKey) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -18,6 +21,42 @@ function storageKey(moduleKey, obraId) {
   return `${STORAGE_PREFIX}:${moduleKey}:${obraId || 'global'}`
 }
 
+function stripDerivedStatus(moduleKey, record = {}) {
+  if (moduleKey !== 'compras') return { ...record }
+
+  const cleaned = { ...record }
+  if (cleaned[DERIVED_STATUS_FLAG] && cleaned.status === 'Atrasado') {
+    cleaned.status = cleaned[ORIGINAL_STATUS_FIELD] || 'Pedido emitido'
+  }
+
+  delete cleaned[DERIVED_STATUS_FLAG]
+  delete cleaned[ORIGINAL_STATUS_FIELD]
+  delete cleaned.atrasado_operacional
+  return cleaned
+}
+
+function decorateRecord(moduleKey, record = {}) {
+  if (moduleKey !== 'compras') return record
+
+  const mapped = {
+    ...record,
+    data_necessidade: record.data_necessidade || record.necessario_em || '',
+    data_prevista: record.data_prevista || record.entrega_prevista || record.data_reprogramada || '',
+    data_entrega: record.data_entrega || record.recebido_em || record.data_recebimento || '',
+  }
+  const atrasado = pedidoAtrasadoOperacional(mapped)
+
+  if (!atrasado) return { ...mapped, atrasado_operacional: false }
+
+  return {
+    ...mapped,
+    [ORIGINAL_STATUS_FIELD]: record.status || 'Pedido emitido',
+    [DERIVED_STATUS_FLAG]: true,
+    status: 'Atrasado',
+    atrasado_operacional: true,
+  }
+}
+
 function readLocal(moduleKey, obraId) {
   if (typeof window === 'undefined') return []
 
@@ -27,7 +66,7 @@ function readLocal(moduleKey, obraId) {
   if (raw) {
     try {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed
+      if (Array.isArray(parsed)) return parsed.map((record) => decorateRecord(moduleKey, record))
     } catch {
       window.localStorage.removeItem(key)
     }
@@ -35,7 +74,7 @@ function readLocal(moduleKey, obraId) {
 
   const definition = getModuleDefinition(moduleKey)
   const now = new Date().toISOString()
-  const seeded = (definition?.seed || []).map((item) => ({
+  const seeded = (definition?.seed || []).map((item) => decorateRecord(moduleKey, {
     ...item,
     obra_id: obraId || null,
     created_at: item.created_at || now,
@@ -43,20 +82,21 @@ function readLocal(moduleKey, obraId) {
     created_by_name: item.created_by_name || 'NeoCanteiro Demo',
   }))
 
-  window.localStorage.setItem(key, JSON.stringify(seeded))
+  window.localStorage.setItem(key, JSON.stringify(seeded.map((record) => stripDerivedStatus(moduleKey, record))))
   return seeded
 }
 
 function writeLocal(moduleKey, obraId, records) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(storageKey(moduleKey, obraId), JSON.stringify(records))
+  const rawRecords = records.map((record) => stripDerivedStatus(moduleKey, record))
+  window.localStorage.setItem(storageKey(moduleKey, obraId), JSON.stringify(rawRecords))
   window.dispatchEvent(new CustomEvent('neocanteiro:workspace-change', {
-    detail: { moduleKey, obraId, records },
+    detail: { moduleKey, obraId, records: rawRecords },
   }))
 }
 
-function mapDatabaseRow(row) {
-  return {
+function mapDatabaseRow(moduleKey, row) {
+  return decorateRecord(moduleKey, {
     id: row.id,
     ...(row.data || {}),
     obra_id: row.obra_id,
@@ -64,7 +104,7 @@ function mapDatabaseRow(row) {
     updated_at: row.updated_at,
     created_by: row.created_by,
     updated_by: row.updated_by,
-  }
+  })
 }
 
 export function useWorkspaceRecords(moduleKey, obraId, user) {
@@ -102,7 +142,7 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
       const { data, error: queryError } = await query
       if (queryError) throw queryError
 
-      setRecords((data || []).map(mapDatabaseRow))
+      setRecords((data || []).map((row) => mapDatabaseRow(moduleKey, row)))
       setSource('supabase')
     } catch (err) {
       console.warn(`Fallback local ativado para ${moduleKey}:`, err?.message)
@@ -134,7 +174,8 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
     setError(null)
 
     const now = new Date().toISOString()
-    const data = normalizeModuleRecord(moduleKey, input)
+    const cleanInput = stripDerivedStatus(moduleKey, input)
+    const data = normalizeModuleRecord(moduleKey, cleanInput)
 
     try {
       if (source === 'supabase' && !isDemo && obraId) {
@@ -154,12 +195,12 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
 
         if (insertError) throw insertError
 
-        const mapped = mapDatabaseRow(inserted)
+        const mapped = mapDatabaseRow(moduleKey, inserted)
         setRecords((current) => [mapped, ...current])
         return mapped
       }
 
-      const created = {
+      const created = decorateRecord(moduleKey, {
         id: criarId(moduleKey),
         ...data,
         obra_id: obraId || null,
@@ -167,7 +208,7 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
         updated_at: now,
         created_by: user?.id || null,
         created_by_name: user?.user_metadata?.nome || user?.email || 'Usuário',
-      }
+      })
 
       setRecords((current) => {
         const next = [created, ...current]
@@ -188,7 +229,8 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
     setSaving(true)
     setError(null)
 
-    const data = normalizeModuleRecord(moduleKey, input)
+    const cleanInput = stripDerivedStatus(moduleKey, input)
+    const data = normalizeModuleRecord(moduleKey, cleanInput)
     const now = new Date().toISOString()
 
     try {
@@ -202,7 +244,7 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
 
         if (updateError) throw updateError
 
-        const mapped = mapDatabaseRow(updated)
+        const mapped = mapDatabaseRow(moduleKey, updated)
         setRecords((current) => current.map((record) => record.id === id ? mapped : record))
         return mapped
       }
@@ -211,7 +253,8 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
       setRecords((current) => {
         const next = current.map((record) => {
           if (record.id !== id) return record
-          changed = { ...record, ...data, updated_at: now, updated_by: user?.id || null }
+          const base = stripDerivedStatus(moduleKey, record)
+          changed = decorateRecord(moduleKey, { ...base, ...data, updated_at: now, updated_by: user?.id || null })
           return changed
         })
         writeLocal(moduleKey, obraId, next)
@@ -257,7 +300,7 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
   }, [moduleKey, obraId, source, isDemo, user])
 
   const duplicate = useCallback(async (record) => {
-    const clone = { ...record }
+    const clone = stripDerivedStatus(moduleKey, record)
     delete clone.id
     delete clone.created_at
     delete clone.updated_at
