@@ -47,7 +47,7 @@ export function useObraPhotos(obraId) {
     setLoading(true)
     setError(null)
 
-    const queries = [
+    const [workspaceResult, timelineResult, photosResult, diariesResult] = await Promise.allSettled([
       supabase
         .from('workspace_records')
         .select('*')
@@ -60,44 +60,67 @@ export function useObraPhotos(obraId) {
         .eq('obra_id', String(obraId))
         .eq('event_type', 'foto'),
       supabase
-        .from('fotos_diario')
-        .select('*')
-        .eq('obra_id', String(obraId)),
-      supabase
         .from('fotos_obra')
         .select('*')
         .eq('obra_id', String(obraId)),
-    ]
+      supabase
+        .from('diario_obra')
+        .select('id,data')
+        .eq('obra_id', String(obraId)),
+    ])
 
-    const results = await Promise.allSettled(queries)
     const collected = []
 
-    results.forEach((result, index) => {
-      if (result.status !== 'fulfilled' || result.value?.error) return
-      const rows = result.value?.data || []
+    if (workspaceResult.status === 'fulfilled' && !workspaceResult.value?.error) {
+      ;(workspaceResult.value?.data || []).forEach((row) => collected.push(normalizePhoto(row)))
+    }
 
-      rows.forEach((row) => {
-        if (index === 1) {
-          const metadata = row.metadata || {}
-          collected.push(normalizePhoto(metadata, {
-            id: row.id,
-            date: row.event_date || row.created_at,
-            url: metadata.url,
-            title: row.title,
-            description: row.description,
-          }))
-          return
-        }
-
-        collected.push(normalizePhoto(row))
+    if (timelineResult.status === 'fulfilled' && !timelineResult.value?.error) {
+      ;(timelineResult.value?.data || []).forEach((row) => {
+        const metadata = row.metadata || {}
+        collected.push(normalizePhoto(metadata, {
+          id: row.id,
+          date: row.event_date || row.created_at,
+          url: metadata.url,
+          title: row.title,
+          description: row.description,
+        }))
       })
-    })
+    }
+
+    if (photosResult.status === 'fulfilled' && !photosResult.value?.error) {
+      ;(photosResult.value?.data || []).forEach((row) => collected.push(normalizePhoto(row)))
+    }
+
+    if (diariesResult.status === 'fulfilled' && !diariesResult.value?.error) {
+      const diaries = diariesResult.value?.data || []
+      const diaryDates = new Map(diaries.map((diary) => [String(diary.id), diary.data]))
+      const diaryIds = diaries.map((diary) => diary.id).filter(Boolean)
+
+      if (diaryIds.length) {
+        const { data: diaryPhotos, error: diaryPhotosError } = await supabase
+          .from('fotos_diario')
+          .select('*')
+          .in('diario_id', diaryIds)
+
+        if (!diaryPhotosError) {
+          ;(diaryPhotos || []).forEach((row) => collected.push(normalizePhoto(row, {
+            date: diaryDates.get(String(row.diario_id)),
+            title: row.descricao || 'Foto do diário de obra',
+          })))
+        }
+      }
+    }
 
     const nextPhotos = uniquePhotos(collected)
     setPhotos(nextPhotos)
-    if (!nextPhotos.length && results.every((result) => result.status === 'rejected' || result.value?.error)) {
+
+    const allPrimarySourcesFailed = [workspaceResult, timelineResult, photosResult, diariesResult]
+      .every((result) => result.status === 'rejected' || result.value?.error)
+    if (!nextPhotos.length && allPrimarySourcesFailed) {
       setError('Não foi possível consultar os registros fotográficos da obra.')
     }
+
     setLoading(false)
     return nextPhotos
   }, [obraId])
