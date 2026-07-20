@@ -18,6 +18,7 @@ import { useEquipe } from '@/hooks/useEquipe'
 import { canEditModule, canViewModule, normalizeRole } from '@/lib/accessControl'
 import { exportScheduleToExcel } from '@/lib/exportScheduleExcel'
 import { ScheduleExcelImport } from '@/components/platform/ScheduleExcelImport'
+import { AIWorkspace } from '@/components/platform/AIWorkspace'
 
 // --- ESTILOS PREMIUM ---
 const inputClass = 'w-full rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-premium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 shadow-sm'
@@ -335,7 +336,8 @@ export default function Home() {
               {tela === 'fotos' && canViewModule(role, 'fotos') && <TelaFotos permissaoEditar={permissaoEditar} adicionarFotos={adicionarFotos} fotosDaObra={[]} />}
               {tela === 'usuarios' && canViewModule(role, 'usuarios') && <TelaUsuarios permissaoAdmin={permissaoAdmin} novaObra={novaObra} setNovaObra={setNovaObra} criarNovaObra={criarNovaObra} />}
               {tela === 'compras' && canViewModule(role, 'compras') && <TelaCompras compras={COMPRAS_DEMO} materiais={materiais} />}
-              {['materiais', 'financeiro', 'orcamento', 'ia'].includes(tela) && <ModulePlaceholder tela={tela} setTela={setTela} />}
+              {tela === 'ia' && <AIWorkspace obra={obraAtualSegura} user={user} />}
+              {['materiais', 'financeiro', 'orcamento'].includes(tela) && <ModulePlaceholder tela={tela} setTela={setTela} />}
             </div>
           </section>
         </div>
