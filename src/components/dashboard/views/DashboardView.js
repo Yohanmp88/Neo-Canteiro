@@ -36,6 +36,7 @@ import {
   Package,
   ShoppingBag,
   TrendingUp,
+  X,
 } from 'lucide-react'
 
 const WORKSPACE_TABS = new Set(['compras', 'diario', 'fotos', 'materiais', 'equipe', 'financeiro', 'clientes'])
@@ -156,6 +157,7 @@ function PanelHeader({ eyebrow, title, action, onAction }) {
 export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, role, onNavigate }) {
   const [isMounted, setIsMounted] = useState(false)
   const [seenVersion, setSeenVersion] = useState(0)
+  const [alertsOpen, setAlertsOpen] = useState(false)
   const activeRole = normalizeRole(role)
   const receivesPurchaseAlerts = PURCHASE_ALERT_ROLES.has(activeRole)
   const { pedidos = [], reload: reloadCompras } = useCompras(obraAtual?.id, user)
@@ -247,6 +249,22 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
     ? Math.round(curvaSResumo.realizadoHoje)
     : progressoMedioSimples
 
+  const openOperationalAlerts = () => {
+    if (atrasadas.length > 0 && materiaisCriticos.length > 0) {
+      setAlertsOpen(true)
+      return
+    }
+
+    if (atrasadas.length > 0) {
+      navigate('cronograma', { focus: 'atrasados' })
+      return
+    }
+
+    if (materiaisCriticos.length > 0) {
+      navigate('compras', { focus: 'atrasados' })
+    }
+  }
+
   const prazoFinalCronograma = tarefas.reduce((ultimo, tarefa) => {
     const data = String(tarefa.data_termino || tarefa.termino || '').slice(0, 10)
     return data && (!ultimo || data > ultimo) ? data : ultimo
@@ -294,168 +312,219 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
   const desvioCurva = Number(curvaSResumo.desvio || 0)
 
   return (
-    <div className="mx-auto w-full max-w-[1700px] animate-fade-in space-y-3 xl:grid xl:h-[calc(100vh-7.5rem)] xl:min-h-[560px] xl:grid-rows-[76px_minmax(0,1fr)_94px] xl:gap-3 xl:space-y-0 xl:overflow-hidden">
-      <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Progresso da obra"
-          value={`${progressoMedio}%`}
-          detail="Evolução física consolidada"
-          icon={TrendingUp}
-          tone="blue"
-          onClick={() => navigate('cronograma')}
-        />
-        <MetricCard
-          title="Previsão de entrega"
-          value={formatDate(prazoFinal)}
-          detail={obraAtual.status || 'Prazo contratual'}
-          icon={CalendarDays}
-          tone="indigo"
-          onClick={() => navigate('cronograma')}
-        />
-        <MetricCard
-          title="Tarefas concluídas"
-          value={`${concluidas}/${totalTarefas}`}
-          detail="Atividades do cronograma"
-          icon={CheckCircle2}
-          tone="emerald"
-          onClick={() => navigate('cronograma')}
-        />
-        <MetricCard
-          title="Alertas operacionais"
-          value={totalAlertas}
-          detail={`${atrasadas.length} serviço(s) · ${materiaisCriticos.length} material(is)`}
-          icon={AlertCircle}
-          tone={totalAlertas ? 'red' : 'slate'}
-          onClick={() => navigate(atrasadas.length ? 'cronograma' : 'compras', { focus: 'atrasados' })}
-        />
-      </section>
+    <>
+      {alertsOpen && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm md:items-center md:p-6" onClick={() => setAlertsOpen(false)}>
+          <section className="w-full overflow-hidden rounded-t-[2rem] bg-white shadow-2xl md:max-w-xl md:rounded-[2rem]" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 md:px-6">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-red-600">Pontos críticos da obra</p>
+                <h2 className="mt-1 text-lg font-black text-slate-950">Alertas operacionais</h2>
+                <p className="mt-1 text-xs font-medium text-slate-500">Existem alertas em dois módulos. Escolha qual deseja analisar.</p>
+              </div>
+              <button type="button" onClick={() => setAlertsOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900" aria-label="Fechar alertas">
+                <X size={20} />
+              </button>
+            </div>
 
-      <section className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
-        <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
-          <PanelHeader eyebrow="Performance física" title="Curva S — previsto x realizado" action="Abrir cronograma" onAction={() => navigate('cronograma')} />
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[8px] font-bold text-slate-500">
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />Previsto hoje: {curvaSResumo.previstoHoje}%</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Realizado: {curvaSResumo.realizadoHoje}%</span>
-            <span className={`font-black ${desvioCurva >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{desvioCurva >= 0 ? '+' : ''}{desvioCurva} p.p.</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between gap-3 text-[7px] font-semibold text-slate-400">
-            <span className="truncate">Controle semanal · {curvaSResumo.metodoPesoLabel}</span>
-            <span className="shrink-0">Histórico desde {formatDate(curvaSResumo.historicoDesde)}</span>
-          </div>
-
-          <div className="mt-1 h-[calc(100%-56px)] min-h-[160px] w-full">
-            {isMounted && (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dadosEvolucao} margin={{ top: 10, right: 8, left: -22, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={28} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} />
-                  <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
-                  <Tooltip
-                    formatter={(value, name) => value === null || value === undefined ? ['Sem registro', name] : [`${value}%`, name]}
-                    labelFormatter={(label) => `Data: ${label}`}
-                    contentStyle={{ borderRadius: '11px', border: '1px solid #e2e8f0', fontSize: '10px', boxShadow: '0 14px 35px -24px rgba(15,23,42,.5)' }}
-                  />
-                  <Area type="monotone" dataKey="previsto" name="Previsto" stroke="#2563eb" strokeWidth={2.4} fill="url(#plannedFill)" isAnimationActive={!curvaSLoading} />
-                  <Area type="stepAfter" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.4} fill="url(#realFill)" connectNulls={false} isAnimationActive={!curvaSLoading} />
-                  <defs>
-                    <linearGradient id="plannedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                    <linearGradient id="realFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.13}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
-                  </defs>
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </section>
-
-        <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
-          <PanelHeader eyebrow="Cronograma físico · hoje" title={tituloCronograma} action="Ver completo" onAction={() => navigate('cronograma')} />
-
-          <div className="mt-3 grid min-h-0 gap-2.5">
-            {tarefasDestaque.map((item, index) => {
-              const progress = Math.max(0, Math.min(100, Number(item.progresso || 0)))
-              const delayed = tarefaAtrasadaOperacional(item)
-              const completed = progress === 100
-              const runningToday = estaEmExecucaoHoje(item)
-
-              return (
-                <button key={item.id || index} type="button" onClick={() => navigate('cronograma')} className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50">
-                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[9px] font-black ${completed ? 'bg-emerald-50 text-emerald-700' : delayed ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {index + 1}
-                  </span>
+            <div className="space-y-3 p-5 md:p-6">
+              {atrasadas.length > 0 && canViewModule(activeRole, 'cronograma') && (
+                <button
+                  type="button"
+                  onClick={() => { setAlertsOpen(false); navigate('cronograma', { focus: 'atrasados' }) }}
+                  className="group flex w-full items-center gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-left transition hover:border-red-300"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-red-600 ring-1 ring-red-200"><CalendarDays size={19} /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-[10px] font-bold text-slate-800">{item.nome}</span>
-                        {runningToday && <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider text-blue-700">Hoje</span>}
-                      </span>
-                      <span className={`shrink-0 text-[9px] font-black ${completed ? 'text-emerald-600' : delayed ? 'text-red-600' : 'text-slate-500'}`}>{progress}%</span>
-                    </span>
-                    <span className="mt-1 flex items-center gap-2">
-                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className={`block h-full rounded-full ${completed ? 'bg-emerald-500' : delayed ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${progress}%` }} /></span>
-                      <span className="w-14 shrink-0 text-right text-[8px] font-bold text-slate-400">{formatDate(item.data_termino || item.termino)}</span>
-                    </span>
+                    <span className="block text-sm font-black text-red-950">{atrasadas.length} serviço{atrasadas.length === 1 ? '' : 's'} atrasado{atrasadas.length === 1 ? '' : 's'}</span>
+                    <span className="mt-1 block text-xs font-medium text-red-700">Abrir o cronograma e evidenciar as atividades com prazo vencido.</span>
                   </span>
+                  <ArrowRight size={16} className="shrink-0 text-red-400 transition group-hover:translate-x-0.5" />
                 </button>
-              )
-            })}
+              )}
 
-            {!tarefasDestaque.length && <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-xs font-bold text-slate-400">Nenhuma atividade cadastrada no cronograma.</p>}
-          </div>
+              {materiaisCriticos.length > 0 && canViewModule(activeRole, 'compras') && (
+                <button
+                  type="button"
+                  onClick={() => { setAlertsOpen(false); navigate('compras', { focus: 'atrasados' }) }}
+                  className="group flex w-full items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left transition hover:border-amber-300"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-amber-700 ring-1 ring-amber-200"><Package size={19} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-amber-950">{materiaisCriticos.length} material{materiaisCriticos.length === 1 ? '' : 'is'} atrasado{materiaisCriticos.length === 1 ? '' : 's'}</span>
+                    <span className="mt-1 block truncate text-xs font-medium text-amber-700">{materiaisCriticos.map((item) => item.item || item.material || item.nome).filter(Boolean).join(', ')}</span>
+                  </span>
+                  <ArrowRight size={16} className="shrink-0 text-amber-500 transition group-hover:translate-x-0.5" />
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      <div className="mx-auto w-full max-w-[1700px] animate-fade-in space-y-3 xl:grid xl:h-[calc(100vh-7.5rem)] xl:min-h-[560px] xl:grid-rows-[76px_minmax(0,1fr)_94px] xl:gap-3 xl:space-y-0 xl:overflow-hidden">
+        <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Progresso da obra"
+            value={`${progressoMedio}%`}
+            detail="Evolução física consolidada"
+            icon={TrendingUp}
+            tone="blue"
+            onClick={() => navigate('cronograma')}
+          />
+          <MetricCard
+            title="Previsão de entrega"
+            value={formatDate(prazoFinal)}
+            detail={obraAtual.status || 'Prazo contratual'}
+            icon={CalendarDays}
+            tone="indigo"
+            onClick={() => navigate('cronograma')}
+          />
+          <MetricCard
+            title="Tarefas concluídas"
+            value={`${concluidas}/${totalTarefas}`}
+            detail="Atividades do cronograma"
+            icon={CheckCircle2}
+            tone="emerald"
+            onClick={() => navigate('cronograma')}
+          />
+          <MetricCard
+            title="Alertas operacionais"
+            value={totalAlertas}
+            detail={`${atrasadas.length} serviço(s) · ${materiaisCriticos.length} material(is)`}
+            icon={AlertCircle}
+            tone={totalAlertas ? 'red' : 'slate'}
+            onClick={openOperationalAlerts}
+          />
         </section>
-      </section>
 
-      <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
-        {canViewModule(activeRole, 'compras') && (
-          <button
-            type="button"
-            onClick={() => navigate('compras', materiaisCriticos.length ? { focus: 'atrasados' } : {})}
-            className={`group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition ${exibirAlertaSolicitacao ? 'border-amber-300 bg-amber-50/60 hover:border-amber-400' : 'border-slate-200/80 bg-white hover:border-amber-300'}`}
-          >
-            {exibirAlertaSolicitacao && <span className="absolute right-3 top-2.5 rounded-full bg-amber-600 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-white">Solicitação ativa</span>}
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100"><Package size={18} /></span>
-            <span className={`min-w-0 flex-1 ${exibirAlertaSolicitacao ? 'pr-20' : ''}`}>
-              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">{receivesPurchaseAlerts ? 'Solicitações de compra' : 'Materiais e compras'}</span>
-              <span className="mt-1 block text-lg font-black leading-none text-slate-950">
-                {receivesPurchaseAlerts
-                  ? `${solicitacoesAtivas.length} ativa${solicitacoesAtivas.length === 1 ? '' : 's'}`
-                  : `${materiaisCriticos.length} crítico${materiaisCriticos.length === 1 ? '' : 's'}`}
+        <section className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-12">
+          <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
+            <PanelHeader eyebrow="Performance física" title="Curva S — previsto x realizado" action="Abrir cronograma" onAction={() => navigate('cronograma')} />
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[8px] font-bold text-slate-500">
+              <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />Previsto hoje: {curvaSResumo.previstoHoje}%</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Realizado: {curvaSResumo.realizadoHoje}%</span>
+              <span className={`font-black ${desvioCurva >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{desvioCurva >= 0 ? '+' : ''}{desvioCurva} p.p.</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3 text-[7px] font-semibold text-slate-400">
+              <span className="truncate">Controle semanal · {curvaSResumo.metodoPesoLabel}</span>
+              <span className="shrink-0">Histórico desde {formatDate(curvaSResumo.historicoDesde)}</span>
+            </div>
+
+            <div className="mt-1 h-[calc(100%-56px)] min-h-[160px] w-full">
+              {isMounted && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dadosEvolucao} margin={{ top: 10, right: 8, left: -22, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={28} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} />
+                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} />
+                    <Tooltip
+                      formatter={(value, name) => value === null || value === undefined ? ['Sem registro', name] : [`${value}%`, name]}
+                      labelFormatter={(label) => `Data: ${label}`}
+                      contentStyle={{ borderRadius: '11px', border: '1px solid #e2e8f0', fontSize: '10px', boxShadow: '0 14px 35px -24px rgba(15,23,42,.5)' }}
+                    />
+                    <Area type="monotone" dataKey="previsto" name="Previsto" stroke="#2563eb" strokeWidth={2.4} fill="url(#plannedFill)" isAnimationActive={!curvaSLoading} />
+                    <Area type="stepAfter" dataKey="realizado" name="Realizado" stroke="#10b981" strokeWidth={2.4} fill="url(#realFill)" connectNulls={false} isAnimationActive={!curvaSLoading} />
+                    <defs>
+                      <linearGradient id="plannedFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
+                      <linearGradient id="realFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.13}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
+                    </defs>
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </section>
+
+          <section className="min-h-[240px] overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.72)] xl:col-span-6 xl:min-h-0">
+            <PanelHeader eyebrow="Cronograma físico · hoje" title={tituloCronograma} action="Ver completo" onAction={() => navigate('cronograma')} />
+
+            <div className="mt-3 grid min-h-0 gap-2.5">
+              {tarefasDestaque.map((item, index) => {
+                const progress = Math.max(0, Math.min(100, Number(item.progresso || 0)))
+                const delayed = tarefaAtrasadaOperacional(item)
+                const completed = progress === 100
+                const runningToday = estaEmExecucaoHoje(item)
+
+                return (
+                  <button key={item.id || index} type="button" onClick={() => navigate('cronograma')} className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50">
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[9px] font-black ${completed ? 'bg-emerald-50 text-emerald-700' : delayed ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-[10px] font-bold text-slate-800">{item.nome}</span>
+                          {runningToday && <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider text-blue-700">Hoje</span>}
+                        </span>
+                        <span className={`shrink-0 text-[9px] font-black ${completed ? 'text-emerald-600' : delayed ? 'text-red-600' : 'text-slate-500'}`}>{progress}%</span>
+                      </span>
+                      <span className="mt-1 flex items-center gap-2">
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className={`block h-full rounded-full ${completed ? 'bg-emerald-500' : delayed ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${progress}%` }} /></span>
+                        <span className="w-14 shrink-0 text-right text-[8px] font-bold text-slate-400">{formatDate(item.data_termino || item.termino)}</span>
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+
+              {!tarefasDestaque.length && <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-xs font-bold text-slate-400">Nenhuma atividade cadastrada no cronograma.</p>}
+            </div>
+          </section>
+        </section>
+
+        <section className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+          {canViewModule(activeRole, 'compras') && (
+            <button
+              type="button"
+              onClick={() => navigate('compras', materiaisCriticos.length ? { focus: 'atrasados' } : {})}
+              className={`group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition ${exibirAlertaSolicitacao ? 'border-amber-300 bg-amber-50/60 hover:border-amber-400' : 'border-slate-200/80 bg-white hover:border-amber-300'}`}
+            >
+              {exibirAlertaSolicitacao && <span className="absolute right-3 top-2.5 rounded-full bg-amber-600 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-white">Solicitação ativa</span>}
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100"><Package size={18} /></span>
+              <span className={`min-w-0 flex-1 ${exibirAlertaSolicitacao ? 'pr-20' : ''}`}>
+                <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">{receivesPurchaseAlerts ? 'Solicitações de compra' : 'Materiais e compras'}</span>
+                <span className="mt-1 block text-lg font-black leading-none text-slate-950">
+                  {receivesPurchaseAlerts
+                    ? `${solicitacoesAtivas.length} ativa${solicitacoesAtivas.length === 1 ? '' : 's'}`
+                    : `${materiaisCriticos.length} crítico${materiaisCriticos.length === 1 ? '' : 's'}`}
+                </span>
+                <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">
+                  {receivesPurchaseAlerts
+                    ? (ultimaSolicitacaoAtiva?.item || ultimaSolicitacaoAtiva?.material || ultimaSolicitacaoAtiva?.nome || 'Nenhuma solicitação ativa')
+                    : (materiaisCriticos[0]?.item || materiaisCriticos[0]?.material || materiaisCriticos[0]?.nome || 'Suprimentos sem atraso crítico')}
+                </span>
               </span>
-              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">
-                {receivesPurchaseAlerts
-                  ? (ultimaSolicitacaoAtiva?.item || ultimaSolicitacaoAtiva?.material || ultimaSolicitacaoAtiva?.nome || 'Nenhuma solicitação ativa')
-                  : (materiaisCriticos[0]?.item || materiaisCriticos[0]?.material || materiaisCriticos[0]?.nome || 'Suprimentos sem atraso crítico')}
+              <ShoppingBag size={14} className="text-slate-300 transition group-hover:text-amber-600" />
+            </button>
+          )}
+
+          {canViewModule(activeRole, 'diario') && (
+            <button type="button" onClick={() => navigate('diario')} className="group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-blue-300">
+              {diariosNovos > 0 && <span className="absolute right-3 top-2.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[7px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100"><FileText size={18} /></span>
+              <span className="min-w-0 flex-1 pr-5">
+                <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Último diário de obra</span>
+                <span className="mt-1 block text-[10px] font-black text-slate-900">{ultimoDiario?.data ? formatDate(ultimoDiario.data, { day: '2-digit', month: 'long' }) : 'Sem registro'}</span>
+                <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Nenhuma informação cadastrada'}</span>
               </span>
-            </span>
-            <ShoppingBag size={14} className="text-slate-300 transition group-hover:text-amber-600" />
-          </button>
-        )}
+              <ArrowRight size={14} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+            </button>
+          )}
 
-        {canViewModule(activeRole, 'diario') && (
-          <button type="button" onClick={() => navigate('diario')} className="group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-blue-300">
-            {diariosNovos > 0 && <span className="absolute right-3 top-2.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[7px] font-black text-white">{diariosNovos} novo{diariosNovos === 1 ? '' : 's'}</span>}
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100"><FileText size={18} /></span>
-            <span className="min-w-0 flex-1 pr-5">
-              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Último diário de obra</span>
-              <span className="mt-1 block text-[10px] font-black text-slate-900">{ultimoDiario?.data ? formatDate(ultimoDiario.data, { day: '2-digit', month: 'long' }) : 'Sem registro'}</span>
-              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">{ultimoDiario?.servicos_executados || ultimoDiario?.atividades || 'Nenhuma informação cadastrada'}</span>
-            </span>
-            <ArrowRight size={14} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
-          </button>
-        )}
-
-        {canViewModule(activeRole, 'fotos') && (
-          <button type="button" onClick={() => navigate('fotos')} className="group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-violet-300">
-            {fotosNovas > 0 && <span className="absolute right-3 top-2.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[7px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
-            {ultimaFotoUrl ? <img src={ultimaFotoUrl} alt="Última foto da obra" className="h-12 w-16 shrink-0 rounded-xl object-cover ring-1 ring-slate-200" /> : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 ring-1 ring-violet-100"><Camera size={18} /></span>}
-            <span className="min-w-0 flex-1 pr-5">
-              <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Acervo fotográfico</span>
-              <span className="mt-1 block text-lg font-black leading-none text-slate-950">{fotosVisiveis.length} foto{fotosVisiveis.length === 1 ? '' : 's'}</span>
-              <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">Evolução visual documentada</span>
-            </span>
-            <ArrowRight size={14} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
-          </button>
-        )}
-      </section>
-    </div>
+          {canViewModule(activeRole, 'fotos') && (
+            <button type="button" onClick={() => navigate('fotos')} className="group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border border-slate-200/80 bg-white px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition hover:border-violet-300">
+              {fotosNovas > 0 && <span className="absolute right-3 top-2.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[7px] font-black text-white">{fotosNovas} nova{fotosNovas === 1 ? '' : 's'}</span>}
+              {ultimaFotoUrl ? <img src={ultimaFotoUrl} alt="Última foto da obra" className="h-12 w-16 shrink-0 rounded-xl object-cover ring-1 ring-slate-200" /> : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 ring-1 ring-violet-100"><Camera size={18} /></span>}
+              <span className="min-w-0 flex-1 pr-5">
+                <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-slate-400">Acervo fotográfico</span>
+                <span className="mt-1 block text-lg font-black leading-none text-slate-950">{fotosVisiveis.length} foto{fotosVisiveis.length === 1 ? '' : 's'}</span>
+                <span className="mt-1 block truncate text-[9px] font-semibold text-slate-500">Evolução visual documentada</span>
+              </span>
+              <ArrowRight size={14} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
+            </button>
+          )}
+        </section>
+      </div>
+    </>
   )
 }
