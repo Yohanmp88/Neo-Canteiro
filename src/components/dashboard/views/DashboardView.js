@@ -408,7 +408,7 @@ export function DashboardView({ obraAtual, tarefas = [], diarios = [], user, rol
         {canViewModule(activeRole, 'compras') && (
           <button
             type="button"
-            onClick={() => navigate('compras', receivesPurchaseAlerts ? {} : (materiaisCriticos.length ? { focus: 'atrasados' } : {}))}
+            onClick={() => navigate('compras', materiaisCriticos.length ? { focus: 'atrasados' } : {})}
             className={`group relative flex min-h-[94px] items-center gap-3 overflow-hidden rounded-[1.15rem] border px-3.5 py-3 text-left shadow-[0_14px_34px_-29px_rgba(15,23,42,0.68)] transition ${exibirAlertaSolicitacao ? 'border-amber-300 bg-amber-50/60 hover:border-amber-400' : 'border-slate-200/80 bg-white hover:border-amber-300'}`}
           >
             {exibirAlertaSolicitacao && <span className="absolute right-3 top-2.5 rounded-full bg-amber-600 px-2 py-1 text-[7px] font-black uppercase tracking-wider text-white">Solicitação ativa</span>}
