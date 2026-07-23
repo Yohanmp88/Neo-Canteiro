@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getModuleDefinition, normalizeModuleRecord } from '@/lib/moduleDefinitions'
-import { pedidoAtrasadoOperacional } from '@/lib/operationalData'
+import {
+  pedidoAtrasadoOperacional,
+  statusCanceladoOperacional,
+  statusRecebidoOperacional,
+} from '@/lib/operationalData'
 
 const STORAGE_PREFIX = 'neocanteiro_workspace_v1'
 const DERIVED_STATUS_FLAG = '__status_operacional_derivado'
@@ -19,6 +23,44 @@ function criarId(moduleKey) {
 
 function storageKey(moduleKey, obraId) {
   return `${STORAGE_PREFIX}:${moduleKey}:${obraId || 'global'}`
+}
+
+function normalizeMatchValue(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function isFullyReceivedMaterial(material = {}) {
+  const status = normalizeMatchValue(material.recebimento_status)
+  return status === 'recebido' || status === 'entregue' || status === 'concluido'
+}
+
+function matchesPurchaseToMaterial(purchase = {}, material = {}) {
+  if (purchase.material_id && material.id) {
+    return String(purchase.material_id) === String(material.id)
+  }
+
+  const purchaseItem = normalizeMatchValue(purchase.item || purchase.material || purchase.nome)
+  const materialItem = normalizeMatchValue(material.item || material.material || material.nome)
+  if (!purchaseItem || !materialItem || purchaseItem !== materialItem) return false
+
+  const purchaseSupplier = normalizeMatchValue(purchase.fornecedor)
+  const materialSupplier = normalizeMatchValue(material.fornecedor)
+  return !purchaseSupplier || !materialSupplier || purchaseSupplier === materialSupplier
+}
+
+function receiptFields(material = {}, purchase = {}) {
+  return {
+    status: 'Recebido',
+    recebimento_status: 'Recebido',
+    data_recebimento: material.data_recebimento || purchase.data_recebimento || new Date().toISOString().slice(0, 10),
+    quantidade_recebida: material.quantidade_recebida || material.quantidade || purchase.quantidade_recebida || purchase.quantidade || '',
+    recebido_por: material.recebido_por || purchase.recebido_por || '',
+  }
 }
 
 function stripDerivedStatus(moduleKey, record = {}) {
@@ -55,6 +97,22 @@ function decorateRecord(moduleKey, record = {}) {
     status: 'Atrasado',
     atrasado_operacional: true,
   }
+}
+
+function reconcilePurchasesWithMaterials(purchases = [], materials = []) {
+  const receivedMaterials = materials.filter(isFullyReceivedMaterial)
+  if (!receivedMaterials.length) return purchases
+
+  return purchases.map((purchase) => {
+    const material = receivedMaterials.find((candidate) => matchesPurchaseToMaterial(purchase, candidate))
+    if (!material) return purchase
+
+    const rawPurchase = stripDerivedStatus('compras', purchase)
+    return decorateRecord('compras', {
+      ...rawPurchase,
+      ...receiptFields(material, rawPurchase),
+    })
+  })
 }
 
 function readLocal(moduleKey, obraId) {
@@ -107,6 +165,73 @@ function mapDatabaseRow(moduleKey, row) {
   })
 }
 
+async function syncReceivedMaterialPurchases({ material, obraId, user, source, isDemo }) {
+  if (!isFullyReceivedMaterial(material) || !obraId) return 0
+
+  if (source === 'supabase' && !isDemo) {
+    const { data: rows, error: queryError } = await supabase
+      .from('workspace_records')
+      .select('*')
+      .eq('module_key', 'compras')
+      .eq('obra_id', String(obraId))
+      .is('archived_at', null)
+
+    if (queryError) throw queryError
+
+    const matches = (rows || []).filter((row) => {
+      const purchase = row.data || {}
+      const received = statusRecebidoOperacional(purchase.status) ||
+        statusRecebidoOperacional(purchase.recebimento_status) ||
+        Boolean(purchase.data_entrega || purchase.data_recebimento || purchase.recebido_em)
+
+      return !received &&
+        !statusCanceladoOperacional(purchase.status) &&
+        matchesPurchaseToMaterial(purchase, material)
+    })
+
+    await Promise.all(matches.map(async (row) => {
+      const purchase = row.data || {}
+      const nextData = {
+        ...purchase,
+        ...receiptFields(material, purchase),
+      }
+
+      const { error: updateError } = await supabase
+        .from('workspace_records')
+        .update({ data: nextData, updated_by: user?.id || null })
+        .eq('id', row.id)
+
+      if (updateError) throw updateError
+    }))
+
+    return matches.length
+  }
+
+  const purchases = readLocal('compras', obraId)
+  let updatedCount = 0
+  const next = purchases.map((purchase) => {
+    const rawPurchase = stripDerivedStatus('compras', purchase)
+    const received = statusRecebidoOperacional(rawPurchase.status) ||
+      statusRecebidoOperacional(rawPurchase.recebimento_status) ||
+      Boolean(rawPurchase.data_entrega || rawPurchase.data_recebimento || rawPurchase.recebido_em)
+
+    if (received || statusCanceladoOperacional(rawPurchase.status) || !matchesPurchaseToMaterial(rawPurchase, material)) {
+      return purchase
+    }
+
+    updatedCount += 1
+    return decorateRecord('compras', {
+      ...rawPurchase,
+      ...receiptFields(material, rawPurchase),
+      updated_at: new Date().toISOString(),
+      updated_by: user?.id || null,
+    })
+  })
+
+  if (updatedCount) writeLocal('compras', obraId, next)
+  return updatedCount
+}
+
 export function useWorkspaceRecords(moduleKey, obraId, user) {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +248,11 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
     setError(null)
 
     if (isDemo || !obraId) {
-      setRecords(readLocal(moduleKey, obraId))
+      let localRecords = readLocal(moduleKey, obraId)
+      if (moduleKey === 'compras') {
+        localRecords = reconcilePurchasesWithMaterials(localRecords, readLocal('materiais', obraId))
+      }
+      setRecords(localRecords)
       setSource('local')
       setLoading(false)
       return
@@ -142,11 +271,31 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
       const { data, error: queryError } = await query
       if (queryError) throw queryError
 
-      setRecords((data || []).map((row) => mapDatabaseRow(moduleKey, row)))
+      let mappedRecords = (data || []).map((row) => mapDatabaseRow(moduleKey, row))
+
+      if (moduleKey === 'compras') {
+        const { data: materialRows, error: materialsError } = await supabase
+          .from('workspace_records')
+          .select('*')
+          .eq('module_key', 'materiais')
+          .eq('obra_id', String(obraId))
+          .is('archived_at', null)
+
+        if (!materialsError) {
+          const materials = (materialRows || []).map((row) => mapDatabaseRow('materiais', row))
+          mappedRecords = reconcilePurchasesWithMaterials(mappedRecords, materials)
+        }
+      }
+
+      setRecords(mappedRecords)
       setSource('supabase')
     } catch (err) {
       console.warn(`Fallback local ativado para ${moduleKey}:`, err?.message)
-      setRecords(readLocal(moduleKey, obraId))
+      let localRecords = readLocal(moduleKey, obraId)
+      if (moduleKey === 'compras') {
+        localRecords = reconcilePurchasesWithMaterials(localRecords, readLocal('materiais', obraId))
+      }
+      setRecords(localRecords)
       setSource('local')
       setError('Banco profissional ainda não ativado. Os dados estão sendo salvos neste navegador.')
     } finally {
@@ -197,6 +346,16 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
 
         const mapped = mapDatabaseRow(moduleKey, inserted)
         setRecords((current) => [mapped, ...current])
+
+        if (moduleKey === 'materiais') {
+          try {
+            await syncReceivedMaterialPurchases({ material: mapped, obraId, user, source, isDemo })
+          } catch (syncError) {
+            console.warn('Material salvo, mas a solicitação de compra não pôde ser sincronizada:', syncError?.message)
+            setError('Material salvo, mas a solicitação de compra correspondente não pôde ser atualizada automaticamente.')
+          }
+        }
+
         return mapped
       }
 
@@ -215,6 +374,15 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
         writeLocal(moduleKey, obraId, next)
         return next
       })
+
+      if (moduleKey === 'materiais') {
+        try {
+          await syncReceivedMaterialPurchases({ material: created, obraId, user, source, isDemo })
+        } catch (syncError) {
+          console.warn('Material salvo, mas a solicitação de compra não pôde ser sincronizada:', syncError?.message)
+          setError('Material salvo, mas a solicitação de compra correspondente não pôde ser atualizada automaticamente.')
+        }
+      }
 
       return created
     } catch (err) {
@@ -246,6 +414,16 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
 
         const mapped = mapDatabaseRow(moduleKey, updated)
         setRecords((current) => current.map((record) => record.id === id ? mapped : record))
+
+        if (moduleKey === 'materiais') {
+          try {
+            await syncReceivedMaterialPurchases({ material: mapped, obraId, user, source, isDemo })
+          } catch (syncError) {
+            console.warn('Material recebido, mas a solicitação de compra não pôde ser sincronizada:', syncError?.message)
+            setError('Material recebido, mas a solicitação de compra correspondente não pôde ser atualizada automaticamente.')
+          }
+        }
+
         return mapped
       }
 
@@ -260,6 +438,15 @@ export function useWorkspaceRecords(moduleKey, obraId, user) {
         writeLocal(moduleKey, obraId, next)
         return next
       })
+
+      if (moduleKey === 'materiais' && changed) {
+        try {
+          await syncReceivedMaterialPurchases({ material: changed, obraId, user, source, isDemo })
+        } catch (syncError) {
+          console.warn('Material recebido, mas a solicitação de compra não pôde ser sincronizada:', syncError?.message)
+          setError('Material recebido, mas a solicitação de compra correspondente não pôde ser atualizada automaticamente.')
+        }
+      }
 
       return changed
     } catch (err) {
