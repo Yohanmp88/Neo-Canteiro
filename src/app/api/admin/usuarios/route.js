@@ -183,9 +183,11 @@ export async function PUT(request) {
   const body = await request.json().catch(() => ({}))
   const userId = String(body.id || '').trim()
   const role = normalizeRole(body.role)
+  const password = typeof body.password === 'string' ? body.password : ''
 
   if (!userId) return jsonError('Usuário não identificado.')
   if (!ALLOWED_ROLES.has(role)) return jsonError('Perfil de acesso inválido.')
+  if (password && password.length < 6) return jsonError('A nova senha deve ter pelo menos 6 caracteres.')
 
   const customPermissions = normalizeCustomPermissions(body.custom_permissions, role)
 
@@ -213,6 +215,7 @@ export async function PUT(request) {
 
     if (authResult.error && !profile) throw authResult.error
     if (!authUser && !profile) return jsonError('Usuário não encontrado.', 404)
+    if (password && !authUser) return jsonError('Este perfil não possui um login no Supabase Auth para alteração de senha.', 400)
 
     const metadata = authUser?.user_metadata || {}
     const now = new Date().toISOString()
@@ -234,19 +237,23 @@ export async function PUT(request) {
     if (saveProfileError) throw saveProfileError
 
     if (authUser) {
-      const { error: metadataError } = await auth.admin.auth.admin.updateUserById(userId, {
+      const authUpdate = {
         user_metadata: {
           ...metadata,
           role,
           tipo_usuario: role,
           custom_permissions: customPermissions,
         },
-      })
+      }
 
-      if (metadataError) throw metadataError
+      if (password) authUpdate.password = password
+
+      const { error: authUpdateError } = await auth.admin.auth.admin.updateUserById(userId, authUpdate)
+      if (authUpdateError) throw authUpdateError
     }
 
     return NextResponse.json({
+      password_updated: Boolean(password),
       usuario: {
         id: userId,
         nome,
@@ -261,6 +268,6 @@ export async function PUT(request) {
       },
     })
   } catch (error) {
-    return jsonError(error?.message || 'Não foi possível atualizar as permissões do usuário.', 400)
+    return jsonError(error?.message || 'Não foi possível atualizar o usuário.', 400)
   }
 }
