@@ -7,6 +7,8 @@ import {
   Clock3,
   Edit3,
   Eye,
+  EyeOff,
+  KeyRound,
   Loader2,
   Pencil,
   RefreshCw,
@@ -87,6 +89,11 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
   const [customEnabled, setCustomEnabled] = useState(existingCustom)
   const [viewModules, setViewModules] = useState(initialPermissions.view)
   const [editModules, setEditModules] = useState(initialPermissions.edit)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [validationError, setValidationError] = useState('')
 
   if (!user) return null
 
@@ -105,6 +112,17 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
       const defaults = getDefaultPermissions(role)
       setViewModules(defaults.view)
       setEditModules(defaults.edit)
+    }
+  }
+
+  const togglePassword = () => {
+    const next = !passwordOpen
+    setPasswordOpen(next)
+    setValidationError('')
+    if (!next) {
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPassword(false)
     }
   }
 
@@ -129,17 +147,37 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
 
   const submit = (event) => {
     event.preventDefault()
-    onSave(role, customEnabled
-      ? { enabled: true, view: viewModules, edit: editModules }
-      : { enabled: false, view: [], edit: [] })
+    setValidationError('')
+
+    if (passwordOpen) {
+      if (newPassword.length < 6) {
+        setValidationError('A nova senha deve ter pelo menos 6 caracteres.')
+        return
+      }
+
+      if (newPassword !== confirmPassword) {
+        setValidationError('A confirmação da senha não corresponde à nova senha.')
+        return
+      }
+    }
+
+    onSave(
+      role,
+      customEnabled
+        ? { enabled: true, view: viewModules, edit: editModules }
+        : { enabled: false, view: [], edit: [] },
+      passwordOpen ? newPassword : '',
+    )
   }
+
+  const displayedError = validationError || error
 
   return (
     <div className="fixed inset-0 z-[95] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm md:items-center md:p-6">
       <form onSubmit={submit} className="max-h-[95vh] w-full overflow-hidden rounded-t-[2rem] bg-white shadow-2xl md:max-w-4xl md:rounded-[2rem]">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 md:px-7">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Editar permissões</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Editar usuário</p>
             <h2 className="mt-1 text-lg font-black text-slate-900">{user.nome}</h2>
             <p className="mt-1 text-xs font-medium text-slate-500">{user.email}</p>
           </div>
@@ -242,9 +280,64 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
             </div>
           </div>
 
-          {error && (
+          <section className={`mt-4 overflow-hidden rounded-2xl border transition ${passwordOpen ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200 bg-white'}`}>
+            <button type="button" onClick={togglePassword} disabled={saving} className="flex w-full items-center justify-between gap-4 p-4 text-left hover:bg-amber-50/60 disabled:opacity-60">
+              <span className="flex min-w-0 items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-200"><KeyRound size={18} /></span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-black text-slate-900">Alterar senha</span>
+                  <span className="mt-1 block text-[11px] font-medium leading-5 text-slate-500">Defina uma nova senha para este login sem excluir o usuário.</span>
+                </span>
+              </span>
+              <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${passwordOpen ? 'bg-amber-600' : 'bg-slate-200'}`}>
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition ${passwordOpen ? 'left-6' : 'left-1'}`} />
+              </span>
+            </button>
+
+            {passwordOpen && (
+              <div className="border-t border-amber-200 px-4 pb-4 pt-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label>
+                    <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Nova senha</span>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(event) => { setNewPassword(event.target.value); setValidationError('') }}
+                        disabled={saving}
+                        autoComplete="new-password"
+                        minLength={6}
+                        className={`${inputClass} pr-11`}
+                        placeholder="Mínimo de 6 caracteres"
+                      />
+                      <button type="button" onClick={() => setShowPassword((current) => !current)} disabled={saving} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </label>
+
+                  <label>
+                    <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Confirmar senha</span>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(event) => { setConfirmPassword(event.target.value); setValidationError('') }}
+                      disabled={saving}
+                      autoComplete="new-password"
+                      minLength={6}
+                      className={inputClass}
+                      placeholder="Digite novamente"
+                    />
+                  </label>
+                </div>
+                <p className="mt-3 text-[10px] font-medium leading-5 text-amber-800">A senha será alterada no Supabase Auth. O perfil, as obras e as permissões deste usuário serão preservados.</p>
+              </div>
+            )}
+          </section>
+
+          {displayedError && (
             <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
-              <AlertTriangle size={17} className="mt-0.5 shrink-0" /> {error}
+              <AlertTriangle size={17} className="mt-0.5 shrink-0" /> {displayedError}
             </div>
           )}
         </div>
@@ -253,7 +346,7 @@ function PermissionsModal({ user, saving, error, onClose, onSave }) {
           <button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50">Cancelar</button>
           <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-            {saving ? 'Salvando...' : 'Salvar permissões'}
+            {saving ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </div>
       </form>
@@ -306,7 +399,7 @@ export function UsersPermissionsWorkspace() {
     setEditingUser(user)
   }
 
-  const savePermissions = async (role, customPermissions) => {
+  const savePermissions = async (role, customPermissions, password) => {
     if (!editingUser) return
 
     setSaving(true)
@@ -320,14 +413,17 @@ export function UsersPermissionsWorkspace() {
           id: editingUser.id,
           role,
           custom_permissions: customPermissions,
+          ...(password ? { password } : {}),
         }),
       })
       const updated = payload.usuario
       setUsers((current) => current.map((user) => String(user.id) === String(updated.id) ? { ...user, ...updated } : user))
       setEditingUser(null)
-      setSuccess(`Permissões de ${updated.nome} atualizadas para ${getRoleLabel(updated.role)}${updated.custom_permissions?.enabled ? ' com acesso personalizado' : ''}.`)
+      setSuccess(payload.password_updated
+        ? `Senha de ${updated.nome} alterada com sucesso. O perfil e as permissões foram preservados.`
+        : `Permissões de ${updated.nome} atualizadas para ${getRoleLabel(updated.role)}${updated.custom_permissions?.enabled ? ' com acesso personalizado' : ''}.`)
     } catch (saveError) {
-      setActionError(saveError?.message || 'Não foi possível atualizar as permissões.')
+      setActionError(saveError?.message || 'Não foi possível atualizar o usuário.')
     } finally {
       setSaving(false)
     }
@@ -352,7 +448,7 @@ export function UsersPermissionsWorkspace() {
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-black uppercase text-emerald-700 ring-1 ring-emerald-200">Supabase Auth</span>
             </div>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 md:text-3xl">Usuários e Permissões</h1>
-            <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">Defina o perfil principal e personalize os módulos liberados para cada login.</p>
+            <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">Defina o perfil principal, personalize os módulos e altere a senha de cada login.</p>
           </div>
 
           <button onClick={load} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60">
@@ -448,7 +544,7 @@ export function UsersPermissionsWorkspace() {
                     <Info label="Último acesso" value={formatDateTime(user.last_sign_in_at)} />
                   </div>
                   <button type="button" onClick={() => openPermissions(user)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700">
-                    <Edit3 size={15} /> Editar permissões
+                    <Edit3 size={15} /> Editar usuário
                   </button>
                 </article>
               ))}
